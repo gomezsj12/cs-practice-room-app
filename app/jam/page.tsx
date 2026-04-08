@@ -17,7 +17,7 @@ export default function JamPage() {
           </p>
         </section>
 
-        <section>
+        <section id="jam-calendar">
           <CalendarView />
         </section>
       </div>

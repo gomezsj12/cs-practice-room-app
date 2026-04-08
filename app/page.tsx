@@ -1,5 +1,4 @@
 import Link from "next/link";
-import AuthButton from "@/components/AuthButton";
 import { siteConfig } from "@/lib/siteConfig";
 
 export default function Home() {
@@ -7,29 +6,21 @@ export default function Home() {
     <main className="px-4 py-8 text-white">
       <div className="mx-auto flex max-w-7xl flex-col gap-6">
         <section className="rounded-3xl border border-white/10 bg-white/5 p-6 shadow-2xl shadow-black/20">
-          <div className="flex flex-col gap-6 lg:flex-row lg:items-end lg:justify-between">
-            <div className="max-w-3xl space-y-4">
-              <p className="text-sm font-medium uppercase tracking-[0.22em] text-blue-300">
-                CS Practice Room
+          <div className="max-w-3xl space-y-4">
+            <p className="text-sm font-medium uppercase tracking-[0.22em] text-blue-300">
+              CS Practice Room
+            </p>
+            <div className="space-y-3">
+              <h1 className="text-4xl font-semibold tracking-tight sm:text-5xl">
+                One home for room booking, jam reservations, and student support.
+              </h1>
+              <p className="max-w-2xl text-base leading-7 text-neutral-300 sm:text-lg">
+                This new app keeps the existing jam reservation workflow, adds a
+                dedicated booking page for the Fillout form, and gives students a
+                simpler front door for practice-room resources. Sign in from the
+                header when you want one Google identity across jam scheduling and
+                future tools.
               </p>
-              <div className="space-y-3">
-                <h1 className="text-4xl font-semibold tracking-tight sm:text-5xl">
-                  One home for room booking, jam reservations, and student support.
-                </h1>
-                <p className="max-w-2xl text-base leading-7 text-neutral-300 sm:text-lg">
-                  This new app keeps the existing jam reservation workflow, adds a
-                  dedicated booking page for the Fillout form, and gives students a
-                  simpler front door for practice-room resources.
-                </p>
-              </div>
-            </div>
-
-            <div className="rounded-2xl border border-white/10 bg-black/30 p-4">
-              <p className="mb-3 text-sm text-neutral-300">
-                Sign in with Google here so the app can reuse your identity on the
-                reservation tools.
-              </p>
-              <AuthButton />
             </div>
           </div>
         </section>

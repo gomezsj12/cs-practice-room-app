@@ -224,7 +224,6 @@ export function useBookingFlow(
     instrument: string;
   }) {
     if (status !== "authenticated") {
-      showToast("Sign in with Google to reserve the room.", "info");
       return;
     }
 

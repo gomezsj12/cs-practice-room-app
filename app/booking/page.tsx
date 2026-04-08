@@ -20,7 +20,10 @@ export default function BookingPage() {
         </section>
 
         {hasEmbedUrl ? (
-          <section className="overflow-hidden rounded-3xl border border-white/10 bg-black/20">
+          <section
+            id="booking-form"
+            className="overflow-hidden rounded-3xl border border-white/10 bg-black/20"
+          >
             <div className="flex items-center justify-between border-b border-white/10 px-4 py-3 text-sm text-neutral-300">
               <p>If the form does not load well here, you can open it in a new tab.</p>
               <a

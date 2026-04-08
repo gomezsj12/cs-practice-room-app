@@ -368,7 +368,6 @@ export function useDragSelect(
       }
 
       if (statusRef.current !== "authenticated") {
-        showToast("Sign in with Google to reserve the room.", "info");
         return;
       }
 
