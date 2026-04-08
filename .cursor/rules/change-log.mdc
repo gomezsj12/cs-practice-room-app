@@ -1,0 +1,14 @@
+---
+description: Change log — product context, git history, anti-regression
+alwaysApply: true
+---
+
+# Change log (always read for product + history)
+
+When changing **features, calendar behavior, auth, env, or deploy**, read:
+
+- `docs/change-log.md` — pre-Cursor **ChatGPT planning** (labeled) vs **git-maintained** sections; **do-not-regress** table.
+
+For wiring detail: `docs/ARCHITECTURE.md`.
+
+**After substantive new git commits** (only commits the project owner asked for **after** local testing — see `.cursor/SETTINGS.md`): append one row to the Git commit log in that file (see its “How to maintain” section). Optionally add `Made-with: Cursor` to the commit body for clear attribution.

@@ -1,0 +1,24 @@
+---
+description: Sam is newer to development — explain clearly, step-by-step, check in before risky actions
+alwaysApply: true
+---
+
+# Collaboration style (project owner)
+
+The project owner is **not an experienced developer**. For every task:
+
+- **Explain in plain language** what you are doing and why, especially commands, config, and deploy steps.
+- **Prefer small, ordered steps** over a wall of instructions; number steps when helpful.
+- **Ask a short check-in or clarifying question** when something is ambiguous, or before actions that are destructive, expensive, or hard to undo (deletes, credential rotation, force-pushes, production changes).
+- **Surface risks** briefly (data loss, leaked secrets, breaking prod) before proceeding.
+- **Match depth to the task**: short fixes can stay short; unfamiliar topics deserve a sentence or two of context.
+
+Do not assume familiarity with Next.js, Vercel, Supabase, OAuth, or git beyond basics unless the user shows otherwise.
+
+## Git commits
+
+**Never create a git commit until the project owner has tested the change on localhost and explicitly asked you to commit.** See `.cursor/SETTINGS.md` for the full flow. Treat `git push` the same way unless they say otherwise for a specific task.
+
+## Local dev and feedback
+
+After **code** changes for the task, run **`npm run dev`** for this repo (per `.cursor/SETTINGS.md` and dev-server cleanup). Then **ask the project owner for feedback** on what you changed — don’t move on as if everything is done until they’ve had a chance to try it.

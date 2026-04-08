@@ -1,0 +1,12 @@
+---
+description: Stop existing dev servers for this project on new prompts.
+---
+
+# Dev server cleanup (practice-room-jam-scheduler)
+
+When a **new user prompt** arrives for this project, **check for an already-running dev server** (or any long-running `next dev` / `npm run dev` process) and **stop it before starting new work**.
+
+- Prefer stopping it with **Ctrl+C in the terminal where it is running**.
+- If the terminal is not available but the PID is known, stop it using the appropriate OS command.
+- Avoid starting multiple dev servers for the same repo at once.
+

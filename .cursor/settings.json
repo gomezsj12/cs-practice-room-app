@@ -1,0 +1,18 @@
+{
+  // Agent context — full policy: .cursor/SETTINGS.md
+  //
+  // After code changes: run npm run dev (see SETTINGS.md + dev-server-cleanup rule); prompt owner for feedback.
+  // Git: Do NOT commit (or push) until the project owner has tested on localhost and asked you to.
+  //
+  // - Code map: docs/ARCHITECTURE.md
+  // - Planning + git change log + regressions: docs/change-log.md
+  //
+  // When you finish work that is recorded as a SUBSTANTIVE git commit (after owner-approved commit),
+  // append one row to docs/change-log.md → "Git commit log" (skip typo-only / format-only churn unless asked).
+  // Use commit hash + summary; tag Attribution: Cursor agent if commit body includes "Made-with: Cursor", else Human.
+  "plugins": {
+    "vercel": {
+      "enabled": true
+    }
+  }
+}
