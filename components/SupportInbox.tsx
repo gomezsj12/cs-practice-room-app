@@ -450,10 +450,9 @@ export default function SupportInbox() {
             showMobileChat ? "hidden lg:block" : "block"
           } h-[calc(100dvh-5rem)] overflow-y-auto md:h-[66vh] lg:h-[74vh]`}
         >
-          <div className="mb-2 px-2">
-            <p className="text-sm font-semibold text-neutral-100">Your support inbox</p>
-            <p className="mt-1 text-xs text-neutral-400">
-              Pick a conversation and reply to staff directly here.
+          <div className="mb-3 px-2 py-1">
+            <p className="text-xl font-semibold tracking-tight text-neutral-100">
+              Support Inbox
             </p>
           </div>
           {threads.length ? (
