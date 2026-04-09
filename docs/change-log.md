@@ -112,7 +112,7 @@ This file is the **single source of truth** for the full project history — fro
 | `339c36e` | 2026-04-09 11:47 | **Fix support page stuck on loading during client-side navigation.** Resolved a bug where navigating to `/support` via client-side routing showed an infinite loading state. | Cursor agent |
 | `e7a899a` | 2026-04-09 20:20 | **Comprehensive code review: docs, comments, audit fixes, and review process.** Consolidated change-log, expanded ARCHITECTURE.md, created error-log/ui-lookbook/code-audit/CODE_REVIEW.md, implemented 8 low-risk audit fixes (dedup constants/types/helpers, removed dead exports, parallelized API calls), added JSDoc to all ~57 source files, added desktop+mobile screenshots, created documentation protocol and review checklists. | Cursor agent |
 | `9d83121` | 2026-04-09 20:30 | **Update change-log.md with code review commit.** Added missing entry for `e7a899a`. | Cursor agent |
-| `900cf97` | 2026-04-09 20:35 | **Strengthen change-log update requirement in agent rules.** Made change-log update a hard mandatory requirement in documentation-protocol, change-log.mdc, and SETTINGS.md so future agents cannot skip it. | Cursor agent |
+| `41db08f` | 2026-04-09 20:35 | **Strengthen change-log update requirement in agent rules.** Made change-log update a hard mandatory requirement in documentation-protocol, change-log.mdc, and SETTINGS.md so future agents cannot skip it. | Cursor agent |
 
 ---
 
