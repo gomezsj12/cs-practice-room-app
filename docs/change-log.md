@@ -12,6 +12,8 @@ This file is the **single source of truth** for the full project history — fro
 
 **What to write:** Short **subject** (or first line of commit message), **`abc1234` hash**, **one optional sentence** if the subject is vague, and **Attribution** = `Cursor agent`, `Human`, or `ChatGPT-era` (use `ChatGPT-era` for commits from before Cursor was used, if you know; otherwise `Human`).
 
+**Commit hash workflow:** You don't know the hash before committing. Use `—` as a placeholder, commit, then read the hash from git's output and replace the placeholder. Amend once with `git commit --amend --no-edit`. Do **not** amend a second time — the hash changes on every amend, creating an infinite loop. One amend is the maximum.
+
 **Do not** log uncommitted experiments here — only **committed** history.
 
 **Regressions:** If the commit fixes a recurring pitfall, also add or update a row under [Issues encountered and fixes](#issues-encountered-and-fixes-do-not-regress). Additionally, add an entry to `docs/error-log.md` with the full error details.
@@ -113,6 +115,7 @@ This file is the **single source of truth** for the full project history — fro
 | `e7a899a` | 2026-04-09 20:20 | **Comprehensive code review: docs, comments, audit fixes, and review process.** Consolidated change-log, expanded ARCHITECTURE.md, created error-log/ui-lookbook/code-audit/CODE_REVIEW.md, implemented 8 low-risk audit fixes (dedup constants/types/helpers, removed dead exports, parallelized API calls), added JSDoc to all ~57 source files, added desktop+mobile screenshots, created documentation protocol and review checklists. | Cursor agent |
 | `9d83121` | 2026-04-09 20:30 | **Update change-log.md with code review commit.** Added missing entry for `e7a899a`. | Cursor agent |
 | `41db08f` | 2026-04-09 20:35 | **Strengthen change-log update requirement in agent rules.** Made change-log update a hard mandatory requirement in documentation-protocol, change-log.mdc, and SETTINGS.md so future agents cannot skip it. | Cursor agent |
+| `1f16e0c` | 2026-04-09 20:45 | **Add commit-hash workflow to prevent amend loops.** Added step-by-step instructions in change-log.mdc, documentation-protocol.mdc, and change-log.md for using a placeholder hash, committing, then amending exactly once. | Cursor agent |
 
 ---
 

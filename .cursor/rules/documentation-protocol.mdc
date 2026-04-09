@@ -24,6 +24,8 @@ See the "How to maintain" section at the top of `docs/change-log.md` for the exa
 
 **Pre-commit checklist item:** Before running `git commit`, ask yourself: "Did I add a row to `docs/change-log.md`?" If not, add it now.
 
+**Handling the commit hash:** Use a `—` placeholder for the hash column, commit, then read the real hash from the output and amend once (`git commit --amend --no-edit`). Do NOT amend a second time to fix the hash — one amend is the maximum; the slight hash drift is acceptable.
+
 ## After every error fix
 
 Add a new entry to `docs/error-log.md` using the template at the top of that file. Include:

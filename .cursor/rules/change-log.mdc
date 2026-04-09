@@ -9,7 +9,18 @@ alwaysApply: true
 
 Before running `git commit`, add a row to the **Part 2** commit log table in `docs/change-log.md` and include that file in the commit. This is a hard requirement — do not commit without it. If you already committed and forgot, immediately make a follow-up commit to add the entry.
 
-See the "How to maintain" section at the top of that file for the exact row format (hash, date, bold summary, attribution).
+See the "How to maintain" section at the top of that file for the exact row format.
+
+## How to handle the commit hash
+
+You cannot know the commit hash before committing. Use this workflow:
+
+1. Add the change-log row **before** committing with a `—` placeholder for the hash column.
+2. Stage `docs/change-log.md` along with your other files and commit.
+3. After the commit succeeds, read the hash from the git output (e.g., `[main abc1234]`).
+4. Replace the `—` placeholder with the real hash.
+5. Stage and `git commit --amend --no-edit` to fold the hash into the same commit.
+6. **STOP.** Do NOT amend again. The hash will change on amend but that is fine — the entry is close enough and amending a second time creates an infinite loop. One amend to fill in the hash is the maximum.
 
 ## Background
 
