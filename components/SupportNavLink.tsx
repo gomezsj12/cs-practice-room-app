@@ -14,7 +14,6 @@ export default function SupportNavLink({ isActive }: SupportNavLinkProps) {
 
   useEffect(() => {
     if (status !== "authenticated") {
-      setUnread(false);
       return;
     }
 
@@ -43,6 +42,8 @@ export default function SupportNavLink({ isActive }: SupportNavLinkProps) {
     };
   }, [status]);
 
+  const showUnreadDot = status === "authenticated" && unread;
+
   return (
     <Link
       href="/support"
@@ -53,7 +54,7 @@ export default function SupportNavLink({ isActive }: SupportNavLinkProps) {
       }`}
     >
       Support
-      {unread ? (
+      {showUnreadDot ? (
         <span className="ml-2 inline-flex h-2.5 w-2.5 rounded-full bg-amber-400 align-middle" />
       ) : null}
     </Link>

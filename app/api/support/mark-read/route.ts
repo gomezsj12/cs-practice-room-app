@@ -1,8 +1,8 @@
-import { NextResponse } from "next/server";
+import { NextRequest, NextResponse } from "next/server";
 import { auth } from "@/auth";
 import { getSupabaseAdmin } from "@/lib/supabase";
 
-export async function POST() {
+export async function POST(request: NextRequest) {
   try {
     const session = await auth();
     const userEmail = session?.user?.email?.toLowerCase();
@@ -15,13 +15,19 @@ export async function POST() {
     }
 
     const supabase = getSupabaseAdmin();
-    const { error } = await supabase
-      .from("support_threads")
-      .update({
-        unread_for_user: false,
-        updated_at: new Date().toISOString(),
-      })
-      .eq("user_email", userEmail);
+    const body = (await request.json().catch(() => ({}))) as {
+      threadId?: string;
+    };
+    const threadId = body.threadId?.trim() || "";
+
+    const updateQuery = supabase.from("support_threads").update({
+      unread_for_user: false,
+      updated_at: new Date().toISOString(),
+    });
+
+    const { error } = threadId
+      ? await updateQuery.eq("user_email", userEmail).eq("id", threadId)
+      : await updateQuery.eq("user_email", userEmail);
 
     if (error) {
       throw error;

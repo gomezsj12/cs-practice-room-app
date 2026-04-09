@@ -1,8 +1,8 @@
-import { NextResponse } from "next/server";
+import { NextRequest, NextResponse } from "next/server";
 import { auth } from "@/auth";
 import { getSupabaseAdmin } from "@/lib/supabase";
 
-export async function GET() {
+export async function GET(request: NextRequest) {
   try {
     const session = await auth();
     const userEmail = session?.user?.email?.toLowerCase();
@@ -14,14 +14,22 @@ export async function GET() {
       );
     }
 
+    const url = new URL(request.url);
+    const requestedThreadId = url.searchParams.get("threadId")?.trim() || "";
+
     const supabase = getSupabaseAdmin();
-    const { data: thread, error: threadError } = await supabase
+    const baseThreadQuery = supabase
       .from("support_threads")
-      .select("id, user_email, user_name, status, unread_for_user, created_at, updated_at")
-      .eq("user_email", userEmail)
-      .order("updated_at", { ascending: false })
-      .limit(1)
-      .maybeSingle();
+      .select(
+        "id, user_email, user_name, status, unread_for_user, telegram_chat_id, telegram_root_message_id, created_at, updated_at",
+      )
+      .eq("user_email", userEmail);
+
+    const threadQuery = requestedThreadId
+      ? baseThreadQuery.eq("id", requestedThreadId).limit(1)
+      : baseThreadQuery.order("updated_at", { ascending: false }).limit(1);
+
+    const { data: thread, error: threadError } = await threadQuery.maybeSingle();
 
     if (threadError) {
       throw threadError;

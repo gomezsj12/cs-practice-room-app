@@ -16,15 +16,14 @@ export async function GET() {
       .from("support_threads")
       .select("unread_for_user")
       .eq("user_email", userEmail)
-      .order("updated_at", { ascending: false })
-      .limit(1)
-      .maybeSingle();
+      .eq("unread_for_user", true)
+      .limit(1);
 
     if (error) {
       throw error;
     }
 
-    return NextResponse.json({ unread: Boolean(data?.unread_for_user) });
+    return NextResponse.json({ unread: Boolean(data?.length) });
   } catch (error) {
     console.error("Support unread check failed:", error);
     return NextResponse.json({ unread: false });

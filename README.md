@@ -70,6 +70,12 @@ Admin reply formats in Telegram:
 - `/reply SR-<thread-id> your reply text`
 - Preferred: use Telegram’s normal **Reply** action on a bot support request message and type your response text.
 
+Support inbox UI now includes:
+- Conversation list (latest message + unread)
+- Selected conversation view
+- In-thread user follow-up composer
+- User delete conversation action
+
 ## Important Context
 
 - Jam scheduler architecture and integration notes are retained in `docs/ARCHITECTURE.md`
