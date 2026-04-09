@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import { useSession } from "next-auth/react";
 import Toast from "@/components/Toast";
 import type { SupportMessageRow, SupportThreadRow } from "@/lib/types";
@@ -46,6 +46,16 @@ function formatConversationName(isoString: string) {
   })}`;
 }
 
+function formatThreadStatus(status: string) {
+  return status.toLowerCase() === "open" ? "Open" : "Closed";
+}
+
+function threadStatusClass(status: string) {
+  return status.toLowerCase() === "open"
+    ? "bg-emerald-500/20 text-emerald-200"
+    : "bg-red-500/20 text-red-200";
+}
+
 export default function SupportInbox() {
   const { status } = useSession();
   const [threads, setThreads] = useState<ThreadSummary[]>([]);
@@ -61,6 +71,9 @@ export default function SupportInbox() {
   const [deleteError, setDeleteError] = useState("");
   const [toastOpen, setToastOpen] = useState(false);
   const [lastLengthToastAtMax, setLastLengthToastAtMax] = useState(false);
+  const [mobileView, setMobileView] = useState<"list" | "chat">("list");
+  const [pendingScrollThreadId, setPendingScrollThreadId] = useState("");
+  const [isConversationLoading, setIsConversationLoading] = useState(false);
   const [menu, setMenu] = useState<{
     threadId: string;
     x: number;
@@ -68,6 +81,8 @@ export default function SupportInbox() {
   } | null>(null);
   const longPressTimerRef = useRef<number | null>(null);
   const composerRef = useRef<HTMLTextAreaElement | null>(null);
+  const messageListRef = useRef<HTMLDivElement | null>(null);
+  const hasLoadedInitialThreadRef = useRef(false);
 
   const loadThreads = useCallback(async () => {
     const response = await fetch("/api/support/threads", {
@@ -87,58 +102,78 @@ export default function SupportInbox() {
 
     if (!selectedThreadId && list[0]?.id) {
       setSelectedThreadId(list[0].id);
+      setPendingScrollThreadId(list[0].id);
     }
 
     if (
       selectedThreadId &&
       !list.some((supportThread) => supportThread.id === selectedThreadId)
     ) {
-      setSelectedThreadId(list[0]?.id || "");
+      const fallbackThreadId = list[0]?.id || "";
+      setSelectedThreadId(fallbackThreadId);
+      setPendingScrollThreadId(fallbackThreadId);
     }
   }, [selectedThreadId]);
 
   const loadThread = useCallback(
-    async (options?: { silent?: boolean }) => {
+    async (options?: { silent?: boolean; showConversationLoader?: boolean }) => {
       const silent = options?.silent ?? false;
-    if (!selectedThreadId) {
-      setThread(null);
-      setMessages([]);
-      if (!silent) {
-        setIsLoading(false);
-      }
-      return;
-    }
-
-    setError("");
-    if (!silent) {
-      setIsLoading(true);
-    }
-
-    try {
-      const response = await fetch(`/api/support/thread?threadId=${selectedThreadId}`, {
-        cache: "no-store",
-      });
-      const payload = (await response.json()) as SupportThreadPayload;
-
-      if (!response.ok) {
-        setError(payload.error || "Could not load your support thread.");
-        if (!silent) {
+      const showConversationLoader = options?.showConversationLoader ?? false;
+      if (!selectedThreadId) {
+        setThread(null);
+        setMessages([]);
+        if (showConversationLoader) {
+          setIsConversationLoading(false);
+        }
+        if (!silent && !hasLoadedInitialThreadRef.current) {
           setIsLoading(false);
+          hasLoadedInitialThreadRef.current = true;
         }
         return;
       }
 
-      setThread(payload.thread);
-      setMessages(payload.messages || []);
-      if (!silent) {
-        setIsLoading(false);
+      setError("");
+      if (showConversationLoader) {
+        setIsConversationLoading(true);
       }
-    } catch {
-      setError("Could not load your support thread.");
-      if (!silent) {
-        setIsLoading(false);
+      if (!silent && !hasLoadedInitialThreadRef.current) {
+        setIsLoading(true);
       }
-    }
+
+      try {
+        const response = await fetch(`/api/support/thread?threadId=${selectedThreadId}`, {
+          cache: "no-store",
+        });
+        const payload = (await response.json()) as SupportThreadPayload;
+
+        if (!response.ok) {
+          setError(payload.error || "Could not load your support thread.");
+          if (!silent && !hasLoadedInitialThreadRef.current) {
+            setIsLoading(false);
+            hasLoadedInitialThreadRef.current = true;
+          }
+          return;
+        }
+
+        setThread(payload.thread);
+        setMessages(payload.messages || []);
+        if (showConversationLoader) {
+          setIsConversationLoading(false);
+        }
+        if (!silent && !hasLoadedInitialThreadRef.current) {
+          setIsLoading(false);
+          hasLoadedInitialThreadRef.current = true;
+        }
+      } catch {
+        setError("Could not load your support thread.");
+        if (showConversationLoader) {
+          setIsConversationLoading(false);
+        }
+        if (!silent && !hasLoadedInitialThreadRef.current) {
+          setIsLoading(false);
+          hasLoadedInitialThreadRef.current = true;
+        }
+      }
     },
     [selectedThreadId],
   );
@@ -150,7 +185,6 @@ export default function SupportInbox() {
     }
 
     void loadThreads();
-    void loadThread();
     const interval = window.setInterval(() => {
       void loadThreads();
       void loadThread({ silent: true });
@@ -160,6 +194,18 @@ export default function SupportInbox() {
       window.clearInterval(interval);
     };
   }, [loadThread, loadThreads, status]);
+
+  useEffect(() => {
+    if (status !== "authenticated") {
+      return;
+    }
+    if (!selectedThreadId) {
+      return;
+    }
+    setThread(null);
+    setMessages([]);
+    void loadThread({ silent: true, showConversationLoader: true });
+  }, [loadThread, selectedThreadId, status]);
 
   useEffect(() => {
     if (status !== "authenticated" || !thread?.id || !thread?.unread_for_user) {
@@ -176,6 +222,9 @@ export default function SupportInbox() {
   }, [status, thread?.id, thread?.unread_for_user]);
 
   const hasThread = Boolean(thread?.id);
+  const selectedThreadSummary = useMemo(() => {
+    return threads.find((supportThread) => supportThread.id === selectedThreadId) ?? null;
+  }, [threads, selectedThreadId]);
   const sortedMessages = useMemo(() => {
     return [...messages].sort((a, b) => {
       return (
@@ -321,6 +370,27 @@ export default function SupportInbox() {
     el.scrollTop = el.scrollHeight;
   }, [replyDraft]);
 
+  useLayoutEffect(() => {
+    if (
+      !selectedThreadId ||
+      pendingScrollThreadId !== selectedThreadId ||
+      thread?.id !== selectedThreadId
+    ) {
+      return;
+    }
+    const el = messageListRef.current;
+    if (!el) {
+      return;
+    }
+    window.requestAnimationFrame(() => {
+      el.scrollTop = el.scrollHeight;
+      window.setTimeout(() => {
+        el.scrollTop = el.scrollHeight;
+        setPendingScrollThreadId("");
+      }, 0);
+    });
+  }, [pendingScrollThreadId, selectedThreadId, thread?.id, messages]);
+
   if (status === "loading" || isLoading) {
     return (
       <p className="rounded-2xl border border-white/10 bg-white/5 px-4 py-3 text-sm text-neutral-300">
@@ -345,7 +415,7 @@ export default function SupportInbox() {
     );
   }
 
-  if (!hasThread) {
+  if (!selectedThreadId && threads.length === 0) {
     return (
       <p className="rounded-2xl border border-white/10 bg-white/5 px-4 py-3 text-sm text-neutral-300">
         No support thread yet. Submit your first request on the homepage.
@@ -353,10 +423,17 @@ export default function SupportInbox() {
     );
   }
 
+  const showMobileList = mobileView === "list";
+  const showMobileChat = mobileView === "chat";
+
   return (
     <section className="space-y-3">
       <div className="grid gap-3 lg:grid-cols-[300px_minmax(0,1fr)]">
-        <aside className="relative space-y-2 rounded-3xl border border-white/10 bg-black/20 p-3">
+        <aside
+          className={`relative rounded-3xl border border-white/10 bg-black/20 p-3 ${
+            showMobileChat ? "hidden lg:block" : "block"
+          } h-[calc(100dvh-5rem)] overflow-y-auto md:h-[66vh] lg:h-[74vh]`}
+        >
           <div className="mb-2 px-2">
             <p className="text-sm font-semibold text-neutral-100">Your support inbox</p>
             <p className="mt-1 text-xs text-neutral-400">
@@ -372,7 +449,9 @@ export default function SupportInbox() {
                   type="button"
                   onClick={() => {
                     setSelectedThreadId(supportThread.id);
+                    setPendingScrollThreadId(supportThread.id);
                     setMenu(null);
+                    setMobileView("chat");
                   }}
                   onContextMenu={(event) => {
                     event.preventDefault();
@@ -416,13 +495,11 @@ export default function SupportInbox() {
                       </p>
                       <div className="mt-2 flex items-center gap-2">
                         <span
-                          className={`rounded-full px-2 py-0.5 text-[10px] font-medium ${
-                            supportThread.status === "open"
-                              ? "bg-emerald-500/20 text-emerald-200"
-                              : "bg-white/10 text-neutral-300"
-                          }`}
+                          className={`rounded-full px-2 py-0.5 text-[10px] font-medium ${threadStatusClass(
+                            supportThread.status,
+                          )}`}
                         >
-                          {supportThread.status}
+                          {formatThreadStatus(supportThread.status)}
                         </span>
                         <span className="text-[10px] text-neutral-400">
                           You {supportThread.user_message_count} • Staff{" "}
@@ -444,41 +521,103 @@ export default function SupportInbox() {
           )}
         </aside>
 
-        <div className="space-y-3 rounded-3xl border border-white/10 bg-black/20 p-3">
-
-          <div className="max-h-[52vh] space-y-2 overflow-y-auto pr-1">
-            {sortedMessages.map((message) => {
-              const isAdmin = message.author_type === "admin";
-              return (
-                <div
-                  key={message.id}
-                  className={`flex ${isAdmin ? "justify-start" : "justify-end"}`}
-                >
-                  <article
-                    className={`w-full max-w-[88%] rounded-2xl border px-4 py-3 text-sm ${
-                      isAdmin
-                        ? "border-white/15 bg-white/5 text-neutral-100"
-                        : "border-white/10 bg-black/30 text-neutral-100"
-                    }`}
+        <div
+          className={`rounded-3xl border border-white/10 bg-black/20 p-3 ${
+            showMobileList ? "hidden lg:flex" : "flex"
+          } h-[calc(100dvh-5rem)] flex-col md:h-[66vh] lg:h-[74vh]`}
+        >
+          <div className="relative mb-3 flex items-start gap-2 border-b border-white/10 pb-2 lg:hidden">
+            <button
+              type="button"
+              onClick={() => setMobileView("list")}
+              className="absolute left-0 top-0 inline-flex h-10 w-10 items-center justify-center text-3xl font-semibold leading-none text-neutral-200 transition hover:text-white"
+              aria-label="Back to conversations"
+            >
+              <svg
+                aria-hidden="true"
+                viewBox="0 0 24 24"
+                className="h-7 w-7"
+                fill="none"
+              >
+                <path
+                  d="M15 6L9 12L15 18"
+                  stroke="currentColor"
+                  strokeWidth="2.4"
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                />
+              </svg>
+            </button>
+            <div className="px-12 text-center">
+              <p className="truncate text-sm font-semibold text-neutral-100">
+                {selectedThreadSummary
+                  ? formatConversationName(selectedThreadSummary.created_at)
+                  : "Support chat"}
+              </p>
+              {selectedThreadSummary ? (
+                <div className="mt-1 flex items-center justify-center gap-2">
+                  <span
+                    className={`rounded-full px-2 py-0.5 text-[10px] font-medium ${threadStatusClass(
+                      selectedThreadSummary.status,
+                    )}`}
                   >
-                    <p className="text-xs font-medium uppercase tracking-wide text-neutral-300">
-                      {isAdmin ? "Staff reply" : "You"}
-                    </p>
-                    <p className="mt-2 whitespace-pre-wrap leading-6">{message.body}</p>
-                    <p className="mt-2 text-xs text-neutral-400">
-                      {formatMessageTime(message.created_at)}
-                    </p>
-                  </article>
+                    {formatThreadStatus(selectedThreadSummary.status)}
+                  </span>
+                  <p className="truncate text-xs text-neutral-400">
+                    You {selectedThreadSummary.user_message_count} • Staff{" "}
+                    {selectedThreadSummary.admin_message_count}
+                  </p>
                 </div>
-              );
-            })}
+              ) : null}
+            </div>
+          </div>
+          <div ref={messageListRef} className="min-h-0 flex-1 overflow-y-auto pr-1">
+            <div className="flex min-h-full flex-col justify-end space-y-2 pb-1">
+              {!isConversationLoading && !hasThread ? (
+                <div className="flex min-h-[180px] items-center justify-center">
+                  <p className="rounded-xl border border-white/10 bg-white/5 px-4 py-2 text-sm text-neutral-300">
+                    Select a conversation to view messages.
+                  </p>
+                </div>
+              ) : null}
+              {!isConversationLoading &&
+                hasThread &&
+                sortedMessages.map((message) => {
+                  const isAdmin = message.author_type === "admin";
+                  return (
+                    <div
+                      key={message.id}
+                      className={`flex ${isAdmin ? "justify-start" : "justify-end"}`}
+                    >
+                      <article
+                        className={`w-fit max-w-[88%] rounded-2xl border px-4 py-3 text-sm ${
+                          isAdmin
+                            ? "border-white/15 bg-white/5 text-neutral-100"
+                            : "border-white/10 bg-black/30 text-neutral-100"
+                        }`}
+                      >
+                        <p className="text-xs font-medium uppercase tracking-wide text-neutral-300">
+                          {isAdmin ? "Staff reply" : "You"}
+                        </p>
+                        <p className="mt-2 whitespace-pre-wrap break-words [overflow-wrap:anywhere] leading-5">
+                          {message.body}
+                        </p>
+                        <p className="mt-1 text-right text-xs text-neutral-400">
+                          {formatMessageTime(message.created_at)}
+                        </p>
+                      </article>
+                    </div>
+                  );
+                })}
+            </div>
           </div>
 
-          <form onSubmit={handleReplySubmit} className="space-y-2">
+          <form onSubmit={handleReplySubmit} className="mt-3 space-y-2">
             <div className="flex items-end gap-2 rounded-2xl border border-white/10 bg-black/30 px-3 py-2">
               <textarea
                 ref={composerRef}
                 value={replyDraft}
+                disabled={isConversationLoading}
                 onChange={(event) => {
                   const nextValue = event.target.value.slice(0, 1200);
                   setReplyDraft(nextValue);
@@ -494,17 +633,26 @@ export default function SupportInbox() {
                 }}
                 rows={1}
                 maxLength={1200}
-                placeholder="Write a message..."
+                placeholder={isConversationLoading ? "Loading conversation..." : "Write a message..."}
                 className="max-h-[88px] min-h-[40px] w-full resize-none bg-transparent py-2 text-sm text-white placeholder:text-neutral-500 focus:outline-none"
               />
-              <button
-                type="submit"
-                disabled={isReplySubmitting || !replyDraft.trim() || !thread?.id}
-                className="inline-flex h-9 shrink-0 items-center rounded-full bg-blue-500 px-3 text-sm font-medium text-white transition hover:bg-blue-400 disabled:cursor-not-allowed disabled:opacity-50"
-                aria-label="Send follow-up"
-              >
-                {isReplySubmitting ? "..." : "Send"}
-              </button>
+              {isConversationLoading ? (
+                <div className="inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-full border border-white/15 bg-black/40">
+                  <span
+                    className="inline-block h-4 w-4 animate-spin rounded-full border-2 border-white/25 border-t-blue-400"
+                    aria-label="Loading conversation"
+                  />
+                </div>
+              ) : (
+                <button
+                  type="submit"
+                  disabled={isReplySubmitting || !replyDraft.trim() || !thread?.id}
+                  className="inline-flex h-9 shrink-0 items-center rounded-full bg-blue-500 px-3 text-sm font-medium text-white transition hover:bg-blue-400 disabled:cursor-not-allowed disabled:opacity-50"
+                  aria-label="Send follow-up"
+                >
+                  {isReplySubmitting ? "..." : "Send"}
+                </button>
+              )}
             </div>
             {replyError ? (
               <p className="rounded-xl border border-red-500/35 bg-red-500/10 px-3 py-2 text-sm text-red-200">
