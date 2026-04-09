@@ -3,11 +3,13 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import AuthButton from "@/components/AuthButton";
+import SupportNavLink from "@/components/SupportNavLink";
 
 const navItems = [
   { href: "/", label: "Home" },
   { href: "/booking", label: "Booking Form" },
   { href: "/jam", label: "Jam Reservations" },
+  { href: "/support", label: "Support" },
 ];
 
 export default function SiteHeader() {
@@ -22,6 +24,10 @@ export default function SiteHeader() {
         >
           {navItems.map((item) => {
             const isActive = pathname === item.href;
+
+            if (item.href === "/support") {
+              return <SupportNavLink key={item.href} isActive={isActive} />;
+            }
 
             return (
               <Link

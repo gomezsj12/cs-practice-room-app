@@ -1,8 +1,22 @@
 import Link from "next/link";
+import ContactSupportForm from "@/components/ContactSupportForm";
 import { siteConfig } from "@/lib/siteConfig";
 
 const cardClass =
   "rounded-3xl border border-white/10 bg-white/5 p-6 shadow-2xl shadow-black/20";
+
+function TelegramIcon() {
+  return (
+    <svg
+      aria-hidden="true"
+      viewBox="0 0 24 24"
+      className="h-4 w-4 shrink-0 text-[#2AABEE]"
+      fill="currentColor"
+    >
+      <path d="M21.2 4.8a1.3 1.3 0 0 0-1.6-.2L3.8 10.9a1.3 1.3 0 0 0 .1 2.4l3.6 1.4 1.4 4.5a1.3 1.3 0 0 0 2.2.5l2.1-2.2 3.6 2.7a1.3 1.3 0 0 0 2.1-.8l2.5-13a1.3 1.3 0 0 0-.4-1.3ZM9.8 16.3l-.8-2.7 7.4-5.8-6.6 6.8v1.7Zm7.4 1-3.1-2.3c-.2-.1-.4-.2-.7-.2l4.9-5.1-1.1 7.6Z" />
+    </svg>
+  );
+}
 
 export default function Home() {
   return (
@@ -35,24 +49,10 @@ export default function Home() {
               Get help or ask a question
             </h2>
             <p className="mt-3 text-sm leading-6 text-neutral-300">
-              We can later turn this into a fuller support flow. For Phase 1, this
-              gives us a simple place for contact links and student guidance.
+              Send a support request from inside the app. We include your signed-in
+              Google name and email so staff can reply faster.
             </p>
-            {siteConfig.telegramContactUrl ? (
-              <a
-                href={siteConfig.telegramContactUrl}
-                target="_blank"
-                rel="noreferrer"
-                className="mt-5 inline-flex rounded-full bg-white/10 px-4 py-2 text-sm font-medium text-white transition hover:bg-white/15"
-              >
-                Contact on Telegram
-              </a>
-            ) : (
-              <p className="mt-5 rounded-2xl border border-dashed border-white/15 px-4 py-3 text-sm text-neutral-400">
-                Add `NEXT_PUBLIC_TELEGRAM_CONTACT_URL` later to turn this into a live
-                contact button.
-              </p>
-            )}
+            <ContactSupportForm />
           </article>
 
           <article className={cardClass}>
@@ -80,9 +80,10 @@ export default function Home() {
                   href={siteConfig.telegramGroupUrl}
                   target="_blank"
                   rel="noreferrer"
-                  className="rounded-2xl border border-white/10 bg-black/20 px-4 py-4 text-sm text-neutral-200 transition hover:border-white/20 hover:bg-black/30"
+                  className="inline-flex items-center gap-2 rounded-2xl border border-[#2AABEE]/45 bg-[#2AABEE]/10 px-4 py-4 text-sm font-medium text-[#9DDCFF] transition hover:border-[#2AABEE]/70 hover:bg-[#2AABEE]/15"
                 >
-                  CS Practice Room group chat
+                  <TelegramIcon />
+                  <span>CS Practice Room group chat</span>
                 </a>
               ) : (
                 <div className="rounded-2xl border border-dashed border-white/10 bg-black/20 px-4 py-4 text-sm text-neutral-400">

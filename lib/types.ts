@@ -76,3 +76,23 @@ export type DragMirrorState = {
   height: number;
   label: string;
 };
+
+export type SupportThreadRow = {
+  id: string;
+  user_email: string;
+  user_name: string | null;
+  status: string;
+  unread_for_user: boolean;
+  created_at: string;
+  updated_at: string;
+};
+
+export type SupportMessageRow = {
+  id: string;
+  thread_id: string;
+  author_type: "user" | "admin";
+  body: string;
+  source: "app" | "telegram";
+  telegram_update_id: string | null;
+  created_at: string;
+};
