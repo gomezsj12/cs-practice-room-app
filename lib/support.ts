@@ -26,3 +26,16 @@ export function parseReplyCommand(text: string) {
 
   return { threadId, replyBody };
 }
+
+export function parseCloseCommand(text: string) {
+  const trimmed = text.trim();
+  const match = trimmed.match(/^\/close(?:\s+SR-([a-zA-Z0-9-]+))?(?:\s+([\s\S]+))?$/i);
+
+  if (!match) {
+    return null;
+  }
+
+  const threadId = (match[1] || "").trim();
+  const reason = (match[2] || "").trim();
+  return { threadId, reason };
+}

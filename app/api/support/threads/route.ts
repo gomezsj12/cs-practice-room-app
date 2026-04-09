@@ -13,6 +13,8 @@ type ThreadSummary = {
   latest_message_body: string | null;
   latest_message_author_type: "user" | "admin" | null;
   latest_message_created_at: string | null;
+  user_message_count: number;
+  admin_message_count: number;
 };
 
 export async function GET() {
@@ -57,19 +59,40 @@ export async function GET() {
     }
 
     const latestByThread = new Map<string, (typeof messages)[number]>();
+    const countsByThread = new Map<
+      string,
+      { userMessageCount: number; adminMessageCount: number }
+    >();
     for (const message of messages ?? []) {
       if (!latestByThread.has(message.thread_id)) {
         latestByThread.set(message.thread_id, message);
       }
+
+      const current = countsByThread.get(message.thread_id) || {
+        userMessageCount: 0,
+        adminMessageCount: 0,
+      };
+      if (message.author_type === "user") {
+        current.userMessageCount += 1;
+      } else if (message.author_type === "admin") {
+        current.adminMessageCount += 1;
+      }
+      countsByThread.set(message.thread_id, current);
     }
 
     const summaries: ThreadSummary[] = threadRows.map((thread) => {
       const latest = latestByThread.get(thread.id);
+      const counts = countsByThread.get(thread.id) || {
+        userMessageCount: 0,
+        adminMessageCount: 0,
+      };
       return {
         ...thread,
         latest_message_body: latest?.body ?? null,
         latest_message_author_type: latest?.author_type ?? null,
         latest_message_created_at: latest?.created_at ?? null,
+        user_message_count: counts.userMessageCount,
+        admin_message_count: counts.adminMessageCount,
       };
     });
 

@@ -1,7 +1,8 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useSession } from "next-auth/react";
+import Toast from "@/components/Toast";
 import type { SupportMessageRow, SupportThreadRow } from "@/lib/types";
 
 type SupportThreadPayload = {
@@ -21,6 +22,8 @@ type ThreadSummary = {
   latest_message_body: string | null;
   latest_message_author_type: "user" | "admin" | null;
   latest_message_created_at: string | null;
+  user_message_count: number;
+  admin_message_count: number;
 };
 
 function formatMessageTime(isoString: string) {
@@ -31,6 +34,16 @@ function formatMessageTime(isoString: string) {
     hour: "numeric",
     minute: "2-digit",
   });
+}
+
+function formatConversationName(isoString: string) {
+  const date = new Date(isoString);
+  return `Issue ${date.toLocaleString([], {
+    month: "short",
+    day: "numeric",
+    hour: "numeric",
+    minute: "2-digit",
+  })}`;
 }
 
 export default function SupportInbox() {
@@ -46,6 +59,15 @@ export default function SupportInbox() {
   const [replyError, setReplyError] = useState("");
   const [isDeletingThread, setIsDeletingThread] = useState(false);
   const [deleteError, setDeleteError] = useState("");
+  const [toastOpen, setToastOpen] = useState(false);
+  const [lastLengthToastAtMax, setLastLengthToastAtMax] = useState(false);
+  const [menu, setMenu] = useState<{
+    threadId: string;
+    x: number;
+    y: number;
+  } | null>(null);
+  const longPressTimerRef = useRef<number | null>(null);
+  const composerRef = useRef<HTMLTextAreaElement | null>(null);
 
   const loadThreads = useCallback(async () => {
     const response = await fetch("/api/support/threads", {
@@ -75,16 +97,22 @@ export default function SupportInbox() {
     }
   }, [selectedThreadId]);
 
-  const loadThread = useCallback(async () => {
+  const loadThread = useCallback(
+    async (options?: { silent?: boolean }) => {
+      const silent = options?.silent ?? false;
     if (!selectedThreadId) {
       setThread(null);
       setMessages([]);
-      setIsLoading(false);
+      if (!silent) {
+        setIsLoading(false);
+      }
       return;
     }
 
     setError("");
-    setIsLoading(true);
+    if (!silent) {
+      setIsLoading(true);
+    }
 
     try {
       const response = await fetch(`/api/support/thread?threadId=${selectedThreadId}`, {
@@ -94,18 +122,26 @@ export default function SupportInbox() {
 
       if (!response.ok) {
         setError(payload.error || "Could not load your support thread.");
-        setIsLoading(false);
+        if (!silent) {
+          setIsLoading(false);
+        }
         return;
       }
 
       setThread(payload.thread);
       setMessages(payload.messages || []);
-      setIsLoading(false);
+      if (!silent) {
+        setIsLoading(false);
+      }
     } catch {
       setError("Could not load your support thread.");
-      setIsLoading(false);
+      if (!silent) {
+        setIsLoading(false);
+      }
     }
-  }, [selectedThreadId]);
+    },
+    [selectedThreadId],
+  );
 
   useEffect(() => {
     if (status !== "authenticated") {
@@ -117,7 +153,7 @@ export default function SupportInbox() {
     void loadThread();
     const interval = window.setInterval(() => {
       void loadThreads();
-      void loadThread();
+      void loadThread({ silent: true });
     }, 20_000);
 
     return () => {
@@ -147,6 +183,26 @@ export default function SupportInbox() {
       );
     });
   }, [messages]);
+
+  function initialsFromThread(threadSummary: ThreadSummary) {
+    const source =
+      threadSummary.user_name?.trim() ||
+      threadSummary.user_email.split("@")[0] ||
+      "U";
+    const parts = source.split(/\s+/).filter(Boolean);
+    if (parts.length >= 2) {
+      return `${parts[0][0]}${parts[1][0]}`.toUpperCase();
+    }
+    return source.slice(0, 2).toUpperCase();
+  }
+
+  useEffect(() => {
+    const dismissMenu = () => setMenu(null);
+    window.addEventListener("click", dismissMenu);
+    return () => {
+      window.removeEventListener("click", dismissMenu);
+    };
+  }, []);
 
   async function handleReplySubmit(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -179,6 +235,11 @@ export default function SupportInbox() {
         setReplyError(payload.error || "Could not send follow-up message.");
       } else {
         setReplyDraft("");
+        setLastLengthToastAtMax(false);
+        if (composerRef.current) {
+          composerRef.current.style.height = "40px";
+          composerRef.current.scrollTop = 0;
+        }
         await loadThreads();
         await loadThread();
       }
@@ -189,8 +250,8 @@ export default function SupportInbox() {
     }
   }
 
-  async function handleDeleteThread() {
-    if (!thread?.id || isDeletingThread) {
+  async function handleDeleteThreadById(threadId: string) {
+    if (!threadId || isDeletingThread) {
       return;
     }
 
@@ -210,7 +271,7 @@ export default function SupportInbox() {
         headers: {
           "Content-Type": "application/json",
         },
-        body: JSON.stringify({ threadId: thread.id }),
+        body: JSON.stringify({ threadId }),
       });
 
       const payload = (await response.json()) as { error?: string };
@@ -218,9 +279,11 @@ export default function SupportInbox() {
         setDeleteError(payload.error || "Could not delete conversation.");
       } else {
         setReplyDraft("");
-        setThread(null);
-        setMessages([]);
-        setSelectedThreadId("");
+        if (selectedThreadId === threadId) {
+          setThread(null);
+          setMessages([]);
+          setSelectedThreadId("");
+        }
         await loadThreads();
       }
     } catch {
@@ -229,6 +292,34 @@ export default function SupportInbox() {
       setIsDeletingThread(false);
     }
   }
+
+  function openThreadMenu(threadId: string, x: number, y: number) {
+    setMenu({ threadId, x, y });
+  }
+
+  function clearLongPressTimer() {
+    if (longPressTimerRef.current) {
+      window.clearTimeout(longPressTimerRef.current);
+      longPressTimerRef.current = null;
+    }
+  }
+
+  useEffect(() => {
+    const el = composerRef.current;
+    if (!el) {
+      return;
+    }
+
+    const computed = window.getComputedStyle(el);
+    const lineHeight = Number.parseFloat(computed.lineHeight) || 20;
+    const maxHeight = lineHeight * 4;
+
+    el.style.height = "40px";
+    const nextHeight = Math.min(el.scrollHeight, maxHeight);
+    el.style.height = `${nextHeight}px`;
+    el.style.overflowY = el.scrollHeight > maxHeight ? "auto" : "hidden";
+    el.scrollTop = el.scrollHeight;
+  }, [replyDraft]);
 
   if (status === "loading" || isLoading) {
     return (
@@ -264,15 +355,14 @@ export default function SupportInbox() {
 
   return (
     <section className="space-y-3">
-      <div className="rounded-2xl border border-white/10 bg-white/5 px-4 py-3">
-        <p className="text-sm font-medium text-blue-200">Your support inbox</p>
-        <p className="mt-1 text-xs text-neutral-400">
-          Pick a conversation and reply to staff directly here.
-        </p>
-      </div>
-
-      <div className="grid gap-3 md:grid-cols-[260px_minmax(0,1fr)]">
-        <aside className="space-y-2 rounded-2xl border border-white/10 bg-black/20 p-2">
+      <div className="grid gap-3 lg:grid-cols-[300px_minmax(0,1fr)]">
+        <aside className="relative space-y-2 rounded-3xl border border-white/10 bg-black/20 p-3">
+          <div className="mb-2 px-2">
+            <p className="text-sm font-semibold text-neutral-100">Your support inbox</p>
+            <p className="mt-1 text-xs text-neutral-400">
+              Pick a conversation and reply to staff directly here.
+            </p>
+          </div>
           {threads.length ? (
             threads.map((supportThread) => {
               const isSelected = supportThread.id === selectedThreadId;
@@ -280,25 +370,70 @@ export default function SupportInbox() {
                 <button
                   key={supportThread.id}
                   type="button"
-                  onClick={() => setSelectedThreadId(supportThread.id)}
-                  className={`w-full rounded-xl border px-3 py-2 text-left transition ${
+                  onClick={() => {
+                    setSelectedThreadId(supportThread.id);
+                    setMenu(null);
+                  }}
+                  onContextMenu={(event) => {
+                    event.preventDefault();
+                    openThreadMenu(
+                      supportThread.id,
+                      event.clientX,
+                      event.clientY,
+                    );
+                  }}
+                  onTouchStart={(event) => {
+                    clearLongPressTimer();
+                    const touch = event.touches[0];
+                    longPressTimerRef.current = window.setTimeout(() => {
+                      openThreadMenu(
+                        supportThread.id,
+                        touch?.clientX ?? window.innerWidth / 2,
+                        touch?.clientY ?? window.innerHeight / 2,
+                      );
+                    }, 550);
+                  }}
+                  onTouchEnd={clearLongPressTimer}
+                  onTouchCancel={clearLongPressTimer}
+                  className={`w-full rounded-2xl border px-3 py-3 text-left transition ${
                     isSelected
-                      ? "border-blue-500/40 bg-blue-500/15"
-                      : "border-white/10 bg-black/20 hover:border-white/20"
+                      ? "border-white/25 bg-white/10"
+                      : "border-white/10 bg-black/20 hover:border-white/20 hover:bg-white/5"
                   }`}
                 >
-                  <p className="text-xs font-medium text-neutral-200">
-                    {supportThread.status === "open" ? "Open" : "Closed"}
-                  </p>
-                  <p className="mt-1 truncate text-sm text-white">
-                    {supportThread.latest_message_body || "No messages yet"}
-                  </p>
-                  <p className="mt-1 text-xs text-neutral-400">
-                    {supportThread.latest_message_created_at
-                      ? formatMessageTime(supportThread.latest_message_created_at)
-                      : formatMessageTime(supportThread.updated_at)}
-                    {supportThread.unread_for_user ? " • Unread" : ""}
-                  </p>
+                  <div className="flex items-start gap-3">
+                    <div className="mt-0.5 inline-flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-white/10 text-xs font-semibold text-neutral-200">
+                      {initialsFromThread(supportThread)}
+                    </div>
+                    <div className="min-w-0 flex-1">
+                      <div className="flex items-center justify-between gap-2">
+                        <p className="truncate text-sm font-medium text-neutral-100">
+                          {formatConversationName(supportThread.created_at)}
+                        </p>
+                      </div>
+                      <p className="mt-1 truncate text-xs text-neutral-400">
+                        {supportThread.latest_message_body || "No messages yet"}
+                      </p>
+                      <div className="mt-2 flex items-center gap-2">
+                        <span
+                          className={`rounded-full px-2 py-0.5 text-[10px] font-medium ${
+                            supportThread.status === "open"
+                              ? "bg-emerald-500/20 text-emerald-200"
+                              : "bg-white/10 text-neutral-300"
+                          }`}
+                        >
+                          {supportThread.status}
+                        </span>
+                        <span className="text-[10px] text-neutral-400">
+                          You {supportThread.user_message_count} • Staff{" "}
+                          {supportThread.admin_message_count}
+                        </span>
+                        {supportThread.unread_for_user ? (
+                          <span className="inline-flex h-2 w-2 rounded-full bg-amber-400" />
+                        ) : null}
+                      </div>
+                    </div>
+                  </div>
                 </button>
               );
             })
@@ -309,66 +444,66 @@ export default function SupportInbox() {
           )}
         </aside>
 
-        <div className="space-y-3">
-          <div className="flex items-center justify-between gap-3 rounded-2xl border border-white/10 bg-black/20 px-3 py-2">
-            <p className="text-xs text-neutral-300">Conversation actions</p>
-            <button
-              type="button"
-              onClick={handleDeleteThread}
-              disabled={isDeletingThread || !thread?.id}
-              className="rounded-full border border-red-500/40 bg-red-500/10 px-3 py-1 text-xs font-medium text-red-200 transition hover:bg-red-500/20 disabled:cursor-not-allowed disabled:opacity-50"
-            >
-              {isDeletingThread ? "Deleting..." : "Delete conversation"}
-            </button>
-          </div>
+        <div className="space-y-3 rounded-3xl border border-white/10 bg-black/20 p-3">
 
-          <div className="space-y-2">
+          <div className="max-h-[52vh] space-y-2 overflow-y-auto pr-1">
             {sortedMessages.map((message) => {
               const isAdmin = message.author_type === "admin";
               return (
-                <article
+                <div
                   key={message.id}
-                  className={`rounded-2xl border px-4 py-3 text-sm ${
-                    isAdmin
-                      ? "ml-8 border-blue-500/30 bg-blue-500/10 text-blue-100"
-                      : "mr-8 border-white/10 bg-black/20 text-neutral-100"
-                  }`}
+                  className={`flex ${isAdmin ? "justify-start" : "justify-end"}`}
                 >
-                  <p
-                    className={`text-xs font-medium uppercase tracking-wide ${
-                      isAdmin ? "text-blue-200/80" : "text-neutral-300"
+                  <article
+                    className={`w-full max-w-[88%] rounded-2xl border px-4 py-3 text-sm ${
+                      isAdmin
+                        ? "border-white/15 bg-white/5 text-neutral-100"
+                        : "border-white/10 bg-black/30 text-neutral-100"
                     }`}
                   >
-                    {isAdmin ? "Staff reply" : "You"}
-                  </p>
-                  <p className="mt-2 whitespace-pre-wrap leading-6">{message.body}</p>
-                  <p className="mt-2 text-xs text-neutral-400">
-                    {formatMessageTime(message.created_at)}
-                  </p>
-                </article>
+                    <p className="text-xs font-medium uppercase tracking-wide text-neutral-300">
+                      {isAdmin ? "Staff reply" : "You"}
+                    </p>
+                    <p className="mt-2 whitespace-pre-wrap leading-6">{message.body}</p>
+                    <p className="mt-2 text-xs text-neutral-400">
+                      {formatMessageTime(message.created_at)}
+                    </p>
+                  </article>
+                </div>
               );
             })}
           </div>
 
           <form onSubmit={handleReplySubmit} className="space-y-2">
-            <textarea
-              value={replyDraft}
-              onChange={(event) => setReplyDraft(event.target.value)}
-              rows={3}
-              maxLength={1200}
-              placeholder="Send a follow-up to staff..."
-              className="w-full rounded-2xl border border-white/10 bg-black/20 px-4 py-3 text-sm text-white placeholder:text-neutral-500 focus:border-blue-400/80 focus:outline-none"
-            />
-            <div className="flex items-center justify-between gap-3">
-              <p className="text-xs text-neutral-400">
-                {replyDraft.trim().length}/1200
-              </p>
+            <div className="flex items-end gap-2 rounded-2xl border border-white/10 bg-black/30 px-3 py-2">
+              <textarea
+                ref={composerRef}
+                value={replyDraft}
+                onChange={(event) => {
+                  const nextValue = event.target.value.slice(0, 1200);
+                  setReplyDraft(nextValue);
+
+                  if (nextValue.length < 1200 && lastLengthToastAtMax) {
+                    setLastLengthToastAtMax(false);
+                  }
+
+                  if (nextValue.length >= 1200 && !lastLengthToastAtMax) {
+                    setLastLengthToastAtMax(true);
+                    setToastOpen(true);
+                  }
+                }}
+                rows={1}
+                maxLength={1200}
+                placeholder="Write a message..."
+                className="max-h-[88px] min-h-[40px] w-full resize-none bg-transparent py-2 text-sm text-white placeholder:text-neutral-500 focus:outline-none"
+              />
               <button
                 type="submit"
                 disabled={isReplySubmitting || !replyDraft.trim() || !thread?.id}
-                className="rounded-full bg-blue-500 px-4 py-2 text-sm font-medium text-white transition hover:bg-blue-400 disabled:cursor-not-allowed disabled:opacity-50"
+                className="inline-flex h-9 shrink-0 items-center rounded-full bg-blue-500 px-3 text-sm font-medium text-white transition hover:bg-blue-400 disabled:cursor-not-allowed disabled:opacity-50"
+                aria-label="Send follow-up"
               >
-                {isReplySubmitting ? "Sending..." : "Send follow-up"}
+                {isReplySubmitting ? "..." : "Send"}
               </button>
             </div>
             {replyError ? (
@@ -384,6 +519,30 @@ export default function SupportInbox() {
           </form>
         </div>
       </div>
+      <Toast
+        isOpen={toastOpen}
+        message="Message limit reached (1200 characters)."
+        type="info"
+        onClose={() => setToastOpen(false)}
+      />
+      {menu ? (
+        <div
+          className="fixed z-[90] min-w-[170px] rounded-xl border border-white/15 bg-black/90 p-1 shadow-2xl backdrop-blur"
+          style={{ left: menu.x, top: menu.y }}
+          onClick={(event) => event.stopPropagation()}
+        >
+          <button
+            type="button"
+            className="w-full rounded-lg border border-white/10 bg-black/40 px-3 py-2 text-left text-sm text-red-200 transition hover:border-red-400/40 hover:bg-red-500/10"
+            onClick={() => {
+              setMenu(null);
+              void handleDeleteThreadById(menu.threadId);
+            }}
+          >
+            Delete conversation
+          </button>
+        </div>
+      ) : null}
     </section>
   );
 }

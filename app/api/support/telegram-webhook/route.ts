@@ -1,6 +1,10 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getSupabaseAdmin } from "@/lib/supabase";
-import { extractSupportThreadIdFromText, parseReplyCommand } from "@/lib/support";
+import {
+  extractSupportThreadIdFromText,
+  parseCloseCommand,
+  parseReplyCommand,
+} from "@/lib/support";
 
 type TelegramWebhookPayload = {
   update_id?: number;
@@ -86,6 +90,7 @@ export async function POST(request: NextRequest) {
     const updateId = payload.update_id;
     const message = payload.message;
     const reply = resolveSupportReply(message);
+    const closeCommand = parseCloseCommand(message?.text || "");
 
     const supabase = getSupabaseAdmin();
     const replyToMessageId = message?.reply_to_message?.message_id;
@@ -109,10 +114,11 @@ export async function POST(request: NextRequest) {
       }
     }
 
-    const threadId = threadIdFromNativeReply || reply?.threadId || "";
+    const threadId =
+      closeCommand?.threadId || threadIdFromNativeReply || reply?.threadId || "";
     const replyBody = reply?.replyBody || message?.text || message?.caption || "";
 
-    if (!threadId || !replyBody.trim()) {
+    if (!threadId) {
       return NextResponse.json({ ok: true, ignored: true });
     }
 
@@ -127,6 +133,63 @@ export async function POST(request: NextRequest) {
     }
 
     if (!thread?.id) {
+      return NextResponse.json({ ok: true, ignored: true });
+    }
+
+    if (closeCommand) {
+      const closeNote = closeCommand.reason
+        ? `Staff closed this request: ${closeCommand.reason}`
+        : "Staff closed this request.";
+
+      if (updateId) {
+        const { data: existingCloseMessage, error: existingCloseMessageError } =
+          await supabase
+            .from("support_messages")
+            .select("id")
+            .eq("telegram_update_id", String(updateId))
+            .limit(1)
+            .maybeSingle();
+
+        if (existingCloseMessageError) {
+          throw existingCloseMessageError;
+        }
+
+        if (existingCloseMessage?.id) {
+          return NextResponse.json({ ok: true, duplicate: true });
+        }
+      }
+
+      const { error: closeInsertError } = await supabase
+        .from("support_messages")
+        .insert({
+          thread_id: thread.id,
+          author_type: "admin",
+          body: closeNote,
+          source: "telegram",
+          telegram_update_id: updateId ? String(updateId) : null,
+        });
+
+      if (closeInsertError) {
+        throw closeInsertError;
+      }
+
+      const { error: closeUpdateError } = await supabase
+        .from("support_threads")
+        .update({
+          status: "closed",
+          unread_for_user: true,
+          updated_at: new Date().toISOString(),
+        })
+        .eq("id", thread.id);
+
+      if (closeUpdateError) {
+        throw closeUpdateError;
+      }
+
+      return NextResponse.json({ ok: true, closed: true });
+    }
+
+    if (!replyBody.trim()) {
       return NextResponse.json({ ok: true, ignored: true });
     }
 

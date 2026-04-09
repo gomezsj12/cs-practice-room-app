@@ -2,7 +2,6 @@ import { NextRequest, NextResponse } from "next/server";
 import { auth } from "@/auth";
 import { toSupportThreadKey } from "@/lib/support";
 import { getSupabaseAdmin } from "@/lib/supabase";
-import type { SupportThreadRow } from "@/lib/types";
 
 const MIN_MESSAGE_LENGTH = 10;
 const MAX_MESSAGE_LENGTH = 1200;
@@ -81,55 +80,22 @@ export async function POST(request: NextRequest) {
 
     try {
       const supabase = getSupabaseAdmin();
-      const { data: existingThread, error: existingThreadError } = await supabase
+      const { data: newThread, error: newThreadError } = await supabase
         .from("support_threads")
-        .select("id, status, unread_for_user")
-        .eq("user_email", normalizedUserEmail)
-        .order("updated_at", { ascending: false })
-        .limit(1)
-        .maybeSingle();
+        .insert({
+          user_email: normalizedUserEmail,
+          user_name: userName,
+          status: "open",
+          unread_for_user: false,
+        })
+        .select("id")
+        .single();
 
-      if (existingThreadError) {
-        throw existingThreadError;
+      if (newThreadError || !newThread?.id) {
+        throw newThreadError || new Error("Could not create support thread.");
       }
 
-      const typedExisting = existingThread as Pick<
-        SupportThreadRow,
-        "id" | "status" | "unread_for_user"
-      > | null;
-
-      if (typedExisting?.id) {
-        supportThreadId = typedExisting.id;
-        const { error: threadUpdateError } = await supabase
-          .from("support_threads")
-          .update({
-            user_name: userName,
-            status: "open",
-            updated_at: new Date().toISOString(),
-          })
-          .eq("id", supportThreadId);
-
-        if (threadUpdateError) {
-          throw threadUpdateError;
-        }
-      } else {
-        const { data: newThread, error: newThreadError } = await supabase
-          .from("support_threads")
-          .insert({
-            user_email: normalizedUserEmail,
-            user_name: userName,
-            status: "open",
-            unread_for_user: false,
-          })
-          .select("id")
-          .single();
-
-        if (newThreadError || !newThread?.id) {
-          throw newThreadError || new Error("Could not create support thread.");
-        }
-
-        supportThreadId = String(newThread.id);
-      }
+      supportThreadId = String(newThread.id);
 
       const { error: messageInsertError } = await supabase
         .from("support_messages")

@@ -69,6 +69,7 @@ Admin reply formats in Telegram:
 
 - `/reply SR-<thread-id> your reply text`
 - Preferred: use Telegram’s normal **Reply** action on a bot support request message and type your response text.
+- `/close` (sent as a reply in the admin chat) closes that support conversation in the app UI.
 
 Support inbox UI now includes:
 - Conversation list (latest message + unread)
