@@ -4,42 +4,40 @@ export default function BookingPage() {
   const hasEmbedUrl = Boolean(siteConfig.filloutUrl);
 
   return (
-    <main className="px-4 py-8 text-white">
-      <div className="mx-auto flex max-w-7xl flex-col gap-6">
-        <section className="rounded-3xl border border-white/10 bg-white/5 p-6">
-          <p className="text-sm font-medium uppercase tracking-[0.22em] text-blue-300">
-            Practice Room Booking
-          </p>
-          <h1 className="mt-3 text-3xl font-semibold tracking-tight">
-            Use the official booking form.
-          </h1>
-          <p className="mt-3 max-w-3xl text-sm leading-6 text-neutral-300">
-            This page embeds the current Fillout booking form inside the practice-room
-            app so students can stay inside the same experience.
-          </p>
-        </section>
-
+    <main className="px-4 py-4 text-white md:flex md:h-full md:min-h-0 md:flex-1 md:flex-col">
+      <div className="mx-auto w-full max-w-7xl md:flex md:h-full md:min-h-0 md:flex-1 md:flex-col">
         {hasEmbedUrl ? (
           <section
             id="booking-form"
-            className="overflow-hidden rounded-3xl border border-white/10 bg-black/20"
+            className="flex min-h-0 flex-1 flex-col overflow-hidden rounded-3xl border border-white/10 bg-black/20 md:h-full md:min-h-0"
           >
-            <div className="flex items-center justify-between border-b border-white/10 px-4 py-3 text-sm text-neutral-300">
-              <p>If the form does not load well here, you can open it in a new tab.</p>
+            <div className="flex shrink-0 justify-end border-b border-white/10 bg-black/30 px-4 py-2.5">
               <a
                 href={siteConfig.filloutUrl}
                 target="_blank"
                 rel="noreferrer"
-                className="rounded-full border border-white/10 bg-white/5 px-3 py-1.5 text-white transition hover:border-white/20 hover:bg-white/10"
+                className="rounded-full border border-white/10 bg-white/5 px-3 py-1.5 text-sm font-medium text-white transition hover:border-white/20 hover:bg-white/10"
               >
-                Open in new tab
+                Open in browser
               </a>
             </div>
-            <iframe
-              src={siteConfig.filloutUrl}
-              title="CS Practice Room booking form"
-              className="min-h-[1100px] w-full bg-transparent"
-            />
+
+            <div className="flex min-h-0 flex-1 flex-col md:min-h-0 md:flex-1">
+              <div
+                className="
+                  h-[min(820px,88dvh)] w-full max-md:shrink-0 overflow-hidden rounded-none
+                  border-0 bg-transparent shadow-none
+                  md:flex md:h-full md:min-h-0 md:flex-1 md:flex-col
+                  md:min-h-[max(36rem,calc(100dvh-14rem))]
+                "
+              >
+                <iframe
+                  src={siteConfig.filloutUrl}
+                  title="CS Practice Room booking form"
+                  className="h-full min-h-0 w-full flex-1 border-0 bg-transparent"
+                />
+              </div>
+            </div>
           </section>
         ) : (
           <section className="rounded-3xl border border-dashed border-white/15 bg-black/20 p-6">

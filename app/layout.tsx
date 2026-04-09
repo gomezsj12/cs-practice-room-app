@@ -25,10 +25,10 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="en" className="h-full antialiased">
-      <body className="min-h-full bg-[#030303] text-white flex flex-col">
+      <body className="flex min-h-dvh flex-col bg-[#030303] text-white">
         <AuthProvider>
           <SiteHeader />
-          <div className="flex-1">{children}</div>
+          <div className="flex min-h-0 flex-1 flex-col">{children}</div>
           <ServiceWorkerRegistration />
           <InstallPrompt />
         </AuthProvider>

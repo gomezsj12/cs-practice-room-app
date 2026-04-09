@@ -1,11 +1,14 @@
 import Link from "next/link";
 import { siteConfig } from "@/lib/siteConfig";
 
+const cardClass =
+  "rounded-3xl border border-white/10 bg-white/5 p-6 shadow-2xl shadow-black/20";
+
 export default function Home() {
   return (
     <main className="px-4 py-8 text-white">
       <div className="mx-auto flex max-w-7xl flex-col gap-6">
-        <section className="rounded-3xl border border-white/10 bg-white/5 p-6 shadow-2xl shadow-black/20">
+        <section className={`${cardClass} hidden md:block`}>
           <div className="max-w-3xl space-y-4">
             <p className="text-sm font-medium uppercase tracking-[0.22em] text-blue-300">
               CS Practice Room
@@ -25,38 +28,12 @@ export default function Home() {
           </div>
         </section>
 
-        <section className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
-          <article className="rounded-3xl border border-white/10 bg-white/5 p-6">
-            <p className="text-sm font-medium text-blue-300">Booking Form</p>
-            <h2 className="mt-3 text-2xl font-semibold">Reserve the practice room</h2>
-            <p className="mt-3 text-sm leading-6 text-neutral-300">
-              Use the official room booking form for the main reservation workflow.
-            </p>
-            <Link
-              href="/booking"
-              className="mt-5 inline-flex rounded-full bg-blue-500 px-4 py-2 text-sm font-medium text-white transition hover:bg-blue-400"
-            >
-              Open booking page
-            </Link>
-          </article>
-
-          <article className="rounded-3xl border border-white/10 bg-white/5 p-6">
-            <p className="text-sm font-medium text-blue-300">Jam Scheduler</p>
-            <h2 className="mt-3 text-2xl font-semibold">Quick jam reservations</h2>
-            <p className="mt-3 text-sm leading-6 text-neutral-300">
-              The existing jam scheduler now lives on its own page inside this app.
-            </p>
-            <Link
-              href="/jam"
-              className="mt-5 inline-flex rounded-full bg-white/10 px-4 py-2 text-sm font-medium text-white transition hover:bg-white/15"
-            >
-              Open jam scheduler
-            </Link>
-          </article>
-
-          <article className="rounded-3xl border border-white/10 bg-white/5 p-6">
+        <section className="grid gap-4 md:grid-cols-2">
+          <article className={cardClass}>
             <p className="text-sm font-medium text-blue-300">Contact</p>
-            <h2 className="mt-3 text-2xl font-semibold">Get help or ask a question</h2>
+            <h2 className="mt-3 text-2xl font-semibold">
+              Get help or ask a question
+            </h2>
             <p className="mt-3 text-sm leading-6 text-neutral-300">
               We can later turn this into a fuller support flow. For Phase 1, this
               gives us a simple place for contact links and student guidance.
@@ -77,12 +54,15 @@ export default function Home() {
               </p>
             )}
           </article>
-        </section>
 
-        <section className="grid gap-4 lg:grid-cols-[1.2fr_0.8fr]">
-          <article className="rounded-3xl border border-white/10 bg-white/5 p-6">
-            <h2 className="text-2xl font-semibold">Helpful links</h2>
-            <div className="mt-4 grid gap-3 sm:grid-cols-2">
+          <article className={cardClass}>
+            <p className="text-sm font-medium text-blue-300">Helpful links</p>
+            <h2 className="mt-3 text-2xl font-semibold">Practice room resources</h2>
+            <p className="mt-3 text-sm leading-6 text-neutral-300">
+              Jump to the booking form, jam calendar, or group chat when the links
+              below are configured.
+            </p>
+            <div className="mt-5 grid gap-3 sm:grid-cols-2">
               <Link
                 href="/booking"
                 className="rounded-2xl border border-white/10 bg-black/20 px-4 py-4 text-sm text-neutral-200 transition hover:border-white/20 hover:bg-black/30"
@@ -106,22 +86,11 @@ export default function Home() {
                 </a>
               ) : (
                 <div className="rounded-2xl border border-dashed border-white/10 bg-black/20 px-4 py-4 text-sm text-neutral-400">
-                  Group chat link can be added later with
-                  {" "}
+                  Group chat link can be added later with{" "}
                   `NEXT_PUBLIC_TELEGRAM_GROUP_URL`.
                 </div>
               )}
             </div>
-          </article>
-
-          <article className="rounded-3xl border border-white/10 bg-white/5 p-6">
-            <h2 className="text-2xl font-semibold">Phase 1 status</h2>
-            <ul className="mt-4 space-y-3 text-sm leading-6 text-neutral-300">
-              <li>Homepage added as the new front door for the app.</li>
-              <li>Booking and jam pages split into dedicated routes.</li>
-              <li>Google sign-in stays global so the jam scheduler keeps working.</li>
-              <li>External links stay configurable so we can finish setup safely.</li>
-            </ul>
           </article>
         </section>
       </div>
