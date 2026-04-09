@@ -195,6 +195,42 @@ export async function POST(request: NextRequest) {
       );
     }
 
+    // Persist the outbound Telegram message identity so admins can simply
+    // reply to that message and we can map the response back to the thread.
+    try {
+      const telegramPayload = (await telegramResponse.json()) as {
+        ok?: boolean;
+        result?: {
+          message_id?: number;
+          chat?: { id?: number | string };
+        };
+      };
+
+      const rootMessageId = telegramPayload.result?.message_id;
+      const telegramChatId = telegramPayload.result?.chat?.id;
+
+      if (rootMessageId && telegramChatId !== undefined) {
+        const supabase = getSupabaseAdmin();
+        const { error: telegramThreadLinkError } = await supabase
+          .from("support_threads")
+          .update({
+            telegram_chat_id: String(telegramChatId),
+            telegram_root_message_id: rootMessageId,
+            updated_at: new Date().toISOString(),
+          })
+          .eq("id", supportThreadId);
+
+        if (telegramThreadLinkError) {
+          console.error(
+            "Failed to save telegram thread link:",
+            telegramThreadLinkError,
+          );
+        }
+      }
+    } catch (telegramParseError) {
+      console.error("Failed to parse Telegram sendMessage response:", telegramParseError);
+    }
+
     lastContactRequestByEmail.set(normalizedUserEmail, nowMs);
 
     return NextResponse.json({ ok: true });

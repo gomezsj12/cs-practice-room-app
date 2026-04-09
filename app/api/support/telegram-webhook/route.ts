@@ -1,13 +1,70 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getSupabaseAdmin } from "@/lib/supabase";
-import { parseReplyCommand } from "@/lib/support";
+import { extractSupportThreadIdFromText, parseReplyCommand } from "@/lib/support";
 
 type TelegramWebhookPayload = {
   update_id?: number;
   message?: {
+    message_id?: number;
+    chat?: {
+      id?: number | string;
+    };
     text?: string;
+    caption?: string;
+    quote?: {
+      text?: string;
+    };
+    reply_to_message?: {
+      message_id?: number;
+      text?: string;
+      caption?: string;
+    };
   };
 };
+
+function resolveSupportReply(message?: TelegramWebhookPayload["message"]) {
+  const text = (message?.text || message?.caption || "").trim();
+  if (!text) {
+    return null;
+  }
+
+  const commandReply = parseReplyCommand(text);
+  if (commandReply) {
+    return commandReply;
+  }
+
+  const threadIdFromQuotedReply = extractSupportThreadIdFromText(text);
+  if (threadIdFromQuotedReply) {
+    const cleanedReplyBody = text
+      .replace(new RegExp(`^.*?SR-${threadIdFromQuotedReply}\\s*`, "i"), "")
+      .trim();
+
+    if (cleanedReplyBody) {
+      return {
+        threadId: threadIdFromQuotedReply,
+        replyBody: cleanedReplyBody,
+      };
+    }
+  }
+
+  const repliedToText =
+    message?.reply_to_message?.text || message?.reply_to_message?.caption || "";
+  const quotedText = message?.quote?.text || "";
+  const threadId =
+    extractSupportThreadIdFromText(repliedToText) ||
+    extractSupportThreadIdFromText(quotedText);
+
+  if (threadId) {
+    // Treat plain reply text as the support response body when replying
+    // directly to a bot message that includes SR-<thread-id>.
+    return {
+      threadId,
+      replyBody: text,
+    };
+  }
+
+  return null;
+}
 
 function isWebhookAuthorized(request: NextRequest) {
   const expectedSecret = process.env.TELEGRAM_WEBHOOK_SECRET;
@@ -27,19 +84,42 @@ export async function POST(request: NextRequest) {
 
     const payload = (await request.json()) as TelegramWebhookPayload;
     const updateId = payload.update_id;
-    const text = payload.message?.text || "";
-    const reply = parseReplyCommand(text);
-
-    if (!reply) {
-      return NextResponse.json({ ok: true, ignored: true });
-    }
+    const message = payload.message;
+    const reply = resolveSupportReply(message);
 
     const supabase = getSupabaseAdmin();
+    const replyToMessageId = message?.reply_to_message?.message_id;
+    const chatId = message?.chat?.id;
+    let threadIdFromNativeReply = "";
+
+    if (replyToMessageId && chatId !== undefined) {
+      const { data: linkedThread, error: linkedThreadError } = await supabase
+        .from("support_threads")
+        .select("id")
+        .eq("telegram_chat_id", String(chatId))
+        .eq("telegram_root_message_id", replyToMessageId)
+        .maybeSingle();
+
+      if (linkedThreadError) {
+        throw linkedThreadError;
+      }
+
+      if (linkedThread?.id) {
+        threadIdFromNativeReply = linkedThread.id;
+      }
+    }
+
+    const threadId = threadIdFromNativeReply || reply?.threadId || "";
+    const replyBody = reply?.replyBody || message?.text || message?.caption || "";
+
+    if (!threadId || !replyBody.trim()) {
+      return NextResponse.json({ ok: true, ignored: true });
+    }
 
     const { data: thread, error: threadError } = await supabase
       .from("support_threads")
       .select("id, user_email")
-      .eq("id", reply.threadId)
+      .eq("id", threadId)
       .maybeSingle();
 
     if (threadError) {
@@ -70,7 +150,7 @@ export async function POST(request: NextRequest) {
     const { error: insertError } = await supabase.from("support_messages").insert({
       thread_id: thread.id,
       author_type: "admin",
-      body: reply.replyBody,
+      body: replyBody.trim(),
       source: "telegram",
       telegram_update_id: updateId ? String(updateId) : null,
     });

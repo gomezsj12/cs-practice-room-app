@@ -83,6 +83,8 @@ export type SupportThreadRow = {
   user_name: string | null;
   status: string;
   unread_for_user: boolean;
+  telegram_chat_id: string | null;
+  telegram_root_message_id: number | null;
   created_at: string;
   updated_at: string;
 };

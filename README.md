@@ -38,6 +38,8 @@ create table if not exists public.support_threads (
   user_name text,
   status text not null default 'open',
   unread_for_user boolean not null default false,
+  telegram_chat_id text,
+  telegram_root_message_id bigint,
   created_at timestamptz not null default now(),
   updated_at timestamptz not null default now()
 );
@@ -63,9 +65,10 @@ Configure your Telegram bot webhook to:
 
 `/api/support/telegram-webhook`
 
-Admin reply format in Telegram:
+Admin reply formats in Telegram:
 
-`/reply SR-<thread-id> your reply text`
+- `/reply SR-<thread-id> your reply text`
+- Preferred: use Telegram’s normal **Reply** action on a bot support request message and type your response text.
 
 ## Important Context
 
