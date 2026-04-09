@@ -82,42 +82,47 @@ export default function SupportInbox() {
   const longPressTimerRef = useRef<number | null>(null);
   const composerRef = useRef<HTMLTextAreaElement | null>(null);
   const messageListRef = useRef<HTMLDivElement | null>(null);
-  const hasLoadedInitialThreadRef = useRef(false);
 
   const loadThreads = useCallback(async () => {
-    const response = await fetch("/api/support/threads", {
-      cache: "no-store",
-    });
-    const payload = (await response.json()) as {
-      threads?: ThreadSummary[];
-      error?: string;
-    };
+    try {
+      const response = await fetch("/api/support/threads", {
+        cache: "no-store",
+      });
+      const payload = (await response.json()) as {
+        threads?: ThreadSummary[];
+        error?: string;
+      };
 
-    if (!response.ok) {
-      throw new Error(payload.error || "Could not load conversations.");
-    }
+      if (!response.ok) {
+        setError(payload.error || "Could not load conversations.");
+        return;
+      }
 
-    const list = payload.threads || [];
-    setThreads(list);
+      const list = payload.threads || [];
+      setThreads(list);
 
-    if (!selectedThreadId && list[0]?.id) {
-      setSelectedThreadId(list[0].id);
-      setPendingScrollThreadId(list[0].id);
-    }
+      if (!selectedThreadId && list[0]?.id) {
+        setSelectedThreadId(list[0].id);
+        setPendingScrollThreadId(list[0].id);
+      }
 
-    if (
-      selectedThreadId &&
-      !list.some((supportThread) => supportThread.id === selectedThreadId)
-    ) {
-      const fallbackThreadId = list[0]?.id || "";
-      setSelectedThreadId(fallbackThreadId);
-      setPendingScrollThreadId(fallbackThreadId);
+      if (
+        selectedThreadId &&
+        !list.some((supportThread) => supportThread.id === selectedThreadId)
+      ) {
+        const fallbackThreadId = list[0]?.id || "";
+        setSelectedThreadId(fallbackThreadId);
+        setPendingScrollThreadId(fallbackThreadId);
+      }
+    } catch {
+      setError("Could not load conversations.");
+    } finally {
+      setIsLoading(false);
     }
   }, [selectedThreadId]);
 
   const loadThread = useCallback(
-    async (options?: { silent?: boolean; showConversationLoader?: boolean }) => {
-      const silent = options?.silent ?? false;
+    async (options?: { showConversationLoader?: boolean }) => {
       const showConversationLoader = options?.showConversationLoader ?? false;
       if (!selectedThreadId) {
         setThread(null);
@@ -125,19 +130,12 @@ export default function SupportInbox() {
         if (showConversationLoader) {
           setIsConversationLoading(false);
         }
-        if (!silent && !hasLoadedInitialThreadRef.current) {
-          setIsLoading(false);
-          hasLoadedInitialThreadRef.current = true;
-        }
         return;
       }
 
       setError("");
       if (showConversationLoader) {
         setIsConversationLoading(true);
-      }
-      if (!silent && !hasLoadedInitialThreadRef.current) {
-        setIsLoading(true);
       }
 
       try {
@@ -148,30 +146,16 @@ export default function SupportInbox() {
 
         if (!response.ok) {
           setError(payload.error || "Could not load your support thread.");
-          if (!silent && !hasLoadedInitialThreadRef.current) {
-            setIsLoading(false);
-            hasLoadedInitialThreadRef.current = true;
-          }
           return;
         }
 
         setThread(payload.thread);
         setMessages(payload.messages || []);
-        if (showConversationLoader) {
-          setIsConversationLoading(false);
-        }
-        if (!silent && !hasLoadedInitialThreadRef.current) {
-          setIsLoading(false);
-          hasLoadedInitialThreadRef.current = true;
-        }
       } catch {
         setError("Could not load your support thread.");
+      } finally {
         if (showConversationLoader) {
           setIsConversationLoading(false);
-        }
-        if (!silent && !hasLoadedInitialThreadRef.current) {
-          setIsLoading(false);
-          hasLoadedInitialThreadRef.current = true;
         }
       }
     },
@@ -180,14 +164,16 @@ export default function SupportInbox() {
 
   useEffect(() => {
     if (status !== "authenticated") {
-      setIsLoading(false);
+      if (status === "unauthenticated") {
+        setIsLoading(false);
+      }
       return;
     }
 
     void loadThreads();
     const interval = window.setInterval(() => {
       void loadThreads();
-      void loadThread({ silent: true });
+      void loadThread();
     }, 20_000);
 
     return () => {
@@ -204,7 +190,7 @@ export default function SupportInbox() {
     }
     setThread(null);
     setMessages([]);
-    void loadThread({ silent: true, showConversationLoader: true });
+    void loadThread({ showConversationLoader: true });
   }, [loadThread, selectedThreadId, status]);
 
   useEffect(() => {
