@@ -15,10 +15,10 @@ export default function SiteHeader() {
 
   return (
     <header className="border-b border-white/10 bg-black/30 backdrop-blur">
-      <div className="mx-auto grid w-full max-w-7xl grid-cols-1 gap-5 px-4 py-6 text-white sm:gap-6 sm:px-6 sm:py-7 md:grid-cols-[minmax(0,1fr)_auto_minmax(0,1fr)] md:items-stretch md:gap-x-6 md:gap-y-0 lg:gap-x-10">
+      <div className="mx-auto grid w-full max-w-7xl grid-cols-1 gap-5 px-4 py-6 text-white sm:gap-6 sm:px-6 sm:py-7 md:grid-cols-[minmax(0,1fr)_auto_minmax(0,1fr)] md:items-start md:gap-x-6 md:gap-y-0 lg:gap-x-10">
         <nav
           aria-label="Main"
-          className="col-start-1 row-start-1 flex flex-wrap justify-center gap-2 text-sm justify-self-center md:col-start-2 md:row-start-1 md:h-full md:min-h-0 md:items-center md:justify-center"
+          className="col-start-1 row-start-1 flex flex-wrap justify-center gap-2 text-sm justify-self-center md:col-start-2 md:row-start-1 md:self-center md:items-center md:justify-center"
         >
           {navItems.map((item) => {
             const isActive = pathname === item.href;
@@ -39,19 +39,19 @@ export default function SiteHeader() {
           })}
         </nav>
 
-        <div className="col-start-1 row-start-2 min-w-0 space-y-2 md:col-start-1 md:row-start-1 md:flex md:h-full md:min-h-0 md:max-w-md md:flex-col md:justify-between md:justify-self-start md:space-y-0 lg:max-w-lg">
+        <div className="col-start-1 row-start-2 flex w-full min-w-0 flex-col space-y-2 md:col-start-1 md:row-start-1 md:max-w-3xl md:w-full md:space-y-2 md:justify-self-start lg:max-w-4xl">
           <Link
             href="/"
-            className="block shrink-0 text-3xl font-semibold tracking-tight text-white transition hover:text-blue-300 sm:text-4xl md:text-3xl lg:text-4xl"
+            className="block shrink-0 text-4xl font-semibold tracking-tight text-white transition hover:text-blue-300 sm:text-5xl md:text-3xl lg:text-4xl"
           >
             CS Practice Room
           </Link>
-          <p className="shrink-0 text-base leading-relaxed text-neutral-300 sm:text-lg md:mt-0 md:text-base md:leading-snug lg:text-lg">
-            Booking, jam reservations, and student support in one place.
+          <p className="shrink-0 text-lg leading-snug text-neutral-300 sm:text-xl max-md:overflow-x-auto max-md:pb-0.5 md:whitespace-nowrap md:text-base md:leading-snug lg:text-lg">
+            Booking, Jam Reservations, and Student Support.
           </p>
         </div>
 
-        <div className="col-start-1 row-start-3 flex w-full justify-center md:col-start-3 md:row-start-1 md:h-full md:min-h-0 md:w-auto md:items-center md:justify-end md:justify-self-end">
+        <div className="col-start-1 row-start-3 flex w-full justify-center md:col-start-3 md:row-start-1 md:w-auto md:justify-end md:justify-self-end md:self-start">
           <AuthButton />
         </div>
       </div>
