@@ -1,3 +1,24 @@
+/**
+ * @file Jam reservation creation endpoint (`POST /api/reserve`).
+ *
+ * Full booking pipeline:
+ * 1. **Auth** — requires a signed-in Google session.
+ * 2. **Validation** — checks required fields and booking-time constraints.
+ * 3. **Hold verification** (optional) — if a `holdId` is supplied and temp
+ *    holds are enabled, verifies ownership, pending status, expiry, and
+ *    slot-time match (±1 s tolerance). Falls back to the standard flow on failure.
+ * 4. **Google Calendar overlap check** — queries both practice and jam
+ *    calendars for conflicting events.
+ * 5. **Google Calendar insert** — creates the jam event with `ownerEmail`
+ *    stored in `extendedProperties.private` for ownership tracking.
+ * 6. **Notion log** (fire-and-forget) — records the reservation; failures
+ *    are logged but don't block the response.
+ * 7. **Hold cleanup** — deletes the Supabase hold row after a successful booking.
+ *
+ * @see {@link @/lib/calendar-helpers} — `validateBookingTimes`, `checkGoogleCalendarOverlap`
+ * @see {@link @/lib/notion} — `createJamReservationInNotion`
+ */
+
 import { NextRequest, NextResponse } from "next/server";
 import { auth } from "@/auth";
 import {
@@ -9,6 +30,13 @@ import { createJamReservationInNotion } from "@/lib/notion";
 import { getSupabaseAdmin } from "@/lib/supabase";
 import type { HoldRow } from "@/lib/types";
 
+/**
+ * Handles `POST /api/reserve`.
+ *
+ * Accepts `{ name, instrument, start, end, holdId? }` and creates a Google
+ * Calendar event on the jam calendar after verifying no overlaps. Returns the
+ * normalised event payload on success.
+ */
 export async function POST(request: NextRequest) {
   try {
     const session = await auth();
@@ -58,6 +86,8 @@ export async function POST(request: NextRequest) {
       );
     }
 
+    // Tracks whether the booking was backed by a verified hold; returned to
+    // the client so the UI can skip a redundant calendar refresh.
     let holdWasVerified = false;
 
     if (process.env.ENABLE_TEMP_HOLDS === "true" && holdId) {
@@ -111,6 +141,8 @@ export async function POST(request: NextRequest) {
         const requestStartMs = new Date(start).getTime();
         const requestEndMs = new Date(end).getTime();
 
+        // Allow ±1 s drift between the hold and the submitted times to
+        // tolerate minor serialisation rounding across timezones.
         if (
           Math.abs(holdStartMs - requestStartMs) > 1000 ||
           Math.abs(holdEndMs - requestEndMs) > 1000

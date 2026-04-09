@@ -1,7 +1,23 @@
+/**
+ * @file Delete support thread endpoint (`POST /api/support/delete`).
+ *
+ * Permanently removes a support thread and its messages (via Supabase
+ * cascade). Only the thread owner can delete; the query filters by both
+ * `id` and `user_email` so no cross-user deletion is possible.
+ *
+ * Returns 404 if the thread doesn't exist or doesn't belong to the caller.
+ */
+
 import { NextRequest, NextResponse } from "next/server";
 import { auth } from "@/auth";
 import { getSupabaseAdmin } from "@/lib/supabase";
 
+/**
+ * Handles `POST /api/support/delete`.
+ *
+ * Accepts `{ threadId }` and deletes the matching thread after verifying
+ * the caller owns it.
+ */
 export async function POST(request: NextRequest) {
   try {
     const session = await auth();

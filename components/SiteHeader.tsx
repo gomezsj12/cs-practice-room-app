@@ -1,5 +1,19 @@
 "use client";
 
+/**
+ * @module SiteHeader
+ *
+ * Global site header rendered on every page via the root layout. Contains the
+ * app title/tagline, the main navigation pill bar, and the {@link AuthButton}
+ * sign-in/out card.
+ *
+ * Layout uses a responsive CSS Grid: on narrow viewports the three sections
+ * stack vertically; on `md+` they sit in a single row (title | nav | auth).
+ *
+ * @see AuthButton — auth state card placed in the trailing column
+ * @see SupportNavLink — special nav item that shows an unread-message badge
+ */
+
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import AuthButton from "@/components/AuthButton";
@@ -12,6 +26,10 @@ const navItems = [
   { href: "/support", label: "Support" },
 ];
 
+/**
+ * Renders the global site header with navigation and auth controls.
+ * Active route is highlighted in the nav bar using the current pathname.
+ */
 export default function SiteHeader() {
   const pathname = usePathname();
 

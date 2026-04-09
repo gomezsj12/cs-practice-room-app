@@ -1,5 +1,19 @@
+/**
+ * @file Practice room booking page (`/booking`).
+ *
+ * Embeds the external Fillout form inside a full-height iframe when the
+ * `NEXT_PUBLIC_FILLOUT_URL` env var is set, or shows a placeholder message
+ * prompting the admin to configure it.
+ *
+ * The layout uses `flex-1` + viewport-height constraints so the iframe fills
+ * all available space below the site header without extra scrolling.
+ *
+ * @see {@link @/lib/siteConfig} — exposes `filloutUrl` from env
+ */
+
 import { siteConfig } from "@/lib/siteConfig";
 
+/** Booking page — Fillout form embed or "not configured" fallback. */
 export default function BookingPage() {
   const hasEmbedUrl = Boolean(siteConfig.filloutUrl);
 

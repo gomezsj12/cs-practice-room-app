@@ -1,3 +1,51 @@
+/**
+ * @file Drag-to-select hook for the FullCalendar time-grid.
+ *
+ * Implements two **mutually exclusive** input paths:
+ *
+ * ### Pointer path (mouse / pen)
+ * Fires on `pointerdown` for non-touch pointers. Arms immediately, captures
+ * the pointer, and tracks `pointermove` until `pointerup` / `pointercancel`.
+ * Touch-type pointers are explicitly rejected here to avoid duplicate
+ * completions — see below.
+ *
+ * ### Touch path (dedicated Touch events)
+ * Many mobile browsers (especially iOS Safari) do not reliably honour
+ * mid-gesture `touch-action` changes made during a Pointer Events sequence.
+ * The touch path works around this by listening to native `touchstart`,
+ * `touchmove`, `touchend`, and `touchcancel` directly.
+ *
+ * A **long-press arming mechanism** (`TOUCH_ARM_MS`) distinguishes intentional
+ * drag-selects from scrolls and navigation gestures. While the timer is
+ * pending, any movement beyond `TOUCH_MOVE_CANCEL_PX` cancels the gesture
+ * entirely. Once armed, `touchActive` is set, `touch-action: none` is
+ * applied, and scrolling is suppressed via `preventDefault`.
+ *
+ * ### RAF-driven mirror painting
+ * Both paths feed into `schedulePaint → paintMirror`, which runs at most once
+ * per animation frame. `paintMirror` reads the latest `lastClientY`, maps it
+ * to a snapped time, merges the range around the anchor while respecting
+ * existing event blockers, and emits a `DragMirrorState` for the visual
+ * overlay. A string-key dedup (`lastMirrorKey`) prevents unnecessary React
+ * state updates when the computed bounds haven't changed.
+ *
+ * ### `completeSelection` validation chain
+ * On pointer-up / touch-end, the final range goes through:
+ * 1. `mergeSelectionRange` — clamp to the nearest blocker boundaries.
+ * 2. `applyMinBookableStartToRange` — shift start forward if it falls in the
+ *    past.
+ * 3. `isPastCalendarDay` — reject if the entire day is in the past.
+ * 4. `selectionIsBookable` — reject if the range is shorter than the minimum
+ *    booking duration (30 min).
+ * 5. Auth check — only authenticated users may proceed.
+ *
+ * If all checks pass, an optimistic hold event is injected and the booking
+ * flow is kicked off via `createHoldOrFallbackRef`.
+ *
+ * @see {@link useBookingFlow} for what happens after `createHoldOrFallbackRef`
+ *      is called.
+ * @see `lib/timeGridDragSelect` for the pure geometry / time-math helpers.
+ */
 import { useEffect, useState } from "react";
 import type FullCalendar from "@fullcalendar/react";
 import type { CalendarEvent, DragMirrorState, PendingSelection } from "@/lib/types";
@@ -22,6 +70,8 @@ import {
   selectionIsBookable,
 } from "@/lib/timeGridDragSelect";
 
+/** Formats a start/end pair into a compact range label (e.g. "2:00 - 3:30 PM"),
+ *  collapsing the meridiem when both times share the same AM/PM. */
 function formatEventTimeRange(start: Date | null, end: Date | null) {
   if (!start || !end) {
     return "";
@@ -49,6 +99,24 @@ function formatEventTimeRange(start: Date | null, end: Date | null) {
   return `${startText} - ${endText}`;
 }
 
+/**
+ * Wires up pointer and touch listeners on the calendar time-grid to enable
+ * drag-to-select booking. Returns the current drag-mirror overlay state and
+ * a flag indicating whether a drag gesture is in progress.
+ *
+ * All parameters are stable refs or callbacks to keep the single large
+ * `useEffect` dependency array static across renders.
+ *
+ * @param calendarRef          - Ref to the FullCalendar instance (for API access).
+ * @param calendarInteractRef  - Ref to the DOM wrapper that receives pointer/touch events.
+ * @param isLoading            - While true, listeners are not attached.
+ * @param eventsRef            - Stable ref to the latest events array (blocker source).
+ * @param pendingSelectionRef  - When non-null, new drags are blocked.
+ * @param statusRef            - Auth status ref; only `"authenticated"` can complete a selection.
+ * @param createHoldOrFallbackRef - Booking-flow entry point called on successful selection.
+ * @param showToast            - Toast callback for validation messages.
+ * @param setEvents            - State setter for injecting the optimistic hold event.
+ */
 export function useDragSelect(
   calendarRef: React.RefObject<FullCalendar | null>,
   calendarInteractRef: React.RefObject<HTMLDivElement | null>,
@@ -76,7 +144,9 @@ export function useDragSelect(
     const slotMinMin = parseSlotTimeToMinutes(SLOT_MIN_STR);
     const slotMaxMin = parseSlotTimeToMinutes(SLOT_MAX_STR);
 
+    /** Long-press duration (ms) before a touch gesture becomes a drag-select. */
     const TOUCH_ARM_MS = 220;
+    /** Movement threshold (px) that cancels a pending long-press. */
     const TOUCH_MOVE_CANCEL_PX = 10;
 
     type ActiveDrag = {
@@ -88,9 +158,13 @@ export function useDragSelect(
       blockers: { start: string; end: string }[];
     };
 
+    // --- Pointer-path mutable state ---
     let active: ActiveDrag | null = null;
+    /** Non-zero when a `paintMirror` frame is already scheduled. */
     let rafId = 0;
+    /** Shared across both input paths — written on every move, read by `paintMirror`. */
     let lastClientY = 0;
+    /** Dedup key to skip `setDragMirror` when bounds haven't changed. */
     let lastMirrorKey = "";
 
     type TouchActive = {
@@ -112,7 +186,9 @@ export function useDragSelect(
       identifier: number;
     };
 
+    // --- Touch-path mutable state ---
     let touchActive: TouchActive | null = null;
+    /** Pre-arm state: tracks the initial touch while the long-press timer runs. */
     let touchPending: TouchPending | null = null;
     let dragInteracting = false;
 
@@ -136,12 +212,20 @@ export function useDragSelect(
       touchPending = null;
     }
 
+    /**
+     * Compute and emit the drag-mirror overlay position.
+     *
+     * Reads from whichever input path is active (pointer or touch), maps
+     * `lastClientY` to a time, merges around blockers, and updates
+     * `dragMirror` state only when the resulting bounds actually change.
+     */
     function paintMirror() {
       rafId = 0;
       if (!calendarRef.current) {
         return;
       }
 
+      // Unify both input paths into a single source for the geometry math.
       const source = active
         ? {
             colEl: active.colEl,
@@ -321,6 +405,13 @@ export function useDragSelect(
       schedulePaint();
     }
 
+    /**
+     * Validate and finalize the drag range, then kick off the booking flow.
+     *
+     * Runs the full validation chain: merge → min-bookable-start clamp →
+     * past-day check → minimum-duration check → auth check. On success,
+     * injects an optimistic hold event and calls `createHoldOrFallbackRef`.
+     */
     function completeSelection(
       colIdx: number,
       anchor: Date,
@@ -437,6 +528,9 @@ export function useDragSelect(
       completeSelection(saved.colIdx, saved.anchor, saved.blockers, endClientY);
     }
 
+    // --- Touch path entry point ---
+    // Starts a long-press timer; if the user holds still for TOUCH_ARM_MS
+    // the gesture is promoted to an active drag-select.
     function onTouchStart(e: TouchEvent) {
       if (pendingSelectionRef.current) {
         return;
@@ -545,6 +639,9 @@ export function useDragSelect(
     }
 
     function onTouchMove(e: TouchEvent) {
+      // While the long-press timer is still running, any movement beyond
+      // TOUCH_MOVE_CANCEL_PX cancels the pending drag so normal scrolling
+      // can proceed unimpeded.
       if (touchPending && !touchPending.armed) {
         const t = getTouchById(e.touches, touchPending.identifier);
         if (!t) {

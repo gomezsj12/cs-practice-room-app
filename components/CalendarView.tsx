@@ -1,5 +1,36 @@
 "use client";
 
+/**
+ * @module CalendarView
+ *
+ * Top-level calendar orchestrator for the Jam Reservations page.
+ *
+ * Renders a FullCalendar (timeGridWeek on desktop, timeGridDay on mobile)
+ * wrapped in custom navigation controls, a drag-select reservation flow,
+ * and stacked modal overlays (reserve, event details, cancel confirmation,
+ * toast).
+ *
+ * **Keyboard shortcuts** (desktop only, suppressed when a modal is open or
+ * focus is in a form field):
+ * - `ArrowLeft` / `ArrowRight` — navigate to previous / next week (or day)
+ * - `T` — jump to today
+ * - `Escape` — close the topmost open modal (reserve > cancel confirm > event details)
+ *
+ * **Touch gestures** (mobile only):
+ * - Horizontal swipe — navigate prev/next day
+ * - Double-tap — jump to today
+ *
+ * Key hooks consumed:
+ * - {@link useBookingFlow} — hold / reserve / cancel state machine
+ * - {@link useDragSelect} — pointer-based slot selection on the grid
+ * - {@link useEventPolling} — server polling for calendar events
+ * - {@link useNowIndicatorOverlay} — custom "now" line rendering
+ *
+ * @see ReserveModal — opened after a slot is drag-selected
+ * @see EventDetailsModal — opened on event click
+ * @see ConfirmModal — cancel-reservation confirmation
+ */
+
 import type { CSSProperties } from "react";
 import { useEffect, useMemo, useRef, useState } from "react";
 import type { DatesSetArg, EventContentArg } from "@fullcalendar/core";
@@ -27,6 +58,25 @@ import {
 } from "@/lib/timeGridDragSelect";
 import type { PendingSelection } from "@/lib/types";
 
+/**
+ * Checks whether the given event target is an element the user is likely
+ * typing into (input, textarea, select, or `contentEditable`).
+ *
+ * Used as a guard so keyboard shortcuts (arrow keys, "T", Escape) are
+ * suppressed while the user is interacting with form fields or editable
+ * regions.
+ */
+function isTypingTarget(target: EventTarget | null) {
+  if (!(target instanceof HTMLElement)) {
+    return false;
+  }
+  if (target.isContentEditable) {
+    return true;
+  }
+  const tag = target.tagName.toLowerCase();
+  return tag === "input" || tag === "textarea" || tag === "select";
+}
+
 /** Thin “hairline” height; `scaleY` keeps it sharper than a literal 0.5px on some displays. */
 const NOW_THIN_LINE_STYLE: CSSProperties = {
   height: 1,
@@ -35,6 +85,20 @@ const NOW_THIN_LINE_STYLE: CSSProperties = {
   backgroundColor: "rgba(239, 68, 68, 0.88)",
 };
 
+/**
+ * Custom "now" time-indicator overlay that replaces FullCalendar's built-in
+ * red line with a multi-segment design:
+ *
+ * - A left-pointing triangle arrow at the today column's leading edge
+ * - A thick (4 px) red bar spanning most of the today column
+ * - Thin hairline segments extending across non-today columns (week view)
+ *
+ * All segments are absolutely positioned via measurements from
+ * {@link useNowIndicatorOverlay} and are `pointer-events: none` so they
+ * never interfere with click/drag interactions on the calendar grid.
+ *
+ * @param props.o - Pre-computed pixel positions and sizes.
+ */
 function NowIndicatorOverlayLayer({ o }: { o: NowIndicatorOverlayState }) {
   const ARROW_W = 9;
   const ARROW_BY = 4;
@@ -110,6 +174,13 @@ function NowIndicatorOverlayLayer({ o }: { o: NowIndicatorOverlayState }) {
   );
 }
 
+/**
+ * Primary calendar view component.
+ *
+ * Manages responsive layout (mobile day view vs. desktop week view),
+ * wires FullCalendar to the booking-flow hooks, and handles all
+ * navigation input (buttons, keyboard shortcuts, touch gestures).
+ */
 export default function CalendarView() {
   const calendarRef = useRef<FullCalendar | null>(null);
   const calendarInteractRef = useRef<HTMLDivElement | null>(null);
@@ -189,6 +260,8 @@ export default function CalendarView() {
     };
   }, []);
 
+  // After events finish loading, bump the layout epoch so the now-indicator
+  // overlay recalculates its pixel positions against the rendered grid.
   useEffect(() => {
     if (!isLoading) {
       requestAnimationFrame(() => {
@@ -197,6 +270,8 @@ export default function CalendarView() {
     }
   }, [isLoading]);
 
+  // Re-render every 60 s (and on tab re-focus) so "past" event styling
+  // updates as the current time crosses event end boundaries.
   useEffect(() => {
     const id = window.setInterval(() => {
       setNowTick(Date.now());
@@ -241,18 +316,9 @@ export default function CalendarView() {
     isLoading === false &&
     isDragInteracting === false;
 
+  // Keyboard date-navigation: ArrowLeft/Right prev/next, T for today.
+  // Only active on desktop when no modal is open and no drag in progress.
   useEffect(() => {
-    function isTypingTarget(target: EventTarget | null) {
-      if (!(target instanceof HTMLElement)) {
-        return false;
-      }
-      if (target.isContentEditable) {
-        return true;
-      }
-      const tag = target.tagName.toLowerCase();
-      return tag === "input" || tag === "textarea" || tag === "select";
-    }
-
     function onKeyDown(e: KeyboardEvent) {
       if (isMobile) {
         return;
@@ -280,18 +346,9 @@ export default function CalendarView() {
     return () => window.removeEventListener("keydown", onKeyDown);
   }, [inDefaultIdleState, isMobile]);
 
+  // Escape key handler: closes the topmost open layer in priority order
+  // (reserve modal > cancel confirmation > event details).
   useEffect(() => {
-    function isTypingTarget(target: EventTarget | null) {
-      if (!(target instanceof HTMLElement)) {
-        return false;
-      }
-      if (target.isContentEditable) {
-        return true;
-      }
-      const tag = target.tagName.toLowerCase();
-      return tag === "input" || tag === "textarea" || tag === "select";
-    }
-
     function onKeyDown(e: KeyboardEvent) {
       if (isMobile) {
         return;
@@ -338,6 +395,9 @@ export default function CalendarView() {
     setShowCancelConfirm,
   ]);
 
+  // Mobile touch gestures: horizontal swipe for prev/next day,
+  // double-tap for today. Ignored when modals are open or the target
+  // is an interactive element (button, link, calendar event).
   useEffect(() => {
     const root = calendarInteractRef.current;
     if (!root) {

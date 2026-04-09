@@ -20,15 +20,29 @@ Same idea for **`git push`**: only when they ask, unless they have said otherwis
 
 **After completing code changes for the current task**, start the app with **`npm run dev`** in the terminal for this repo (from the project root). That way the project owner can open the local URL and test right away.
 
-- Follow [`.cursor/rules/dev-server-cleanup.mdc`](./rules/dev-server-cleanup.mdc): if a dev server is already running for this repo, don’t start a second one; stop the old process first if you need a clean restart.
+- Follow [`.cursor/rules/dev-server-cleanup.mdc`](./rules/dev-server-cleanup.mdc): if a dev server is already running for this repo, don't start a second one; stop the old process first if you need a clean restart.
 - If the change is documentation-only or cannot affect runtime, say so and **skip** starting the server.
 
 ## Ask for feedback
 
 When you finish a change that should be verified in the browser, **explicitly prompt the owner for feedback** — for example, what to click or look for, then invite them to reply with what they see or any issues. Do not assume silence means success.
 
+## Documentation protocol
+
+After substantive work, follow the documentation protocol in [`.cursor/rules/documentation-protocol.mdc`](./rules/documentation-protocol.mdc):
+
+- **After commits**: Update `docs/change-log.md`
+- **After error fixes**: Update `docs/error-log.md`
+- **After UI changes**: Update `docs/ui-lookbook.md`
+- **After architecture changes**: Update `docs/ARCHITECTURE.md`
+
+See `docs/README.md` for the full list of documentation files and their purposes.
+
 ## Related files
 
 - [`settings.json`](./settings.json) — plugin config and short reminders.
 - [`rules/collaboration.mdc`](./rules/collaboration.mdc) — plain-language collaboration style.
 - [`rules/change-log.mdc`](./rules/change-log.mdc) — when to update `docs/change-log.md` after a commit.
+- [`rules/documentation-protocol.mdc`](./rules/documentation-protocol.mdc) — full documentation update protocol.
+- [`rules/browser-verification.mdc`](./rules/browser-verification.mdc) — browser verification before hand-off.
+- [`rules/dev-server-cleanup.mdc`](./rules/dev-server-cleanup.mdc) — dev server management.

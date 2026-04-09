@@ -1,5 +1,18 @@
 "use client";
 
+/**
+ * @module SupportNavLink
+ *
+ * Navigation link for the Support page that displays an amber unread-message
+ * badge when the authenticated user has unread staff replies.
+ *
+ * Polls `/api/support/unread` every 20 s while the user is signed in; the
+ * badge disappears when the inbox is opened (server marks messages as read).
+ *
+ * @see SiteHeader — renders this component in the main nav bar
+ * @see SupportInbox — the page that clears the unread flag on open
+ */
+
 import Link from "next/link";
 import { useEffect, useState } from "react";
 import { useSession } from "next-auth/react";
@@ -8,6 +21,12 @@ type SupportNavLinkProps = {
   isActive: boolean;
 };
 
+/**
+ * Nav pill for the Support page with an optional unread-message indicator dot.
+ *
+ * @param props.isActive - Whether the Support route is the current page
+ *   (controls the active/highlighted pill style).
+ */
 export default function SupportNavLink({ isActive }: SupportNavLinkProps) {
   const { status } = useSession();
   const [unread, setUnread] = useState(false);

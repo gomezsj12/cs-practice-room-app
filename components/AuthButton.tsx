@@ -1,11 +1,25 @@
 "use client";
 
+/**
+ * @module AuthButton
+ *
+ * Displays a sign-in / sign-out card whose colour scheme and helper text
+ * adapt to the current page context (home, booking, jam, support).
+ *
+ * When signed out, the card prompts the user with Google OAuth; when signed
+ * in, it shows a confirmation banner with a sign-out button. The card is
+ * rendered inside {@link SiteHeader} on every page.
+ *
+ * @see SiteHeader — parent component that positions this card
+ */
+
 import { signIn, signOut, useSession } from "next-auth/react";
 import { usePathname } from "next/navigation";
 
 const authCardShell =
   "w-full max-w-md rounded-xl border px-3 py-2.5 md:max-w-sm";
 
+/** Returns per-page colour tokens for the signed-out auth card. */
 function headerSignOutCardClass(pathname: string) {
   if (pathname.startsWith("/booking")) {
     return {
@@ -28,6 +42,7 @@ function headerSignOutCardClass(pathname: string) {
   };
 }
 
+/** Returns contextual body copy shown when the user is signed out. */
 function headerSignOutBody(pathname: string): string {
   if (pathname.startsWith("/booking")) {
     return "The booking form works when signed-out.";
@@ -38,6 +53,7 @@ function headerSignOutBody(pathname: string): string {
   return "One account for jam scheduling and other shared tools in this app.";
 }
 
+/** Returns contextual body copy shown when the user is signed in. */
 function headerSignedInBody(pathname: string): string {
   if (pathname.startsWith("/booking")) {
     return "Fillout below; jam scheduling shares this Google account.";
@@ -48,6 +64,10 @@ function headerSignedInBody(pathname: string): string {
   return "Booking, jam scheduler, and future tools share this Google account.";
 }
 
+/**
+ * Auth state card: sign-in prompt (signed out) or confirmation banner (signed in).
+ * Card colour and helper text vary by the current route pathname.
+ */
 export default function AuthButton() {
   const { data: session, status } = useSession();
   const pathname = usePathname() || "/";

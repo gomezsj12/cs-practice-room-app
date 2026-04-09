@@ -1,7 +1,27 @@
+/**
+ * @file Single support thread endpoint (`GET /api/support/thread`).
+ *
+ * Returns one thread and all of its messages for the signed-in user.
+ * When `?threadId=<id>` is provided the specific thread is fetched;
+ * otherwise the most recently updated thread is returned (useful for the
+ * initial "open inbox → show latest conversation" flow).
+ *
+ * Ownership is enforced: the query filters by `user_email` so a user can
+ * never read another user's thread.
+ *
+ * @see {@link @/app/api/support/threads/route} — list of thread summaries
+ */
+
 import { NextRequest, NextResponse } from "next/server";
 import { auth } from "@/auth";
 import { getSupabaseAdmin } from "@/lib/supabase";
 
+/**
+ * Handles `GET /api/support/thread`.
+ *
+ * Accepts optional `?threadId=<uuid>`. Returns `{ thread, messages }` where
+ * `thread` may be `null` if the user has no threads.
+ */
 export async function GET(request: NextRequest) {
   try {
     const session = await auth();

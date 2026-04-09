@@ -1,9 +1,40 @@
 "use client";
 
+/**
+ * @module SupportInbox
+ *
+ * Two-panel support inbox for authenticated users. The left panel lists all
+ * of the user's support threads; the right panel shows the selected
+ * conversation's message history and a reply composer.
+ *
+ * **Polling / refresh:** Threads and the active conversation are fetched on
+ * mount and then re-fetched every 20 s via `setInterval`. Switching threads
+ * triggers an immediate fetch with a loading spinner in the conversation
+ * pane. Sending a reply or deleting a thread also triggers an immediate
+ * refresh of both lists.
+ *
+ * **Mobile view toggle:** On viewports narrower than `lg`, only one panel is
+ * shown at a time. `mobileView` state (`"list"` | `"chat"`) controls which
+ * panel is visible; selecting a thread switches to chat, and a back button
+ * returns to the list.
+ *
+ * **Scroll management:** `pendingScrollThreadId` tracks when the message list
+ * should auto-scroll to the bottom (e.g. after selecting a thread or loading
+ * new messages). A `useLayoutEffect` performs the scroll once the DOM has
+ * painted, using a double-`rAF + setTimeout(0)` to handle both initial paint
+ * and any late layout shifts.
+ *
+ * **Context menu:** Right-click (desktop) or long-press (mobile, 550 ms)
+ * on a thread item opens a floating menu with a "Delete conversation" option.
+ *
+ * @see ContactSupportForm — creates new threads that appear here
+ * @see SupportNavLink — nav badge driven by the same unread state
+ */
+
 import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import { useSession } from "next-auth/react";
 import Toast from "@/components/Toast";
-import type { SupportMessageRow, SupportThreadRow } from "@/lib/types";
+import type { SupportMessageRow, SupportThreadRow, ThreadSummary } from "@/lib/types";
 
 type SupportThreadPayload = {
   thread: SupportThreadRow | null;
@@ -11,21 +42,7 @@ type SupportThreadPayload = {
   error?: string;
 };
 
-type ThreadSummary = {
-  id: string;
-  user_email: string;
-  user_name: string | null;
-  status: string;
-  unread_for_user: boolean;
-  created_at: string;
-  updated_at: string;
-  latest_message_body: string | null;
-  latest_message_author_type: "user" | "admin" | null;
-  latest_message_created_at: string | null;
-  user_message_count: number;
-  admin_message_count: number;
-};
-
+/** Formats an ISO timestamp into a short locale string for message bubbles. */
 function formatMessageTime(isoString: string) {
   const date = new Date(isoString);
   return date.toLocaleString([], {
@@ -36,6 +53,7 @@ function formatMessageTime(isoString: string) {
   });
 }
 
+/** Derives a human-readable thread name from its creation timestamp. */
 function formatConversationName(isoString: string) {
   const date = new Date(isoString);
   return `Issue ${date.toLocaleString([], {
@@ -46,16 +64,22 @@ function formatConversationName(isoString: string) {
   })}`;
 }
 
+/** Normalises a thread status string into a display-friendly label. */
 function formatThreadStatus(status: string) {
   return status.toLowerCase() === "open" ? "Open" : "Closed";
 }
 
+/** Returns Tailwind colour classes for the thread status pill. */
 function threadStatusClass(status: string) {
   return status.toLowerCase() === "open"
     ? "bg-emerald-500/20 text-emerald-200"
     : "bg-red-500/20 text-red-200";
 }
 
+/**
+ * Renders the full support inbox UI: thread list sidebar, conversation
+ * message stream, and reply composer. Requires an authenticated session.
+ */
 export default function SupportInbox() {
   const { status } = useSession();
   const [threads, setThreads] = useState<ThreadSummary[]>([]);
@@ -162,6 +186,8 @@ export default function SupportInbox() {
     [selectedThreadId],
   );
 
+  // Initial fetch + 20 s polling interval for both the thread list and
+  // the active conversation. Both are refreshed in parallel.
   useEffect(() => {
     if (status !== "authenticated") {
       if (status === "unauthenticated") {
@@ -172,8 +198,7 @@ export default function SupportInbox() {
 
     void loadThreads();
     const interval = window.setInterval(() => {
-      void loadThreads();
-      void loadThread();
+      void Promise.all([loadThreads(), loadThread()]);
     }, 20_000);
 
     return () => {
@@ -193,6 +218,8 @@ export default function SupportInbox() {
     void loadThread({ showConversationLoader: true });
   }, [loadThread, selectedThreadId, status]);
 
+  // Fire-and-forget: mark the thread as read on the server whenever the
+  // user opens a thread that has unread staff replies.
   useEffect(() => {
     if (status !== "authenticated" || !thread?.id || !thread?.unread_for_user) {
       return;
@@ -356,6 +383,9 @@ export default function SupportInbox() {
     el.scrollTop = el.scrollHeight;
   }, [replyDraft]);
 
+  // Auto-scroll the message list to the bottom when a thread is first
+  // selected or when new messages arrive. The double scroll (rAF + setTimeout)
+  // handles late layout shifts from async-rendered content.
   useLayoutEffect(() => {
     if (
       !selectedThreadId ||

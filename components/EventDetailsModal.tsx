@@ -1,5 +1,21 @@
 "use client";
 
+/**
+ * @module EventDetailsModal
+ *
+ * Read-only detail overlay for a calendar event. Shows the event title,
+ * time range, type badge (jam / practice), and — for the user's own jam
+ * reservations — a cancel button (gated behind a {@link ConfirmModal}).
+ *
+ * A live "has ended" check (`nowMs >= end`) disables the cancel action once
+ * the event's end time has passed, even if the modal was opened before it
+ * ended. The timestamp is captured via `requestAnimationFrame` each time the
+ * modal opens, so the check is fresh without continuous polling.
+ *
+ * @see CalendarView — opens this modal on event click
+ * @see ConfirmModal — secondary confirmation before actual cancellation
+ */
+
 import { useEffect, useState } from "react";
 import { formatBookingDateRange } from "@/lib/formatting";
 import type { CalendarEvent } from "@/lib/types";
@@ -13,6 +29,16 @@ type EventDetailsModalProps = {
   onCancel: () => void;
 };
 
+/**
+ * Displays event details in a fixed overlay with an optional cancel action.
+ *
+ * @param props.isOpen - Controls visibility; renders `null` when closed.
+ * @param props.event - The calendar event to display, or `null` if none selected.
+ * @param props.isCancelling - Disables buttons while a cancellation API call is in-flight.
+ * @param props.dismissOnBackdrop - When `true`, tapping the backdrop closes the modal.
+ * @param props.onClose - Callback to close the modal.
+ * @param props.onCancel - Callback to initiate cancellation (opens ConfirmModal upstream).
+ */
 export default function EventDetailsModal({
   isOpen,
   event,

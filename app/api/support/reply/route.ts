@@ -1,3 +1,18 @@
+/**
+ * @file User follow-up reply endpoint (`POST /api/support/reply`).
+ *
+ * Adds a new message to an existing support thread and forwards it to
+ * the admin's Telegram chat. If the thread has a linked Telegram root
+ * message, the forwarded message is sent as a Telegram reply-to so it
+ * threads visually in the admin chat.
+ *
+ * After sending, the thread's `unread_for_user` is cleared and its
+ * `status` is re-opened (in case it was previously closed by staff).
+ *
+ * @see {@link @/app/api/support/contact/route} — creates the initial thread
+ * @see {@link @/app/api/support/telegram-webhook/route} — handles admin replies
+ */
+
 import { NextRequest, NextResponse } from "next/server";
 import { auth } from "@/auth";
 import { toSupportThreadKey } from "@/lib/support";
@@ -6,10 +21,17 @@ import { getSupabaseAdmin } from "@/lib/supabase";
 const MIN_MESSAGE_LENGTH = 1;
 const MAX_MESSAGE_LENGTH = 1200;
 
+/** Normalise CRLF → LF and strip leading/trailing whitespace. */
 function cleanMessage(value: string) {
   return value.replace(/\r\n/g, "\n").trim();
 }
 
+/**
+ * Handles `POST /api/support/reply`.
+ *
+ * Accepts `{ threadId, message }`. Inserts the message into Supabase,
+ * forwards to Telegram (threaded when possible), and resets unread state.
+ */
 export async function POST(request: NextRequest) {
   try {
     const session = await auth();
@@ -96,6 +118,8 @@ export async function POST(request: NextRequest) {
       disable_web_page_preview: true,
     };
 
+    // Thread the Telegram message under the original notification so the
+    // admin sees the full conversation in one Telegram thread.
     if (thread.telegram_root_message_id) {
       telegramPayload.reply_to_message_id = thread.telegram_root_message_id;
       telegramPayload.allow_sending_without_reply = true;

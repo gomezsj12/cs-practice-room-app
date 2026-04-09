@@ -7,8 +7,13 @@ alwaysApply: true
 
 When changing **features, calendar behavior, auth, env, or deploy**, read:
 
-- `docs/change-log.md` — pre-Cursor **ChatGPT planning** (labeled) vs **git-maintained** sections; **do-not-regress** table.
+- `docs/change-log.md` — two-part history:
+  - **Part 1** — Pre-Cursor commits from the original Jam Reservation App (different repo; preserved as lineage)
+  - **Part 2** — CS Practice Room App commits (this repo's git DAG)
+  - **Issues encountered and fixes** — anti-regression table at the bottom
 
 For wiring detail: `docs/ARCHITECTURE.md`.
 
-**After substantive new git commits** (only commits the project owner asked for **after** local testing — see `.cursor/SETTINGS.md`): append one row to the Git commit log in that file (see its “How to maintain” section). Optionally add `Made-with: Cursor` to the commit body for clear attribution.
+**After substantive new git commits** (only commits the project owner asked for **after** local testing — see `.cursor/SETTINGS.md`): append one row to the **Part 2** commit log table in that file (see its "How to maintain" section). Optionally add `Made-with: Cursor` to the commit body for clear attribution.
+
+**After fixing errors**: also add an entry to `docs/error-log.md` (see that file's template).

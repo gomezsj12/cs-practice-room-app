@@ -1,3 +1,18 @@
+/**
+ * @file Root layout for the CS Practice Room app.
+ *
+ * Wraps every page with the NextAuth session provider (`AuthProvider`),
+ * the shared site header, the PWA service-worker registration script, and
+ * the native-style "Add to Home Screen" install prompt.
+ *
+ * Exports Next.js `metadata` (title, description, manifest link) and
+ * `viewport` (dark theme colour) so they appear in the `<head>` of every page.
+ *
+ * @see {@link @/components/AuthProvider} — provides the NextAuth `SessionProvider`
+ * @see {@link @/components/ServiceWorkerRegistration} — registers `/sw.js` on mount
+ * @see {@link @/components/InstallPrompt} — PWA install banner (beforeinstallprompt)
+ */
+
 import type { Metadata, Viewport } from "next";
 import AuthProvider from "@/components/AuthProvider";
 import InstallPrompt from "@/components/InstallPrompt";
@@ -18,6 +33,13 @@ export const viewport: Viewport = {
   colorScheme: "dark",
 };
 
+/**
+ * Root layout component rendered around every route.
+ *
+ * Uses `min-h-dvh` so the body stretches to the dynamic viewport height on
+ * mobile (avoids the iOS Safari address-bar gap). The inner flex column lets
+ * pages like `/booking` fill remaining vertical space for the Fillout iframe.
+ */
 export default function RootLayout({
   children,
 }: Readonly<{

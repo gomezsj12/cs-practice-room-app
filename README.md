@@ -20,6 +20,25 @@ npm run dev
 
 Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
 
+## Browser Verification
+
+Browser verification guidance lives in `docs/BROWSER_VERIFICATION.md`.
+
+Use Playwright when you want a repo-local browser check that does not depend on Cursor's browser MCP tools.
+
+```bash
+npm run test:e2e
+```
+
+Useful variants:
+
+- `npm run test:e2e:headed` to watch Chromium run locally
+- `npm run test:e2e:ui` to use Playwright's interactive test runner
+
+The Playwright config starts `npm run dev` automatically for the test run and reuses an existing local server when possible.
+
+For Cursor agent browser checks, the same guide also documents the recommended `cursor-ide-browser` MCP workflow.
+
 ## Main Routes
 
 - `/` homepage and navigation hub

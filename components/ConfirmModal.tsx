@@ -1,5 +1,17 @@
 "use client";
 
+/**
+ * @module ConfirmModal
+ *
+ * Generic two-button confirmation dialog used for destructive actions such as
+ * cancelling a jam reservation. The modal renders as a fixed overlay with a
+ * customisable title, message, button labels, and loading state.
+ *
+ * Backdrop dismissal is opt-in via `dismissOnBackdrop` (enabled on mobile).
+ *
+ * @see CalendarView — uses this modal for the "Cancel reservation?" confirmation
+ */
+
 type ConfirmModalProps = {
   isOpen: boolean;
   title: string;
@@ -12,6 +24,19 @@ type ConfirmModalProps = {
   onConfirm: () => void;
 };
 
+/**
+ * Renders a confirm/cancel dialog overlay.
+ *
+ * @param props.isOpen - Controls visibility; renders `null` when closed.
+ * @param props.title - Heading text displayed at the top of the dialog.
+ * @param props.message - Explanatory body text.
+ * @param props.confirmLabel - Label for the destructive/confirm button (default `"Confirm"`).
+ * @param props.cancelLabel - Label for the safe/cancel button (default `"Cancel"`).
+ * @param props.isLoading - Disables both buttons and shows a loading label on confirm.
+ * @param props.dismissOnBackdrop - When `true`, tapping the backdrop calls `onCancel`.
+ * @param props.onCancel - Callback when the cancel button (or backdrop) is activated.
+ * @param props.onConfirm - Callback when the confirm button is activated.
+ */
 export default function ConfirmModal({
   isOpen,
   title,

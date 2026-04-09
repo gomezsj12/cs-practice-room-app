@@ -1,3 +1,23 @@
+/**
+ * @file Support thread creation endpoint (`POST /api/support/contact`).
+ *
+ * Creates a new support thread with the user's first message, then forwards
+ * the message to the admin's Telegram chat. Steps:
+ *
+ * 1. **Auth** — requires a signed-in session.
+ * 2. **Rate limit** — in-memory per-email window (`RATE_LIMIT_WINDOW_MS`).
+ * 3. **Validation** — message length between 10 and 1 200 characters.
+ * 4. **Supabase insert** — creates a `support_threads` row + first
+ *    `support_messages` row (author_type = "user").
+ * 5. **Telegram forward** — sends a formatted message to the admin chat
+ *    via the Bot API; on success, persists the returned `message_id` and
+ *    `chat.id` back into the thread row so future Telegram replies can
+ *    be mapped back to the correct thread.
+ *
+ * @see {@link @/lib/support} — `toSupportThreadKey` (human-readable thread ID)
+ * @see {@link @/app/api/support/telegram-webhook/route} — inbound Telegram replies
+ */
+
 import { NextRequest, NextResponse } from "next/server";
 import { auth } from "@/auth";
 import { toSupportThreadKey } from "@/lib/support";
@@ -6,12 +26,20 @@ import { getSupabaseAdmin } from "@/lib/supabase";
 const MIN_MESSAGE_LENGTH = 10;
 const MAX_MESSAGE_LENGTH = 1200;
 const RATE_LIMIT_WINDOW_MS = 20_000;
+
+// In-memory map — resets on serverless cold start, which is acceptable
+// because the window is short (20 s) and the worst case is one extra message.
 const lastContactRequestByEmail = new Map<string, number>();
 
+/** Normalise CRLF → LF and trim whitespace for Telegram delivery. */
 function cleanForTelegram(value: string) {
   return value.replace(/\r\n/g, "\n").trim();
 }
 
+/**
+ * Returns the number of seconds the caller must wait before sending again,
+ * or `0` if the rate-limit window has elapsed.
+ */
 function getRateLimitRemainingSeconds(email: string, nowMs: number) {
   const previousRequestMs = lastContactRequestByEmail.get(email);
   if (!previousRequestMs) {
@@ -27,6 +55,11 @@ function getRateLimitRemainingSeconds(email: string, nowMs: number) {
   return Math.ceil(remainingMs / 1000);
 }
 
+/**
+ * Handles `POST /api/support/contact`.
+ *
+ * Accepts `{ message }` and creates a new support thread + Telegram notification.
+ */
 export async function POST(request: NextRequest) {
   try {
     const session = await auth();

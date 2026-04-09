@@ -1,3 +1,15 @@
+/**
+ * Service worker for the CS Practice Room PWA.
+ *
+ * Caching strategy:
+ *   - Install: precaches the app shell (root page, manifest, PWA icons).
+ *   - Activate: purges old caches and immediately claims all open clients.
+ *   - Fetch:
+ *       • Non-GET, cross-origin, and /api/* requests (except pwa-icon) bypass the cache entirely.
+ *       • Navigation requests use network-first with cache fallback (offline support).
+ *       • Other same-origin GET requests use cache-first, falling back to network on miss.
+ */
+
 const CACHE_NAME = "jam-scheduler-shell-v1";
 const APP_SHELL = [
   "/",
@@ -43,10 +55,14 @@ self.addEventListener("fetch", (event) => {
     return;
   }
 
+  // API routes must always hit the server for fresh data; pwa-icon is
+  // an exception because it returns a static generated image.
   if (url.pathname.startsWith("/api/") && !url.pathname.startsWith("/api/pwa-icon")) {
     return;
   }
 
+  // Network-first for navigations: show the latest server-rendered page,
+  // fall back to cached shell if offline.
   if (request.mode === "navigate") {
     event.respondWith(
       fetch(request)
@@ -67,6 +83,8 @@ self.addEventListener("fetch", (event) => {
     return;
   }
 
+  // Cache-first for static assets: serve from cache when available,
+  // populate cache on first network fetch.
   event.respondWith(
     caches.match(request).then((cachedResponse) => {
       if (cachedResponse) {

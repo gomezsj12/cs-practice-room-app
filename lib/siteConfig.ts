@@ -1,3 +1,15 @@
+/**
+ * Global site configuration.
+ *
+ * Centralises app-wide constants (name, description, external URLs) so they
+ * can be referenced from metadata, manifest, and UI components without
+ * duplicating strings. Values fall back to hard-coded defaults when the
+ * corresponding `NEXT_PUBLIC_*` env vars are not set.
+ *
+ * @module
+ */
+
+/** App-wide constants consumed by metadata helpers, the PWA manifest, and UI chrome. */
 export const siteConfig = {
   name: "CS Practice Room App",
   shortName: "Practice Room",

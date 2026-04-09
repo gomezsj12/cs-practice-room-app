@@ -1,3 +1,29 @@
+/**
+ * @file Telegram webhook handler (`POST /api/support/telegram-webhook`).
+ *
+ * Receives inbound Telegram updates (admin replies / close commands) and
+ * persists them as `support_messages` rows. The handler supports three
+ * resolution strategies for mapping a Telegram message to a support thread,
+ * tried in priority order:
+ *
+ * 1. **`/close SR-<id>` command** — parsed by `parseCloseCommand`.
+ * 2. **Native Telegram reply** — if the message is a reply-to a message
+ *    whose `message_id` + `chat.id` match a `support_threads` row's
+ *    `telegram_root_message_id` / `telegram_chat_id`.
+ * 3. **`/reply SR-<id> <body>` command** or thread-ID mention in text —
+ *    parsed by `parseReplyCommand` / `extractSupportThreadIdFromText`.
+ *
+ * Idempotency: every message includes the Telegram `update_id`. Before
+ * inserting, the handler checks for a duplicate `telegram_update_id` in
+ * `support_messages` and returns early if one exists.
+ *
+ * Authorization: the optional `TELEGRAM_WEBHOOK_SECRET` env var is matched
+ * against the `X-Telegram-Bot-Api-Secret-Token` header.
+ *
+ * @see {@link @/lib/support} — parsing helpers (`parseReplyCommand`, `parseCloseCommand`, `extractSupportThreadIdFromText`)
+ * @see {@link @/app/api/support/contact/route} — stores the outbound root message ID
+ */
+
 import { NextRequest, NextResponse } from "next/server";
 import { getSupabaseAdmin } from "@/lib/supabase";
 import {
@@ -26,6 +52,12 @@ type TelegramWebhookPayload = {
   };
 };
 
+/**
+ * Attempts to extract a thread ID and reply body from a Telegram message
+ * using multiple strategies (command, in-text mention, quoted-reply context).
+ *
+ * @returns `{ threadId, replyBody }` or `null` if no thread could be resolved.
+ */
 function resolveSupportReply(message?: TelegramWebhookPayload["message"]) {
   const text = (message?.text || message?.caption || "").trim();
   if (!text) {
@@ -70,6 +102,11 @@ function resolveSupportReply(message?: TelegramWebhookPayload["message"]) {
   return null;
 }
 
+/**
+ * Validates the `X-Telegram-Bot-Api-Secret-Token` header against the
+ * `TELEGRAM_WEBHOOK_SECRET` env var. Returns `true` when the secret is
+ * not configured (opt-in security).
+ */
 function isWebhookAuthorized(request: NextRequest) {
   const expectedSecret = process.env.TELEGRAM_WEBHOOK_SECRET;
   if (!expectedSecret) {
@@ -80,6 +117,13 @@ function isWebhookAuthorized(request: NextRequest) {
   return headerSecret === expectedSecret;
 }
 
+/**
+ * Handles `POST /api/support/telegram-webhook`.
+ *
+ * Processes a Telegram update: resolves the target thread via the reply
+ * resolution chain, deduplicates by `update_id`, then inserts an admin
+ * message (or closes the thread on `/close`).
+ */
 export async function POST(request: NextRequest) {
   try {
     if (!isWebhookAuthorized(request)) {
@@ -114,6 +158,7 @@ export async function POST(request: NextRequest) {
       }
     }
 
+    // Priority: explicit /close command > native reply link > text-based match.
     const threadId =
       closeCommand?.threadId || threadIdFromNativeReply || reply?.threadId || "";
     const replyBody = reply?.replyBody || message?.text || message?.caption || "";

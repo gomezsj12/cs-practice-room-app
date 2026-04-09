@@ -1,5 +1,21 @@
+/**
+ * PWA icon generator using `next/og` ImageResponse.
+ *
+ * Renders a square icon at the requested pixel size with the
+ * "CS Room" branding. Used by the app manifest icon route handlers.
+ *
+ * @module
+ */
 import { ImageResponse } from "next/og";
 
+/**
+ * Generate a square PWA icon as an {@link ImageResponse}.
+ *
+ * All dimensions (border-radius, font sizes, gaps) scale proportionally
+ * with `size` so the same function works for 192×192 and 512×512.
+ *
+ * @param size - Width and height of the icon in pixels.
+ */
 export function createPwaIcon(size: number) {
   return new ImageResponse(
     (

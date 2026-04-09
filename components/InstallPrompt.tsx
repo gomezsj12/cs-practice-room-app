@@ -1,5 +1,27 @@
 "use client";
 
+/**
+ * @module InstallPrompt
+ *
+ * PWA install banner shown at the bottom-left of the viewport when the app
+ * is eligible for installation and hasn't been dismissed yet today.
+ *
+ * **Visibility rules (all must be true for the banner to appear):**
+ * 1. The app is NOT already running in standalone/PWA mode.
+ * 2. The browser has fired `beforeinstallprompt` (Android/desktop Chrome) OR
+ *    the device is iOS Safari (which uses a manual "Add to Home Screen" flow).
+ * 3. The user has not tapped "Dismiss" today (persisted in `localStorage`
+ *    keyed by the local calendar date so it resets the next day).
+ * 4. The auto-hide timer (15 s from first render in this session) has not
+ *    expired (tracked in `sessionStorage`).
+ *
+ * Standalone detection and iOS/Safari sniffing use `useSyncExternalStore`
+ * with a no-op subscribe + SSR-safe server snapshot (`false`) to avoid
+ * hydration mismatches.
+ *
+ * @see ServiceWorkerRegistration — registers the SW that enables installability
+ */
+
 import { useEffect, useState, useSyncExternalStore } from "react";
 
 type BeforeInstallPromptEvent = Event & {
@@ -10,6 +32,7 @@ type BeforeInstallPromptEvent = Event & {
   }>;
 };
 
+/** User-agent sniff for iPhone/iPad/iPod (case-insensitive). */
 function isIos() {
   if (typeof window === "undefined") {
     return false;
@@ -18,6 +41,7 @@ function isIos() {
   return /iphone|ipad|ipod/i.test(window.navigator.userAgent);
 }
 
+/** Returns `true` when the browser is Safari (excludes Chrome-on-iOS). */
 function isSafari() {
   if (typeof window === "undefined") {
     return false;
@@ -28,6 +52,7 @@ function isSafari() {
   return userAgent.includes("safari") && !userAgent.includes("chrome");
 }
 
+/** Detects whether the app is already running as an installed PWA. */
 function isStandalone() {
   if (typeof window === "undefined") {
     return false;
@@ -40,10 +65,19 @@ function isStandalone() {
   );
 }
 
+/**
+ * No-op subscribe passed to `useSyncExternalStore`. The values these stores
+ * read (user-agent, display-mode) never change at runtime, so no
+ * subscription is needed — the hook just needs the snapshot functions.
+ */
 function noopSubscribe() {
   return () => {};
 }
 
+/**
+ * Renders a fixed-position PWA install prompt or iOS "Add to Home Screen"
+ * hint. Auto-hides after 15 seconds or when dismissed by the user.
+ */
 export default function InstallPrompt() {
   const [deferredPrompt, setDeferredPrompt] =
     useState<BeforeInstallPromptEvent | null>(null);

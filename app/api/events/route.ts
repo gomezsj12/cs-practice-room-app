@@ -1,3 +1,21 @@
+/**
+ * @file Calendar events API route (`GET /api/events`).
+ *
+ * Merges three data sources into a single event array for the calendar UI:
+ * 1. **Practice bookings** — read-only events from the practice Google Calendar.
+ * 2. **Jam reservations** — events from the jam Google Calendar (cancellable by owner/admin).
+ * 3. **Temporary holds** — pending rows from Supabase `reservation_holds`
+ *    (only when `ENABLE_TEMP_HOLDS=true`).
+ *
+ * All three queries run in parallel via `Promise.all` to minimise latency.
+ * Google Calendar and Supabase failures are handled independently so a
+ * Supabase outage doesn't block calendar display.
+ *
+ * @see {@link @/lib/google} — Google Calendar service-account client
+ * @see {@link @/lib/supabase} — Supabase admin client
+ * @see {@link @/lib/types} — `ApiCalendarEvent`, `GoogleApiEvent`, `HoldRow`
+ */
+
 import { NextResponse } from "next/server";
 import { auth } from "@/auth";
 import { getCalendarClient } from "@/lib/google";
@@ -8,10 +26,23 @@ import type {
   HoldRow,
 } from "@/lib/types";
 
+/** Type-guard that narrows `T | null` to `T`. */
 function isNotNull<T>(value: T | null): value is T {
   return value !== null;
 }
 
+/**
+ * Converts a raw Google Calendar event into the normalised `ApiCalendarEvent`
+ * shape consumed by the front-end calendar.
+ *
+ * Returns `null` for events missing a required field (id, start, end) so
+ * callers can filter them out safely.
+ *
+ * @param event - Raw event from the Google Calendar API.
+ * @param eventType - `"practice"` or `"jam"` — determines colour and cancel eligibility.
+ * @param currentUserEmail - Signed-in user's email (for cancel-permission check).
+ * @param adminEmail - Admin email from env (always allowed to cancel jam events).
+ */
 function mapGoogleEventToApiEvent(
   event: GoogleApiEvent,
   eventType: "practice" | "jam",
@@ -30,6 +61,7 @@ function mapGoogleEventToApiEvent(
   const currentEmail = currentUserEmail?.toLowerCase() || "";
   const admin = adminEmail?.toLowerCase() || "";
 
+  // Only jam events are cancellable, and only by the event owner or the admin.
   const canCancel =
     eventType === "jam" &&
     !!currentEmail &&
@@ -50,6 +82,7 @@ function mapGoogleEventToApiEvent(
   };
 }
 
+/** Converts a Supabase hold row into a ghost-styled `ApiCalendarEvent`. */
 function mapHoldToApiEvent(row: HoldRow): ApiCalendarEvent {
   return {
     id: `hold-${row.id}`,
@@ -65,6 +98,13 @@ function mapHoldToApiEvent(row: HoldRow): ApiCalendarEvent {
   };
 }
 
+/**
+ * Handles `GET /api/events`.
+ *
+ * Fetches practice events, jam events, and pending holds in parallel,
+ * maps them into a unified `ApiCalendarEvent[]`, and returns the merged list.
+ * The window is `now − 7 days` → `now + 30 days`.
+ */
 export async function GET() {
   try {
     const session = await auth();
@@ -89,7 +129,32 @@ export async function GET() {
     const timeMax = new Date();
     timeMax.setDate(timeMax.getDate() + 30);
 
-    const [practiceResponse, jamResponse] = await Promise.all([
+    const holdsEnabled = process.env.ENABLE_TEMP_HOLDS === "true";
+    const holdQueryPromise = holdsEnabled
+      ? (async () => {
+          try {
+            const supabase = getSupabaseAdmin();
+            const nowIso = new Date().toISOString();
+            const { data, error } = await supabase
+              .from("reservation_holds")
+              .select(
+                "id, start_at, end_at, expires_at, owner_email, owner_name, status",
+              )
+              .eq("status", "pending")
+              .gt("expires_at", nowIso)
+              .order("start_at", { ascending: true });
+            if (error) {
+              throw error;
+            }
+            return (data ?? []).map((row) => mapHoldToApiEvent(row as HoldRow));
+          } catch (holdError) {
+            console.error("Supabase hold loading failed:", holdError);
+            return [] as ApiCalendarEvent[];
+          }
+        })()
+      : Promise.resolve([] as ApiCalendarEvent[]);
+
+    const [practiceResponse, jamResponse, holdEvents] = await Promise.all([
       calendar.events.list({
         calendarId: practiceCalendarId,
         timeMin: timeMin.toISOString(),
@@ -104,6 +169,7 @@ export async function GET() {
         singleEvents: true,
         orderBy: "startTime",
       }),
+      holdQueryPromise,
     ]);
 
     const practiceEvents = (practiceResponse.data.items ?? [])
@@ -127,32 +193,6 @@ export async function GET() {
         ),
       )
       .filter(isNotNull);
-
-    let holdEvents: ApiCalendarEvent[] = [];
-
-    if (process.env.ENABLE_TEMP_HOLDS === "true") {
-      try {
-        const supabase = getSupabaseAdmin();
-        const nowIso = new Date().toISOString();
-
-        const { data, error } = await supabase
-          .from("reservation_holds")
-          .select(
-            "id, start_at, end_at, expires_at, owner_email, owner_name, status",
-          )
-          .eq("status", "pending")
-          .gt("expires_at", nowIso)
-          .order("start_at", { ascending: true });
-
-        if (error) {
-          throw error;
-        }
-
-        holdEvents = (data ?? []).map((row) => mapHoldToApiEvent(row as HoldRow));
-      } catch (holdError) {
-        console.error("Supabase hold loading failed:", holdError);
-      }
-    }
 
     return NextResponse.json([...practiceEvents, ...jamEvents, ...holdEvents]);
   } catch (error) {

@@ -1,0 +1,67 @@
+---
+description: Documentation protocol — keep docs, code comments, and screenshots in sync after every change
+alwaysApply: true
+---
+
+# Documentation protocol
+
+After any substantive work, update **all** relevant documentation — markdown files **and** in-code comments. This protocol ensures the project stays internally consistent and self-documenting.
+
+## Core rule: docs AND comments travel together
+
+When you change logic, APIs, types, data flow, or behavior in a source file, you must also update:
+
+1. **In-code comments** — JSDoc on the function/type you changed, plus any inline comments that describe the old behavior. If a function's purpose, parameters, return value, or side effects have changed, the JSDoc must reflect the new state.
+2. **Documentation files** — whichever of the files below are affected (see sections).
+
+If you add a **new** exported function, type, component, hook, or API route, it must have a JSDoc block before it is committed.
+
+## After every substantive git commit
+
+Append one row to the **Part 2** commit log table in `docs/change-log.md`. See that file's "How to maintain" section for format details. Only log substantive commits (user-facing behavior, APIs, auth/calendar/env, deploy, security, or architectural refactors).
+
+## After every error fix
+
+Add a new entry to `docs/error-log.md` using the template at the top of that file. Include:
+- Date, category, severity
+- Symptom (what the user saw)
+- Root cause (why it happened)
+- Fix applied (what changed)
+- Prevention notes (how to avoid it in the future)
+
+If the error is a recurring pitfall, also update the "Issues encountered and fixes" table in `docs/change-log.md`.
+
+## After UI changes
+
+If any user-visible UI has changed (layout, styling, new components, modified interactions, new states):
+- Update the relevant section in `docs/ui-lookbook.md`, preserving the previous state (mark it as "Previous") and describing the new state
+- Take new desktop (1440×900) and mobile (390×844) screenshots with full-page scrolling and save to `docs/screenshots/`
+- Update any inline comments in the component that describe layout, states, or interaction behavior
+
+## After architecture changes
+
+If routes, integrations, data flow, environment variables, dependencies, or file structure have changed:
+- Update the relevant section in `docs/ARCHITECTURE.md`
+- If new files were added, update the file map section
+- If new env vars were added, update the environment variables section and `.env.example`
+- Update file-level JSDoc in any new or restructured files
+
+## After code audit / refactor changes
+
+If functions are moved, renamed, un-exported, or consolidated:
+- Update `docs/code-audit.md` with the finding number, status, and verification result
+- Update JSDoc and inline comments in the affected files to reflect the new structure
+- Run `npm run build` to verify zero TypeScript errors before committing
+
+## Documentation file reference
+
+| File | What it tracks |
+| --- | --- |
+| `docs/change-log.md` | Git commit history (both repos), anti-regression table |
+| `docs/error-log.md` | Error history with root causes and prevention notes |
+| `docs/ARCHITECTURE.md` | Tech stack, file map, data flow, env vars, system design |
+| `docs/ui-lookbook.md` | Visual documentation of every UI state and interaction |
+| `docs/code-audit.md` | Code redundancy/efficiency findings with implementation status |
+| `docs/CODE_REVIEW.md` | Code review process, checklists, and session records |
+| `docs/BUILD_PHASES.md` | Original build plan (historical reference) |
+| `docs/BROWSER_VERIFICATION.md` | Browser testing procedures |

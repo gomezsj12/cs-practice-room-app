@@ -3,11 +3,14 @@
 import type { calendar_v3 } from "googleapis";
 import {
   SNAP_MINUTES,
+  MIN_BOOKING_MS,
+  MAX_BOOKING_MS,
   parseSlotTimeToMinutes,
   SLOT_MIN_STR,
 } from "@/lib/timeGridDragSelect";
 import type { GoogleApiEvent } from "@/lib/types";
 
+/** Wall-clock components in a specific IANA time zone (no offset info). */
 type ZonedYmdhm = {
   year: number;
   month: number;
@@ -16,6 +19,11 @@ type ZonedYmdhm = {
   minute: number;
 };
 
+/**
+ * Decompose a UTC `Date` into wall-clock year/month/day/hour/minute
+ * as seen by a clock in `timeZone`. Uses `Intl.DateTimeFormat` so no
+ * heavy timezone library is needed.
+ */
 function getZonedCalendarParts(date: Date, timeZone: string): ZonedYmdhm {
   const formatter = new Intl.DateTimeFormat("en-US", {
     timeZone,
@@ -44,6 +52,7 @@ function getZonedCalendarParts(date: Date, timeZone: string): ZonedYmdhm {
   };
 }
 
+/** Compare two zoned date-parts by calendar day only. Negative → a before b. */
 function compareZonedCalendarDays(a: ZonedYmdhm, b: ZonedYmdhm): number {
   const ak = a.year * 10000 + a.month * 100 + a.day;
   const bk = b.year * 10000 + b.month * 100 + b.day;
@@ -89,6 +98,8 @@ function utcInstantForRoomWallClock(
     );
   };
 
+  // Start from UTC noon on the target date and scan ±48 hours in 1-min steps.
+  // This brute-force approach avoids pulling in a full timezone library.
   const center = Date.UTC(y, mo - 1, d, 12, 0, 0);
   for (let i = -48 * 60; i <= 48 * 60; i++) {
     const dt = new Date(center + i * 60 * 1000);
@@ -168,15 +179,18 @@ function earliestBookableUtcForRequestStart(
   };
 }
 
+/** Extract the start time string from a Google Calendar event (timed or all-day). */
 export function getEventStart(event: GoogleApiEvent): string {
   return event.start?.dateTime || event.start?.date || "";
 }
 
+/** Extract the end time string from a Google Calendar event (timed or all-day). */
 export function getEventEnd(event: GoogleApiEvent): string {
   return event.end?.dateTime || event.end?.date || "";
 }
 
-export function hasOverlap(
+/** True when two half-open intervals [existingStart, existingEnd) and [requestedStart, requestedEnd) overlap. */
+function hasOverlap(
   existingStart: string,
   existingEnd: string,
   requestedStart: string,
@@ -190,13 +204,21 @@ export function hasOverlap(
   return requestedStartMs < existingEndMs && requestedEndMs > existingStartMs;
 }
 
-const MIN_BOOKING_MS = 30 * 60 * 1000;
-const MAX_BOOKING_MS = 6 * 60 * 60 * 1000;
-
-export type BookingTimeValidation =
+/** Discriminated union returned by {@link validateBookingTimes}. */
+type BookingTimeValidation =
   | { valid: true; requestStart: Date; requestEnd: Date }
   | { valid: false; error: string; status: number };
 
+/**
+ * Validate a proposed booking's start/end strings on the server.
+ *
+ * Checks parse-ability, ordering, duration bounds (30 min – 6 h),
+ * and whether the start time is still bookable (not in the past and
+ * not before the room's current snap-grid floor).
+ *
+ * @param start - ISO-8601 start string from the client.
+ * @param end   - ISO-8601 end string from the client.
+ */
 export function validateBookingTimes(
   start: string,
   end: string,
@@ -229,6 +251,7 @@ export function validateBookingTimes(
     };
   }
 
+  // Fall back to LA if ROOM_TIME_ZONE isn't set (local dev default).
   const roomTimeZone =
     typeof process !== "undefined" && process.env.ROOM_TIME_ZONE
       ? process.env.ROOM_TIME_ZONE

@@ -1,3 +1,20 @@
+/**
+ * @file Jam reservation cancellation endpoint (`POST /api/cancel`).
+ *
+ * Authorization logic:
+ * - The signed-in user's email must match either the event's `ownerEmail`
+ *   (stored in Google Calendar `extendedProperties.private`) **or** the
+ *   `ADMIN_EMAIL` env var.
+ * - Events whose end time has already passed cannot be cancelled.
+ *
+ * After deleting the Google Calendar event, the route fires a best-effort
+ * Notion update to mark the row as cancelled; Notion failures are logged
+ * but don't affect the HTTP response.
+ *
+ * @see {@link @/lib/calendar-helpers} — `getEventEnd`
+ * @see {@link @/lib/notion} — `markJamReservationCancelledInNotion`
+ */
+
 import { NextRequest, NextResponse } from "next/server";
 import { auth } from "@/auth";
 import { getEventEnd } from "@/lib/calendar-helpers";
@@ -5,6 +22,12 @@ import { getCalendarClient } from "@/lib/google";
 import { markJamReservationCancelledInNotion } from "@/lib/notion";
 import type { GoogleApiEvent } from "@/lib/types";
 
+/**
+ * Handles `POST /api/cancel`.
+ *
+ * Accepts `{ googleEventId }`, verifies ownership/admin privilege and that
+ * the event hasn't ended, then deletes it from the jam Google Calendar.
+ */
 export async function POST(request: NextRequest) {
   try {
     const session = await auth();

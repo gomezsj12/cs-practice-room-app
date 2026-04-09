@@ -1,7 +1,25 @@
+/**
+ * @file Unread support check endpoint (`GET /api/support/unread`).
+ *
+ * Lightweight query used by the nav badge to show/hide an "unread" indicator.
+ * Returns `{ unread: true }` if the user has at least one thread with
+ * `unread_for_user = true`, otherwise `{ unread: false }`.
+ *
+ * On error or when the user is not signed in, defaults to `{ unread: false }`
+ * to avoid showing a stale badge.
+ *
+ * @see {@link @/app/api/support/mark-read/route} — clears the unread flag
+ */
+
 import { NextResponse } from "next/server";
 import { auth } from "@/auth";
 import { getSupabaseAdmin } from "@/lib/supabase";
 
+/**
+ * Handles `GET /api/support/unread`.
+ *
+ * Returns `{ unread: boolean }` — `true` when any thread has unread admin replies.
+ */
 export async function GET() {
   try {
     const session = await auth();

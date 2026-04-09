@@ -1,5 +1,18 @@
 "use client";
 
+/**
+ * @module Toast
+ *
+ * Lightweight, fixed-position toast notification rendered at the bottom-right
+ * of the viewport. Supports success, error, and info variants.
+ *
+ * Visibility is controlled externally via {@link ToastProps.isOpen}; the
+ * component does not manage its own timers or auto-dismiss logic — that
+ * responsibility lives in the {@link useToast} hook.
+ *
+ * @see useToast — hook that manages toast state and auto-dismiss timing
+ */
+
 type ToastProps = {
   isOpen: boolean;
   message: string;
@@ -7,6 +20,14 @@ type ToastProps = {
   onClose: () => void;
 };
 
+/**
+ * Renders a dismissible toast notification in a fixed bottom-right position.
+ *
+ * @param props.isOpen - Whether the toast is visible.
+ * @param props.message - Text content displayed in the toast body.
+ * @param props.type - Visual variant: `"success"` (green), `"error"` (red), or `"info"` (slate).
+ * @param props.onClose - Callback invoked when the user clicks the close button.
+ */
 export default function Toast({
   isOpen,
   message,

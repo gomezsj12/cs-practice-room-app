@@ -1,0 +1,25 @@
+---
+description: Verify substantial changes in a real browser before hand-off
+alwaysApply: true
+---
+
+# Browser verification before hand-off
+
+After a substantial code change, do a browser check before telling the project owner it is ready.
+
+Treat a change as substantial when it affects UI, user flows, routing, state handling, form behavior, auth, API-backed interactions, or multiple files tied to one feature.
+
+Verification order:
+
+1. Prefer repo-local Playwright checks from `docs/BROWSER_VERIFICATION.md`
+2. When Cursor browser MCP is available, also do a quick live browser sanity check
+3. If neither is possible, explain exactly what blocked verification
+
+Minimum hand-off bar for substantial changes:
+
+- confirm the relevant page or flow loads
+- confirm the main visible content or success state appears
+- check for obvious console or network problems when relevant
+- report what was verified and what still needs local human testing
+
+Do not hand over a substantial feature change as "done" without attempting browser verification first.

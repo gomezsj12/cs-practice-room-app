@@ -1,15 +1,10 @@
 /** Shared formatting helpers. */
 
+import { sameLocalCalendarDay } from "@/lib/timeGridDragSelect";
+
+/** Zero-pad a number to two digits (used for month, day, minute). */
 function pad2(n: number): string {
   return n.toString().padStart(2, "0");
-}
-
-function sameLocalCalendarDay(a: Date, b: Date): boolean {
-  return (
-    a.getFullYear() === b.getFullYear() &&
-    a.getMonth() === b.getMonth() &&
-    a.getDate() === b.getDate()
-  );
 }
 
 /** 12-hour clock: hour 1–12 without leading zero, minutes always two digits. */
@@ -21,6 +16,7 @@ function clock12hm(d: Date): string {
   return `${h}:${pad2(d.getMinutes())}`;
 }
 
+/** Return `"AM"` or `"PM"` based on the local hour. */
 function meridiem(d: Date): "AM" | "PM" {
   return d.getHours() >= 12 ? "PM" : "AM";
 }

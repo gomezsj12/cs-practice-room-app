@@ -1,5 +1,30 @@
 "use client";
 
+/**
+ * @module ReserveModal
+ *
+ * Reservation form modal shown after the user drag-selects a time slot on the
+ * calendar. Collects a first name and instrument choice, then submits the
+ * booking via {@link CalendarView}'s `handleReserve` callback.
+ *
+ * **Three mode states** (controlled by the parent):
+ * - `"securing"` — the hold API call is in-flight; form is disabled with a
+ *   "Securing your slot..." banner.
+ * - `"hold"` — a 30-second temporary hold exists on the server; a live
+ *   countdown is displayed and the form is enabled for submission.
+ * - `"fallback"` — hold creation failed; the form is still usable but the
+ *   user is warned that availability will be checked at submit time.
+ *
+ * **Countdown timer:** When `mode === "hold"`, a 1-second interval updates
+ * `nowMs`, which is compared against `expiresAt` to derive
+ * `holdSecondsRemaining`. `Math.ceil` ensures the display starts at "30 s"
+ * immediately, and a ref guard (`expiredRef`) ensures `onExpire` fires
+ * exactly once when the hold lapses.
+ *
+ * @see CalendarView — parent that manages the booking flow and mode transitions
+ * @see useBookingFlow — hook that drives mode/expiresAt state
+ */
+
 import { useEffect, useMemo, useRef, useState } from "react";
 import {
   formatBookingDateRange,
@@ -20,6 +45,21 @@ type ReserveModalProps = {
   onSubmit: (values: { name: string; instrument: string }) => void;
 };
 
+/**
+ * Renders the jam-reservation form inside a fixed overlay.
+ *
+ * @param props.isOpen - Controls visibility; renders `null` when closed.
+ * @param props.start - Selected slot start time.
+ * @param props.end - Selected slot end time.
+ * @param props.defaultName - Pre-filled first name from the Google session (nullable).
+ * @param props.isSubmitting - `true` while the reservation API call is in-flight.
+ * @param props.expiresAt - ISO timestamp when the server-side hold expires (hold mode only).
+ * @param props.mode - Current booking phase: `"securing"`, `"hold"`, or `"fallback"`.
+ * @param props.dismissOnBackdrop - When `true`, tapping the backdrop closes the modal.
+ * @param props.onClose - Close/cancel callback.
+ * @param props.onExpire - Called exactly once when the hold countdown reaches zero.
+ * @param props.onSubmit - Called with `{ name, instrument }` on form submission.
+ */
 export default function ReserveModal({
   isOpen,
   start,

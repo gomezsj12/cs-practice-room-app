@@ -1,3 +1,35 @@
+/**
+ * @file Custom "now indicator" overlay hook.
+ *
+ * FullCalendar renders its own now-indicator line
+ * (`.fc-timegrid-now-indicator-line`), but its styling and layer position
+ * are difficult to override. This hook **measures** the native indicator's
+ * vertical position and the column geometry, then exposes pixel coordinates
+ * so an absolutely-positioned React overlay can render a styled replacement
+ * on top.
+ *
+ * ## What triggers re-measurement
+ *
+ * | Trigger | Why |
+ * |---------|-----|
+ * | `layoutEpoch` change | Parent bumps this after FullCalendar finishes rendering a new date range or view switch. |
+ * | `visibilitychange` → `"visible"` | The native indicator may have moved while the tab was hidden. |
+ * | `ResizeObserver` on wrap / `window.resize` | Column widths change on viewport resize. |
+ * | 30 s interval | Keeps the overlay in sync as time advances (FullCalendar moves its own line). |
+ *
+ * ## Measurement strategy
+ *
+ * `measure()` reads the **native** indicator line's `getBoundingClientRect`,
+ * converts it to `scrollTop`-relative coordinates within the wrapper, then
+ * reads column rects to derive the thin-line (full-width) and today-column
+ * bounds. On desktop, both a full-width thin line and a thicker today-column
+ * line are shown; on mobile only the today-column line is shown.
+ *
+ * State updates are wrapped in `startTransition` to avoid blocking user
+ * interactions (drag-select) during re-measurement.
+ *
+ * @see The `NowIndicatorOverlay` component that consumes this state.
+ */
 "use client";
 
 import type { CalendarApi } from "@fullcalendar/core";
@@ -12,6 +44,7 @@ import {
 } from "react";
 import { dayDateForColumn, sameLocalCalendarDay } from "@/lib/timeGridDragSelect";
 
+/** Pixel measurements for rendering the now-indicator overlay. */
 export type NowIndicatorOverlayState = {
   centerY: number;
   thinLeft: number;
@@ -29,6 +62,18 @@ type Args = {
   layoutEpoch: number;
 };
 
+/**
+ * Measures FullCalendar's native now-indicator line and column geometry,
+ * returning pixel coordinates for the React overlay replacement.
+ *
+ * @param args.wrapRef      - Scrollable calendar wrapper (coordinate origin).
+ * @param args.calendarRef  - FullCalendar instance for API / column mapping.
+ * @param args.isMobile     - When true, the full-width thin line is hidden.
+ * @param args.enabled      - Master toggle; returns `null` when false.
+ * @param args.layoutEpoch  - Bumped by the parent to trigger re-measurement
+ *                            after calendar renders complete.
+ * @returns Overlay geometry, or `null` when disabled / unmeasurable.
+ */
 export function useNowIndicatorOverlay({
   wrapRef,
   calendarRef,
@@ -38,6 +83,11 @@ export function useNowIndicatorOverlay({
 }: Args): NowIndicatorOverlayState | null {
   const [state, setState] = useState<NowIndicatorOverlayState | null>(null);
 
+  /**
+   * Read the native now-indicator line's position and the day-column
+   * bounding rects, then compute overlay coordinates relative to the
+   * scrollable wrapper.
+   */
   const measure = useCallback(() => {
     const wrap = wrapRef.current;
     const cal = calendarRef.current;
@@ -47,6 +97,8 @@ export function useNowIndicatorOverlay({
     }
 
     const api = cal.getApi() as CalendarApi;
+    // The native indicator is the single source of truth for the vertical
+    // position — we piggyback on FC's internal time → pixel calculation.
     const line = wrap.querySelector(
       ".fc-timegrid-now-indicator-line",
     ) as HTMLElement | null;
@@ -57,6 +109,8 @@ export function useNowIndicatorOverlay({
 
     const wrapRect = wrap.getBoundingClientRect();
     const lineRect = line.getBoundingClientRect();
+    // Convert viewport-relative lineRect to scroll-content coordinates
+    // within the wrapper.
     const centerY =
       lineRect.top - wrapRect.top + lineRect.height / 2 + wrap.scrollTop;
 
@@ -69,6 +123,8 @@ export function useNowIndicatorOverlay({
     }
 
     const today = new Date();
+    // Find today's column by comparing calendar-date for each visible column
+    // against the local date. Returns null if today is not in the visible range.
     let todayIdx = -1;
     for (let i = 0; i < cols.length; i++) {
       if (sameLocalCalendarDay(dayDateForColumn(api, i), today)) {
@@ -107,6 +163,8 @@ export function useNowIndicatorOverlay({
     );
   }, [enabled, isMobile, wrapRef, calendarRef]);
 
+  // Synchronous measurement after calendar layout completes (layoutEpoch)
+  // to avoid a single frame of stale overlay position.
   useLayoutEffect(() => {
     measure();
   }, [measure, layoutEpoch]);
@@ -144,6 +202,9 @@ export function useNowIndicatorOverlay({
     };
   }, [enabled, measure, wrapRef]);
 
+  // Periodic re-measurement so the overlay tracks FC's native line as it
+  // advances with real time. 30 s strikes a balance between visual accuracy
+  // and avoiding unnecessary layout reads.
   useEffect(() => {
     if (!enabled) {
       return;

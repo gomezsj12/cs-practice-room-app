@@ -1,22 +1,28 @@
+/**
+ * @file List support threads endpoint (`GET /api/support/threads`).
+ *
+ * Returns all support threads owned by the signed-in user, each enriched with
+ * a message summary (latest message body/author, user & admin message counts).
+ *
+ * Two Supabase queries run sequentially:
+ * 1. Fetch threads for the user, ordered by `updated_at DESC`.
+ * 2. Fetch all messages for those thread IDs in a single `IN` query, then
+ *    aggregate per-thread counts and latest-message metadata in-memory.
+ *
+ * @see {@link @/lib/types} — `ThreadSummary`
+ * @see {@link @/app/api/support/thread/route} — fetch a single thread with full messages
+ */
+
 import { NextResponse } from "next/server";
 import { auth } from "@/auth";
 import { getSupabaseAdmin } from "@/lib/supabase";
+import type { ThreadSummary } from "@/lib/types";
 
-type ThreadSummary = {
-  id: string;
-  user_email: string;
-  user_name: string | null;
-  status: string;
-  unread_for_user: boolean;
-  created_at: string;
-  updated_at: string;
-  latest_message_body: string | null;
-  latest_message_author_type: "user" | "admin" | null;
-  latest_message_created_at: string | null;
-  user_message_count: number;
-  admin_message_count: number;
-};
-
+/**
+ * Handles `GET /api/support/threads`.
+ *
+ * Returns `{ threads: ThreadSummary[] }` for the authenticated user.
+ */
 export async function GET() {
   try {
     const session = await auth();

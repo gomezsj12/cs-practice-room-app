@@ -1,5 +1,18 @@
 "use client";
 
+/**
+ * @module ContactSupportForm
+ *
+ * Homepage contact form that creates a new support thread by POSTing to
+ * `/api/support/contact`. Requires an authenticated session; unauthenticated
+ * visitors see a sign-in prompt instead.
+ *
+ * After a successful submission the thread appears in the user's
+ * {@link SupportInbox} where staff replies can be read and answered.
+ *
+ * @see SupportInbox — where the user views and replies to threads
+ */
+
 import Link from "next/link";
 import { useState } from "react";
 import { useSession } from "next-auth/react";
@@ -7,6 +20,10 @@ import { useSession } from "next-auth/react";
 const MIN_MESSAGE_LENGTH = 10;
 const MAX_MESSAGE_LENGTH = 1200;
 
+/**
+ * Renders a contact-support form (textarea + send button) for authenticated users.
+ * Unauthenticated or loading states display a placeholder message instead.
+ */
 export default function ContactSupportForm() {
   const { data: session, status } = useSession();
   const [message, setMessage] = useState("");

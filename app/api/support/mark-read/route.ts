@@ -1,7 +1,22 @@
+/**
+ * @file Mark-read endpoint (`POST /api/support/mark-read`).
+ *
+ * Clears the `unread_for_user` flag on one or all of the signed-in user's
+ * support threads. When `{ threadId }` is provided, only that thread is
+ * updated; otherwise every thread owned by the user is marked read.
+ *
+ * @see {@link @/app/api/support/unread/route} — reads the unread flag
+ */
+
 import { NextRequest, NextResponse } from "next/server";
 import { auth } from "@/auth";
 import { getSupabaseAdmin } from "@/lib/supabase";
 
+/**
+ * Handles `POST /api/support/mark-read`.
+ *
+ * Accepts optional `{ threadId }`. Marks one or all threads as read.
+ */
 export async function POST(request: NextRequest) {
   try {
     const session = await auth();

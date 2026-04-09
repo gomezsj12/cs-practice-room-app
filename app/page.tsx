@@ -1,3 +1,19 @@
+/**
+ * @file Homepage for the CS Practice Room app (`/`).
+ *
+ * Renders three sections:
+ * 1. **Hero banner** (desktop-only) — introduces the app's purpose.
+ * 2. **Contact card** — embeds `ContactSupportForm` for quick support.
+ * 3. **Quick-links card** — links to `/booking`, `/jam`, and the optional
+ *    Telegram group chat (shown when `NEXT_PUBLIC_TELEGRAM_GROUP_URL` is set).
+ *
+ * This is a server component; dynamic client behaviour comes from
+ * `ContactSupportForm` (client component imported within).
+ *
+ * @see {@link @/components/ContactSupportForm} — inline support form
+ * @see {@link @/lib/siteConfig} — centralised public site settings
+ */
+
 import Link from "next/link";
 import ContactSupportForm from "@/components/ContactSupportForm";
 import { siteConfig } from "@/lib/siteConfig";
@@ -5,6 +21,7 @@ import { siteConfig } from "@/lib/siteConfig";
 const cardClass =
   "rounded-3xl border border-white/10 bg-white/5 p-6 shadow-2xl shadow-black/20";
 
+/** Inline SVG for the Telegram brand icon used in the group-chat link. */
 function TelegramIcon() {
   return (
     <svg
@@ -18,6 +35,7 @@ function TelegramIcon() {
   );
 }
 
+/** Homepage server component. */
 export default function Home() {
   return (
     <main className="px-4 py-8 text-white">
