@@ -110,6 +110,7 @@ This file is the **single source of truth** for the full project history — fro
 | `d74dee9` | 2026-04-09 08:58 | **Refine support chat UX and thread handling.** Improved message display, thread state management, and overall inbox polish. | Cursor agent |
 | `9ac3328` | 2026-04-09 10:10 | **Refine support inbox mobile/chat styling and message bubble sizing.** Mobile-responsive chat layout, properly sized message bubbles. | Cursor agent |
 | `339c36e` | 2026-04-09 11:47 | **Fix support page stuck on loading during client-side navigation.** Resolved a bug where navigating to `/support` via client-side routing showed an infinite loading state. | Cursor agent |
+| `e7a899a` | 2026-04-09 20:20 | **Comprehensive code review: docs, comments, audit fixes, and review process.** Consolidated change-log, expanded ARCHITECTURE.md, created error-log/ui-lookbook/code-audit/CODE_REVIEW.md, implemented 8 low-risk audit fixes (dedup constants/types/helpers, removed dead exports, parallelized API calls), added JSDoc to all ~57 source files, added desktop+mobile screenshots, created documentation protocol and review checklists. | Cursor agent |
 
 ---
 
