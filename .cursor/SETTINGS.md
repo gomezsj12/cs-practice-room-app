@@ -29,12 +29,15 @@ When you finish a change that should be verified in the browser, **explicitly pr
 
 ## Documentation protocol
 
-After substantive work, follow the documentation protocol in [`.cursor/rules/documentation-protocol.mdc`](./rules/documentation-protocol.mdc):
+Follow [`.cursor/rules/documentation-protocol.mdc`](./rules/documentation-protocol.mdc) after all substantive work.
 
-- **After commits**: Update `docs/change-log.md`
+**MOST IMPORTANT — change-log:** You MUST update `docs/change-log.md` with a new row every time you create a git commit. Include it in the same commit. This is a hard requirement — see [`.cursor/rules/change-log.mdc`](./rules/change-log.mdc).
+
+Other documentation updates:
 - **After error fixes**: Update `docs/error-log.md`
-- **After UI changes**: Update `docs/ui-lookbook.md`
-- **After architecture changes**: Update `docs/ARCHITECTURE.md`
+- **After UI changes**: Update `docs/ui-lookbook.md` + component comments
+- **After architecture changes**: Update `docs/ARCHITECTURE.md` + file-level JSDoc
+- **After any code change**: Update in-code JSDoc and inline comments if behavior changed
 
 See `docs/README.md` for the full list of documentation files and their purposes.
 

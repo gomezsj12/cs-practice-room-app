@@ -16,9 +16,13 @@ When you change logic, APIs, types, data flow, or behavior in a source file, you
 
 If you add a **new** exported function, type, component, hook, or API route, it must have a JSDoc block before it is committed.
 
-## After every substantive git commit
+## MANDATORY: Update change-log on every commit
 
-Append one row to the **Part 2** commit log table in `docs/change-log.md`. See that file's "How to maintain" section for format details. Only log substantive commits (user-facing behavior, APIs, auth/calendar/env, deploy, security, or architectural refactors).
+**This is not optional.** Every time you create a git commit, you MUST append a row to the **Part 2** commit log table in `docs/change-log.md` **in the same commit** (or immediately after if you forgot — never leave it for later). Include the commit hash, date, a bold summary, and attribution.
+
+See the "How to maintain" section at the top of `docs/change-log.md` for the exact format. Only skip the entry if the commit is purely mechanical (format-only, single typo, dependency bump with no behavior change) — when in doubt, log it.
+
+**Pre-commit checklist item:** Before running `git commit`, ask yourself: "Did I add a row to `docs/change-log.md`?" If not, add it now.
 
 ## After every error fix
 
