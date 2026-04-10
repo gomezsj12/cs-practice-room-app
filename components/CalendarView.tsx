@@ -45,6 +45,7 @@ import Toast from "@/components/Toast";
 import { useBookingFlow } from "@/hooks/useBookingFlow";
 import { useDragSelect } from "@/hooks/useDragSelect";
 import { useEventPolling } from "@/hooks/useEventPolling";
+import { getCalendarEventKindLabel } from "@/lib/calendar-events";
 import {
   useNowIndicatorOverlay,
   type NowIndicatorOverlayState,
@@ -308,6 +309,34 @@ export default function CalendarView() {
     const first = raw.split(/\s+/)[0]?.trim();
     return first || null;
   }, [session?.user?.name]);
+
+  const cancelTargetLabel = useMemo(
+    () => getCalendarEventKindLabel(selectedEvent?.eventType),
+    [selectedEvent?.eventType],
+  );
+  const cancelConfirmTitle = useMemo(() => {
+    if (selectedEvent?.eventType === "practice") {
+      return "Cancel practice booking?";
+    }
+    if (selectedEvent?.eventType === "jam") {
+      return "Cancel jam reservation?";
+    }
+    return "Cancel event?";
+  }, [selectedEvent?.eventType]);
+  const cancelConfirmMessage = useMemo(
+    () =>
+      `This will remove the ${cancelTargetLabel} from the calendar. This cannot be reversed once done, and you will need to book a new session.`,
+    [cancelTargetLabel],
+  );
+  const cancelConfirmLabel = useMemo(() => {
+    if (selectedEvent?.eventType === "practice") {
+      return "Cancel booking";
+    }
+    if (selectedEvent?.eventType === "jam") {
+      return "Cancel reservation";
+    }
+    return "Remove event";
+  }, [selectedEvent?.eventType]);
 
   const inDefaultIdleState =
     pendingSelection === null &&
@@ -752,6 +781,8 @@ export default function CalendarView() {
                   holdId: info.event.extendedProps.holdId,
                   eventType,
                   title: info.event.title,
+                  description: info.event.extendedProps.description,
+                  attendees: info.event.extendedProps.attendees,
                   start:
                     info.event.start?.toISOString() || new Date().toISOString(),
                   end: info.event.end?.toISOString() || new Date().toISOString(),
@@ -818,10 +849,10 @@ export default function CalendarView() {
 
       <ConfirmModal
         isOpen={showCancelConfirm}
-        title="Cancel reservation?"
-        message="This will remove the jam reservation from the calendar and mark it as cancelled in Notion."
-        confirmLabel="Cancel reservation"
-        cancelLabel="Keep reservation"
+        title={cancelConfirmTitle}
+        message={cancelConfirmMessage}
+        confirmLabel={cancelConfirmLabel}
+        cancelLabel="Keep session"
         isLoading={isCancelling}
         onCancel={() => setShowCancelConfirm(false)}
         onConfirm={confirmCancelReservation}

@@ -260,25 +260,38 @@ Opens after a valid drag-select completes.
 
 Opens when clicking on a calendar event (practice or jam).
 
-**Layout:**
+**Previous:**
 - Event type badge ("Practice booking" or "Jam reservation")
 - Event title
 - Date/time range
 - For jam events where user is owner or admin: red "Cancel" button
 
+**Current:**
+- Event type badge ("Practice booking" or "Jam reservation")
+- Event title
+- Date/time range
+- Optional **Details** panel showing the cleaned Google Calendar description text
+- Cancel button only when the current user owns the event and it has not ended
+
 **States:**
-- **Practice event**: View-only, no cancel button
+- **Practice event (not owned)**: Description/details visible when present; no cancel button
+- **Practice event (owned)**: Description/details visible; red cancel button visible
 - **Jam event (can cancel)**: Cancel button visible
-- **Jam event (cannot cancel)**: No cancel button (not the owner or admin)
+- **Jam event (cannot cancel)**: No cancel button
+- **Ended owned event**: No cancel button; muted ended-state message
+
+**Screenshots:**
+- Desktop modal: [calendar-practice-modal-desktop.png](screenshots/calendar-practice-modal-desktop.png) — practice booking modal with the new details panel and no cancel button for a non-owned booking
+- Mobile modal: [calendar-practice-modal-mobile.png](screenshots/calendar-practice-modal-mobile.png) — mobile modal showing the same cleaned description content
 
 ### Cancel confirmation modal (`ConfirmModal.tsx`)
 
-Opens when clicking "Cancel" on a jam event.
+Opens when clicking "Cancel" on an owned jam reservation or practice booking.
 
 **Content:**
-- Title: "Cancel reservation?"
-- Message: "This will remove the jam reservation from the calendar and mark it as cancelled in Notion."
-- Buttons: "Keep reservation" (neutral) / "Cancel reservation" (red/destructive)
+- Type-specific title ("Cancel jam reservation?" / "Cancel practice booking?")
+- Shared warning copy: "This will remove the [jam reservation / practice booking] from the calendar. This cannot be reversed once done, and you will need to book a new session."
+- Buttons: "Keep session" (neutral) / type-specific destructive action
 - While cancelling: destructive button shows loading state
 
 ---

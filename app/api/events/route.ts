@@ -2,7 +2,8 @@
  * @file Calendar events API route (`GET /api/events`).
  *
  * Merges three data sources into a single event array for the calendar UI:
- * 1. **Practice bookings** — read-only events from the practice Google Calendar.
+ * 1. **Practice bookings** — events from the practice Google Calendar with
+ *    cleaned description text and owner-only cancellation eligibility.
  * 2. **Jam reservations** — events from the jam Google Calendar (cancellable by owner/admin).
  * 3. **Temporary holds** — pending rows from Supabase `reservation_holds`
  *    (only when `ENABLE_TEMP_HOLDS=true`).
@@ -18,7 +19,14 @@
 
 import { NextResponse } from "next/server";
 import { auth } from "@/auth";
+import {
+  canUserCancelJamEvent,
+  canUserCancelPracticeEvent,
+  cleanCalendarEventDescription,
+  sanitizeCalendarEventAttendees,
+} from "@/lib/calendar-events";
 import { getCalendarClient } from "@/lib/google";
+import { getProfileByGoogleEmail } from "@/lib/profile-helpers";
 import { getSupabaseAdmin } from "@/lib/supabase";
 import type {
   ApiCalendarEvent,
@@ -40,14 +48,17 @@ function isNotNull<T>(value: T | null): value is T {
  *
  * @param event - Raw event from the Google Calendar API.
  * @param eventType - `"practice"` or `"jam"` — determines colour and cancel eligibility.
- * @param currentUserEmail - Signed-in user's email (for cancel-permission check).
- * @param adminEmail - Admin email from env (always allowed to cancel jam events).
+ * @param context - Signed-in user information used to compute cancel permissions.
  */
 function mapGoogleEventToApiEvent(
   event: GoogleApiEvent,
   eventType: "practice" | "jam",
-  currentUserEmail?: string,
-  adminEmail?: string,
+  context: {
+    currentUserEmail?: string;
+    currentUserWwuEmail?: string;
+    currentUserNames?: string[];
+    adminEmail?: string;
+  } = {},
 ): ApiCalendarEvent | null {
   const start = event.start?.dateTime || event.start?.date;
   const end = event.end?.dateTime || event.end?.date;
@@ -56,16 +67,19 @@ function mapGoogleEventToApiEvent(
     return null;
   }
 
-  const ownerEmail =
-    event.extendedProperties?.private?.ownerEmail?.toLowerCase() || "";
-  const currentEmail = currentUserEmail?.toLowerCase() || "";
-  const admin = adminEmail?.toLowerCase() || "";
-
-  // Only jam events are cancellable, and only by the event owner or the admin.
+  const attendees = sanitizeCalendarEventAttendees(event.attendees);
   const canCancel =
-    eventType === "jam" &&
-    !!currentEmail &&
-    (currentEmail === admin || (!!ownerEmail && currentEmail === ownerEmail));
+    eventType === "jam"
+      ? canUserCancelJamEvent(
+          event,
+          context.currentUserEmail,
+          context.adminEmail,
+        )
+      : canUserCancelPracticeEvent(
+          event,
+          context.currentUserWwuEmail,
+          context.currentUserNames,
+        );
 
   return {
     id: `${eventType}-${event.id}`,
@@ -74,6 +88,8 @@ function mapGoogleEventToApiEvent(
     title:
       event.summary ||
       (eventType === "practice" ? "Practice booking" : "Jam hold"),
+    description: cleanCalendarEventDescription(event.description),
+    attendees,
     start,
     end,
     color: eventType === "practice" ? "#767676" : "#3f56c9",
@@ -109,6 +125,7 @@ export async function GET() {
   try {
     const session = await auth();
     const currentUserEmail = session?.user?.email || undefined;
+    const currentUserName = session?.user?.name || undefined;
     const adminEmail = process.env.ADMIN_EMAIL;
 
     const practiceCalendarId = process.env.PRACTICE_CALENDAR_ID;
@@ -122,6 +139,12 @@ export async function GET() {
     }
 
     const calendar = getCalendarClient();
+    const currentUserProfilePromise = currentUserEmail
+      ? getProfileByGoogleEmail(currentUserEmail).catch((error) => {
+          console.error("[events] Failed to load current user profile:", error);
+          return null;
+        })
+      : Promise.resolve(null);
 
     const timeMin = new Date();
     timeMin.setDate(timeMin.getDate() - 7);
@@ -154,31 +177,42 @@ export async function GET() {
         })()
       : Promise.resolve([] as ApiCalendarEvent[]);
 
-    const [practiceResponse, jamResponse, holdEvents] = await Promise.all([
-      calendar.events.list({
-        calendarId: practiceCalendarId,
-        timeMin: timeMin.toISOString(),
-        timeMax: timeMax.toISOString(),
-        singleEvents: true,
-        orderBy: "startTime",
-      }),
-      calendar.events.list({
-        calendarId: jamCalendarId,
-        timeMin: timeMin.toISOString(),
-        timeMax: timeMax.toISOString(),
-        singleEvents: true,
-        orderBy: "startTime",
-      }),
-      holdQueryPromise,
-    ]);
+    const [currentUserProfile, practiceResponse, jamResponse, holdEvents] =
+      await Promise.all([
+        currentUserProfilePromise,
+        calendar.events.list({
+          calendarId: practiceCalendarId,
+          timeMin: timeMin.toISOString(),
+          timeMax: timeMax.toISOString(),
+          singleEvents: true,
+          orderBy: "startTime",
+        }),
+        calendar.events.list({
+          calendarId: jamCalendarId,
+          timeMin: timeMin.toISOString(),
+          timeMax: timeMax.toISOString(),
+          singleEvents: true,
+          orderBy: "startTime",
+        }),
+        holdQueryPromise,
+      ]);
+
+    const currentUserContext = {
+      currentUserEmail,
+      currentUserWwuEmail: currentUserProfile?.walla_walla_email,
+      currentUserNames: [
+        currentUserProfile?.display_name,
+        currentUserName,
+      ].filter((value): value is string => Boolean(value)),
+      adminEmail,
+    };
 
     const practiceEvents = (practiceResponse.data.items ?? [])
       .map((event) =>
         mapGoogleEventToApiEvent(
           event as GoogleApiEvent,
           "practice",
-          currentUserEmail,
-          adminEmail,
+          currentUserContext,
         ),
       )
       .filter(isNotNull);
@@ -188,8 +222,7 @@ export async function GET() {
         mapGoogleEventToApiEvent(
           event as GoogleApiEvent,
           "jam",
-          currentUserEmail,
-          adminEmail,
+          currentUserContext,
         ),
       )
       .filter(isNotNull);

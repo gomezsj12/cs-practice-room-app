@@ -9,7 +9,7 @@
 
 import { NextResponse } from "next/server";
 import { auth } from "@/auth";
-import { getSupabaseAdmin } from "@/lib/supabase";
+import { getProfileByGoogleEmail } from "@/lib/profile-helpers";
 
 export async function GET() {
   const session = await auth();
@@ -17,16 +17,18 @@ export async function GET() {
     return NextResponse.json({ error: "Not authenticated" }, { status: 401 });
   }
 
-  const supabase = getSupabaseAdmin();
-  const { data: profile, error } = await supabase
-    .from("profiles")
-    .select("*")
-    .eq("google_email", session.user.email)
-    .single();
+  try {
+    const profile = await getProfileByGoogleEmail(session.user.email);
+    if (!profile) {
+      return NextResponse.json({ error: "Profile not found" }, { status: 404 });
+    }
 
-  if (error || !profile) {
-    return NextResponse.json({ error: "Profile not found" }, { status: 404 });
+    return NextResponse.json({ profile });
+  } catch (error) {
+    console.error("[profile/me] Failed to load profile:", error);
+    return NextResponse.json(
+      { error: "Failed to load profile." },
+      { status: 500 },
+    );
   }
-
-  return NextResponse.json({ profile });
 }

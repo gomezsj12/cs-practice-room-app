@@ -21,7 +21,7 @@ Sam is **not an experienced developer**. When helping with this repo, assistants
 
 - **Public calendar**: Anyone can see practice-room availability: practice bookings (from one Google Calendar) and jam reservations (from another).
 - **Jam reservations**: Signed-in Google users can drag-select a time range, optionally get a short **temporary hold** in Supabase, then confirm with name and instrument. The server creates a Google Calendar event on the jam calendar and logs a row in **Notion**.
-- **Cancellation**: Jam creators can cancel their own events; an **admin email** (env) can cancel any jam. Practice events are view-only in the UI.
+- **Cancellation**: Jam creators can cancel their own events; an **admin email** (env) can cancel any jam. Practice bookers can cancel their own practice from the calendar only when their linked WWU email is an attendee and their name matches the title segment after the hyphen.
 - **PWA**: Install prompts, web app manifest, and a service worker cache an app shell for offline-friendly loading (not a full offline calendar sync).
 - **Support inbox**: Signed-in users can submit support requests and exchange messages with staff. Messages sync bidirectionally with a Telegram admin chat.
 - **Booking form**: An embedded Fillout form for longer practice-room bookings (separate from jam reservations).
@@ -364,11 +364,13 @@ cs-practice-room-app/
 │
 ├── lib/                           # Shared modules (server + client)
 │   ├── calendar-helpers.ts        # Date clamping, overlap detection, time range formatting
+│   ├── calendar-events.ts         # Event description cleanup, attendee normalization, cancel ownership rules
 │   ├── formatting.ts              # Shared date/time formatting utilities
 │   ├── google.ts                  # Google service account JWT auth + Calendar API client singleton
 │   ├── hold-helpers.ts            # Optimistic hold events, sessionStorage persistence, hold ID utils
 │   ├── notion.ts                  # Notion client singleton + reservation create/cancel helpers
 │   ├── pwaIcon.tsx                # createPwaIcon: JSX-based ImageResponse for PWA icons
+│   ├── profile-helpers.ts         # Shared Supabase profile lookup by Google email
 │   ├── siteConfig.ts              # Centralized app metadata + public URLs (Fillout, Telegram)
 │   ├── supabase.ts                # Supabase admin client singleton
 │   ├── support.ts                 # Support thread ID parsing, reply/close command parsing
@@ -626,8 +628,8 @@ Central orchestration:
 - Uses a request id (`holdRequestIdRef`) to ignore stale hold responses and release orphan holds.
 - **`ReserveModal`**: Collects first name + instrument, shows hold countdown / securing / fallback messaging.
 - **`handleReserve`**: `POST /api/reserve` with `holdId` when present.
-- **Event click**: Opens **`EventDetailsModal`**; hold events show an info toast instead.
-- **Cancel path**: **`ConfirmModal`** then `POST /api/cancel` with `googleEventId`.
+- **Event click**: Opens **`EventDetailsModal`** with title, date range, cleaned Google description text, and owner-gated cancel controls; hold events show an info toast instead.
+- **Cancel path**: **`ConfirmModal`** then `POST /api/cancel` with `googleEventId` and `eventType`.
 - **Keyboard shortcuts** (desktop): Arrow keys navigate prev/next week, `T` goes to today, `Escape` closes modals.
 - **Touch gestures** (mobile): Swipe left/right navigates days, double-tap goes to today.
 
@@ -638,7 +640,7 @@ Central orchestration:
 | File | Role |
 | --- | --- |
 | `components/ReserveModal.tsx` | Form: first name, instrument select (Drums / Piano / Other). Modes: securing, hold (countdown to `onExpire`), fallback. Disables submit while securing. |
-| `components/EventDetailsModal.tsx` | Shows practice vs jam, title, time range; jam **Cancel** only if `canCancel`. |
+| `components/EventDetailsModal.tsx` | Shows practice vs jam, title, time range, cleaned description text; cancel button only when the current user owns the event and it has not ended. |
 | `components/ConfirmModal.tsx` | Generic confirm/cancel dialog (used for cancel confirmation). |
 | `components/Toast.tsx` | Fixed bottom-right toast (success / error / info), auto-dismiss ~3.5s from parent. |
 | `components/InstallPrompt.tsx` | `beforeinstallprompt` for Chromium install; iOS Safari hint; hides when standalone or dismissed. |
@@ -652,7 +654,10 @@ Central orchestration:
 
 - Optional session: reads `session.user.email` for permission hints.
 - Loads **practice** and **jam** calendars via `getCalendarClient()` for a window: 7 days ago → 30 days ahead.
-- Maps Google events to a unified JSON shape: `eventType` `practice` | `jam`, colors, `canCancel` for jams (owner email from `extendedProperties.private.ownerEmail` vs current user vs `ADMIN_EMAIL`).
+- Loads the current user's Supabase profile when available so practice ownership can be evaluated against linked WWU email and display name.
+- Maps Google events to a unified JSON shape: `eventType` `practice` | `jam`, colors, cleaned `description`, normalized `attendees`, and `canCancel`.
+- Jam `canCancel`: owner email from `extendedProperties.private.ownerEmail` vs current user vs `ADMIN_EMAIL`.
+- Practice `canCancel`: linked WWU email must appear in attendees and the booker name in the title (after the hyphen) must match the current user.
 - If `ENABLE_TEMP_HOLDS === "true"`, merges pending Supabase holds as `eventType: "hold"` with dashed styling class. Supabase errors are logged; events still return without holds.
 
 ### `POST app/api/reserve/route.ts`
@@ -669,10 +674,10 @@ Central orchestration:
 ### `POST app/api/cancel/route.ts`
 
 - Requires sign-in.
-- Fetches event from jam calendar, reads `ownerEmail` from private extended properties.
-- `canCancel`: `ADMIN_EMAIL` or owner match.
-- `calendar.events.delete` on jam calendar.
-- `markJamReservationCancelledInNotion` — errors logged only.
+- Accepts `googleEventId` plus `eventType`.
+- Jam cancellation: fetches event from jam calendar, reads `ownerEmail` from private extended properties, allows owner/admin, deletes the event, then best-effort updates Notion.
+- Practice cancellation: fetches event from the practice calendar, loads the current user's linked WWU profile, requires attendee email + title-name ownership match, then deletes the event.
+- Both paths reject ended events before deletion.
 
 ### `POST app/api/holds/create/route.ts`
 
@@ -714,16 +719,22 @@ Builds JWT auth from `GOOGLE_CLIENT_EMAIL`, `GOOGLE_PRIVATE_KEY` (newline fix `r
 Centralized app metadata: name, description, public URLs for Fillout, Telegram contact, and Telegram group. Reads from `NEXT_PUBLIC_*` env vars with fallback defaults.
 
 ### `lib/types.ts`
-Shared TypeScript types: `GoogleApiEvent`, `HoldRow`, `ApiCalendarEvent`, `CalendarEvent`, `PendingSelection`, `ToastState`, `DragMirrorState`, `SupportThreadRow`, `SupportMessageRow`.
+Shared TypeScript types: `GoogleApiEvent`, `CalendarEventAttendee`, `HoldRow`, `ApiCalendarEvent`, `CalendarEvent`, `PendingSelection`, `ToastState`, `DragMirrorState`, `SupportThreadRow`, `SupportMessageRow`.
 
 ### `lib/calendar-helpers.ts`
 Date clamping, busy-block overlap detection, time range formatting, ISO timestamp utilities.
+
+### `lib/calendar-events.ts`
+Shared event metadata helpers: strips the Fillout footer from Google descriptions, normalizes attendees, derives the practice booker name from the title, and centralizes practice/jam cancel authorization checks.
 
 ### `lib/formatting.ts`
 Shared date/time formatting (date range display with arrow, elapsed time, etc.).
 
 ### `lib/hold-helpers.ts`
 Optimistic hold event creation (`makeOptimisticHoldEvent`), `sessionStorage` persistence for hold IDs across page loads, strip/filter utilities.
+
+### `lib/profile-helpers.ts`
+Shared Supabase profile lookup used by event APIs to resolve the signed-in user's linked WWU email and display name from their Google account email.
 
 ### `lib/timeGridDragSelect.ts`
 Low-level drag-select math:
@@ -778,10 +789,10 @@ See [Support system architecture](#support-system-architecture) above.
 
 ## Request / data flow (summary)
 
-1. **Browse**: `GET /api/events` merges Google (practice + jam) + optional Supabase holds; UI assigns colors and `canCancel` for jams.
+1. **Browse**: `GET /api/events` merges Google (practice + jam) + optional Supabase holds; UI assigns colors, cleaned descriptions, and owner-aware `canCancel` flags.
 2. **Select slot** (authenticated): `POST /api/holds/create` → optional 30-second hold, or fallback UI if disabled/fails.
 3. **Confirm**: `POST /api/reserve` → verify hold if any → overlap check → Google insert → Notion insert (best-effort) → delete hold.
-4. **Cancel**: `POST /api/cancel` → authorize → Google delete → Notion status update (best-effort).
+4. **Cancel**: `POST /api/cancel` → authorize by event type → Google delete → Notion status update for jams only (best-effort).
 5. **Support**: User submits via `/api/support/contact` → Supabase + Telegram. Admin replies via Telegram webhook or `/api/support/reply`.
 
 **Source of truth for "what is booked"** is **Google Calendar** (two calendars). **Notion** is a **log/audit** mirror. **Supabase** is **ephemeral coordination** for holds and **persistent storage** for support threads.

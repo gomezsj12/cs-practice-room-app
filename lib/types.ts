@@ -1,12 +1,20 @@
 /** Shared types used across API routes, client components, and hooks. */
 
+/** Minimal attendee shape surfaced from Google Calendar events. */
+export type CalendarEventAttendee = {
+  email?: string;
+  displayName?: string;
+};
+
 /**
- * Minimal shape of a Google Calendar event as returned by `calendar.events.list`.
- * Only the fields the app actually reads are typed; everything else is ignored.
+ * Minimal shape of a Google Calendar event as returned by `calendar.events.list`
+ * / `calendar.events.get`. Only the fields the app actually reads are typed;
+ * everything else is ignored.
  */
 export type GoogleApiEvent = {
   id?: string | null;
   summary?: string | null;
+  description?: string | null;
   start?: {
     dateTime?: string | null;
     date?: string | null;
@@ -15,12 +23,21 @@ export type GoogleApiEvent = {
     dateTime?: string | null;
     date?: string | null;
   } | null;
+  attendees?:
+    | Array<{
+        email?: string | null;
+        displayName?: string | null;
+      }>
+    | null;
   extendedProperties?: {
     private?: Record<string, string> | null;
   } | null;
 };
 
-/** A row from the `holds` Supabase table representing a temporary time-slot reservation. */
+/**
+ * A row from the `holds` Supabase table representing a temporary time-slot
+ * reservation.
+ */
 export type HoldRow = {
   id: string;
   start_at: string;
@@ -38,6 +55,8 @@ export type ApiCalendarEvent = {
   holdId?: string;
   eventType: "practice" | "jam" | "hold";
   title: string;
+  description?: string;
+  attendees?: CalendarEventAttendee[];
   start: string;
   end: string;
   color: string;
@@ -56,6 +75,8 @@ export type CalendarEvent = {
   holdId?: string;
   eventType?: "practice" | "jam" | "hold";
   title: string;
+  description?: string;
+  attendees?: CalendarEventAttendee[];
   start: string;
   end: string;
   color?: string;

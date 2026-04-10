@@ -4,12 +4,12 @@
  * @module ConfirmModal
  *
  * Generic two-button confirmation dialog used for destructive actions such as
- * cancelling a jam reservation. The modal renders as a fixed overlay with a
+ * removing a calendar booking. The modal renders as a fixed overlay with a
  * customisable title, message, button labels, and loading state.
  *
  * Backdrop dismissal is opt-in via `dismissOnBackdrop` (enabled on mobile).
  *
- * @see CalendarView — uses this modal for the "Cancel reservation?" confirmation
+ * @see CalendarView — uses this modal for calendar cancellation confirmation
  */
 
 type ConfirmModalProps = {

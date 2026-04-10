@@ -38,6 +38,7 @@
  *      hold event utilities.
  */
 import { useCallback, useEffect, useRef, useState } from "react";
+import { getCalendarEventKindLabel } from "@/lib/calendar-events";
 import type { CalendarEvent, PendingSelection } from "@/lib/types";
 import {
   OPTIMISTIC_HOLD_PREFIX,
@@ -402,20 +403,23 @@ export function useBookingFlow(
   }
 
   /**
-   * Delete an existing jam reservation via `/api/cancel`.
+   * Delete an existing jam reservation or practice booking via `/api/cancel`.
    *
-   * Guards against cancelling non-jam events and events that have already
+   * Guards against cancelling unsupported events and events that have already
    * ended (server would reject anyway, but a client-side check gives a
    * friendlier message).
    */
   async function confirmCancelReservation() {
     if (
       !selectedEvent ||
-      selectedEvent.eventType !== "jam" ||
+      (selectedEvent.eventType !== "jam" &&
+        selectedEvent.eventType !== "practice") ||
       !selectedEvent.googleEventId
     ) {
       return;
     }
+
+    const eventKindLabel = getCalendarEventKindLabel(selectedEvent.eventType);
 
     // Client-side end-time guard — prevents a wasted round-trip.
     const cancelEnd = new Date(selectedEvent.end);
@@ -425,7 +429,7 @@ export function useBookingFlow(
     ) {
       setShowCancelConfirm(false);
       showToast(
-        "This reservation has already ended and can\u2019t be cancelled.",
+        `This ${eventKindLabel} has already ended and can\u2019t be cancelled.`,
         "info",
       );
       return;
@@ -441,13 +445,14 @@ export function useBookingFlow(
         },
         body: JSON.stringify({
           googleEventId: selectedEvent.googleEventId,
+          eventType: selectedEvent.eventType,
         }),
       });
 
       const data = await response.json();
 
       if (!response.ok) {
-        throw new Error(data.error || "Failed to cancel reservation.");
+        throw new Error(data.error || "Failed to cancel booking.");
       }
 
       setEvents((currentEvents) =>
@@ -458,7 +463,12 @@ export function useBookingFlow(
 
       setSelectedEvent(null);
       setShowCancelConfirm(false);
-      showToast("Jam reservation cancelled.", "success");
+      showToast(
+        selectedEvent.eventType === "practice"
+          ? "Practice booking cancelled."
+          : "Jam reservation cancelled.",
+        "success",
+      );
       loadEvents(true);
     } catch (error) {
       console.error(error);
@@ -466,7 +476,7 @@ export function useBookingFlow(
       if (error instanceof Error) {
         showToast(error.message, "error");
       } else {
-        showToast("Could not cancel reservation.", "error");
+        showToast("Could not cancel booking.", "error");
       }
     } finally {
       setIsCancelling(false);
