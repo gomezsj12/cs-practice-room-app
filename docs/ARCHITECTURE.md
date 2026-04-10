@@ -257,8 +257,10 @@ Used by `lib/google.ts` so the **server** can read/write calendars without each 
 | --- | --- |
 | `NOTION_TOKEN` | Integration token |
 | `NOTION_DATA_SOURCE_ID` | Data source id for jam reservation logging |
+| `NOTION_PEOPLE_DB_ID` | Database ID for the people directory (user profile lookup) |
+| `NOTION_PROFILE_LOG_DB_ID` | Database ID for the profile-creation audit log |
 
-### Supabase (temporary holds + support)
+### Supabase (profiles, temporary holds + support)
 
 | Variable | Purpose |
 | --- | --- |
@@ -322,6 +324,8 @@ cs-practice-room-app/
 │       ├── holds/
 │       │   ├── create/route.ts    # POST: overlap-check, insert Supabase hold (30s TTL)
 │       │   └── release/route.ts   # POST: authorize owner/admin, delete Supabase hold
+│       ├── profile/
+│       │   └── setup/route.ts    # POST: first-time account setup (validate WWU email, Notion lookup, Supabase insert)
 │       ├── pwa-icon/
 │       │   └── route.tsx          # GET: Edge runtime, generates PWA icon via ImageResponse
 │       └── support/
@@ -336,8 +340,9 @@ cs-practice-room-app/
 │               └── route.ts       # POST: receive Telegram webhook, route replies/close commands
 │
 ├── components/                    # React client components
+│   ├── AccountSetupModal.tsx      # First-time sign-in: collects WWU email, creates Supabase profile
 │   ├── AuthButton.tsx             # Sign in/out button with loading/signed-in/signed-out states
-│   ├── AuthProvider.tsx           # NextAuth SessionProvider wrapper
+│   ├── AuthProvider.tsx           # NextAuth SessionProvider wrapper + AccountSetupModal mount
 │   ├── CalendarView.tsx           # Calendar orchestration: FullCalendar + hooks + modals + overlays
 │   ├── ConfirmModal.tsx           # Generic confirm/cancel dialog
 │   ├── ContactSupportForm.tsx     # Homepage contact form (creates support thread)
@@ -384,7 +389,9 @@ cs-practice-room-app/
 │   ├── BROWSER_VERIFICATION.md    # Browser testing guide (Playwright + MCP)
 │   └── README.md                  # Documentation index
 │
-├── auth.ts                        # NextAuth v5 configuration: Google provider, JWT, trustHost
+├── types/
+│   └── next-auth.d.ts            # Session/JWT type augmentation (profileComplete flag)
+├── auth.ts                        # NextAuth v5 configuration: Google provider, JWT, profile callbacks
 ├── next.config.ts                 # Next.js config (currently default/empty)
 ├── tsconfig.json                  # Strict TypeScript, @/* path alias, Next plugin
 ├── postcss.config.mjs             # Tailwind v4 via @tailwindcss/postcss
@@ -407,14 +414,23 @@ Path alias: `@/*` → project root (`tsconfig.json`).
 - **NextAuth** with the **Google** provider only.
 - **JWT** session strategy.
 - **`trustHost: true`** (important behind proxies like Vercel; pair with correct `AUTH_URL` / deployment URL).
+- **`jwt` callback**: On sign-in and session updates, checks Supabase `profiles` table for a row matching the user's Google email. Sets `token.profileComplete` accordingly.
+- **`session` callback**: Exposes `profileComplete` on the session object for client-side gating.
 
 ### `app/api/auth/[...nextauth]/route.ts`
 
 - Re-exports **`GET`** and **`POST`** from NextAuth **`handlers`**.
 
+### First-time account setup
+
+- **`components/AccountSetupModal.tsx`**: Full-screen blurred overlay shown when `session.profileComplete === false`. Collects WWU email (validated as `First.Last@wallawalla.edu`). Dismissing signs the user out.
+- **`app/api/profile/setup/route.ts`**: `POST` — validates email format, queries Notion people DB for a match, inserts a row into Supabase `profiles`, and logs the event to a Notion audit database (fire-and-forget).
+- **`types/next-auth.d.ts`**: Augments the `Session` and `JWT` types with `profileComplete?: boolean`.
+
 ### `components/AuthProvider.tsx`
 
 - Client wrapper: **`SessionProvider`** from `next-auth/react`.
+- Mounts **`AccountSetupModal`** globally so it appears over any page when profile setup is incomplete.
 
 ### `components/AuthButton.tsx`
 
@@ -689,7 +705,7 @@ Builds JWT auth from `GOOGLE_CLIENT_EMAIL`, `GOOGLE_PRIVATE_KEY` (newline fix `r
 `getSupabaseAdmin()`: `SUPABASE_URL` + `SUPABASE_SERVICE_ROLE_KEY`, no session persistence (server-only). Lazy singleton.
 
 ### `lib/notion.ts`
-`getNotionClient()` / headers with `NOTION_TOKEN` and fixed API version. `createJamReservationInNotion`: `pages.create` with parent `data_source_id`. `markJamReservationCancelledInNotion`: query by Google Event ID, then `pages.update` Status → Cancelled.
+`getNotionClient()` / headers with `NOTION_TOKEN` and fixed API version. `createJamReservationInNotion`: `pages.create` with parent `data_source_id`. `markJamReservationCancelledInNotion`: query by Google Event ID, then `pages.update` Status → Cancelled. `findNotionPersonByWWUEmail`: queries the people database by "Walla Walla Email" for profile setup. `logProfileCreationToNotion`: writes an audit row to the profile-creation log database (fire-and-forget).
 
 ### `lib/pwaIcon.tsx`
 `ImageResponse` JSX: dark rounded square, "Room" / "Jam" typography.

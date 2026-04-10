@@ -94,6 +94,27 @@ export type DragMirrorState = {
   label: string;
 };
 
+/** A row from the `profiles` Supabase table. */
+export type ProfileRow = {
+  id: string;
+  google_email: string;
+  display_name: string;
+  walla_walla_email: string;
+  google_image: string | null;
+  notion_page_id: string | null;
+  sj_band: string | null;
+  type: string | null;
+  dept_vespers: boolean;
+  dept_berean: boolean;
+  dept_nuestra: boolean;
+  dept_circle: boolean;
+  dept_mosaic: boolean;
+  dept_battle_springjam: boolean;
+  dept_other: boolean;
+  created_at: string;
+  updated_at: string;
+};
+
 /** A row from the `support_threads` Supabase table. */
 export type SupportThreadRow = {
   id: string;

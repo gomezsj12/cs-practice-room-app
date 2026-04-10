@@ -23,9 +23,9 @@ const authCardShell =
 function headerSignOutCardClass(pathname: string) {
   if (pathname.startsWith("/booking")) {
     return {
-      wrap: "border-emerald-500/30 bg-emerald-500/10",
-      headline: "text-emerald-100",
-      body: "text-emerald-100/85",
+      wrap: "border-red-500/30 bg-red-500/10",
+      headline: "text-red-100",
+      body: "text-red-100/85",
     };
   }
   if (pathname.startsWith("/jam")) {
@@ -52,7 +52,7 @@ function headerSignOutCardClass(pathname: string) {
 /** Returns contextual body copy shown when the user is signed out. */
 function headerSignOutBody(pathname: string): string {
   if (pathname.startsWith("/booking")) {
-    return "The booking form still works.";
+    return "You do not have access to the booking form";
   }
   if (pathname.startsWith("/jam")) {
     return "Browse the calendar anytime, sign in to reserve Jams.";
@@ -64,12 +64,19 @@ function headerSignOutBody(pathname: string): string {
 }
 
 /** Returns per-page colour tokens for the signed-in auth card. */
-function headerSignedInCardClass(pathname: string) {
+function headerSignedInCardClass(pathname: string, hasBookingAccess?: boolean) {
   if (pathname.startsWith("/booking")) {
+    if (hasBookingAccess) {
+      return {
+        wrap: "border-emerald-500/30 bg-emerald-500/10",
+        headline: "text-emerald-100",
+        body: "text-emerald-100/85",
+      };
+    }
     return {
-      wrap: "border-yellow-500/30 bg-yellow-500/10",
-      headline: "text-yellow-100",
-      body: "text-yellow-100/85",
+      wrap: "border-red-500/30 bg-red-500/10",
+      headline: "text-red-100",
+      body: "text-red-100/85",
     };
   }
   return {
@@ -80,9 +87,16 @@ function headerSignedInCardClass(pathname: string) {
 }
 
 /** Returns contextual body copy shown when the user is signed in. */
-function headerSignedInBody(pathname: string, email: string): string {
+function headerSignedInBody(
+  pathname: string,
+  email: string,
+  hasBookingAccess?: boolean
+): string {
   if (pathname.startsWith("/booking")) {
-    return "Google authentication is not yet available on this page.";
+    if (hasBookingAccess) {
+      return "Your login will autofill your details in the booking form.";
+    }
+    return "Your account does not have access to book practices.";
   }
   if (pathname.startsWith("/jam")) {
     return `${email} will be used to reserve or cancel Jams.`;
@@ -120,8 +134,12 @@ export default function AuthButton() {
   }
 
   if (session?.user?.email) {
-    const body = headerSignedInBody(pathname, session.user.email);
-    const signedInCard = headerSignedInCardClass(pathname);
+    const body = headerSignedInBody(
+      pathname,
+      session.user.email,
+      session.bookingAccess
+    );
+    const signedInCard = headerSignedInCardClass(pathname, session.bookingAccess);
     return (
       <div className={`${authCardShell} ${signedInCard.wrap}`}>
         <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between sm:gap-3">
