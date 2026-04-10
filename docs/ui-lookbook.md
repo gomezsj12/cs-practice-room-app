@@ -15,7 +15,7 @@ This document is an exhaustive record of every UI state, page, and interaction i
 The header appears on every page via `app/layout.tsx` → `components/SiteHeader.tsx`.
 
 **Layout:**
-- Top-level navigation bar with pill-shaped links: **Home**, **Booking Form**, **Jam Reservations**, **Support**
+- Top-level navigation bar with pill-shaped links: **Home**, **Booking**, **Calendar**, **Support**
 - Active page link has a highlighted border/background
 - Below the nav: large **"CS Practice Room"** heading with subtitle **"Booking, Jam Reservations, and Student Support."**
 
@@ -90,9 +90,9 @@ The auth card below the header changes its helper text depending on the current 
 The homepage is the portal's front door, organized in vertical card sections:
 
 1. **Header + auth card** (see Global elements above)
-2. **Hero section**: Large heading "One home for room booking, jam reservations, and student support." with descriptive subtitle
-3. **Contact card**: "Get help or ask a question" heading, contact support form
-4. **Helpful links card**: "Practice room resources" heading, links to booking form, jam calendar, and Telegram group
+2. **Hero section**: Large heading "Welcome to the NEW CS Practice Room App!" with bullet list of next steps (links to **Booking** and **Calendar** in the nav)
+3. **Contact card**: "Contact Us" heading, contact support form
+4. **Resources card**: "Resources" heading — optional Telegram group link (when `NEXT_PUBLIC_TELEGRAM_GROUP_URL` is set), Terms & Conditions, and Meet with us (external links)
 
 ### Contact support form (`ContactSupportForm.tsx`)
 
@@ -111,18 +111,17 @@ The homepage is the portal's front door, organized in vertical card sections:
 - Hitting limit triggers info toast: "Message limit reached (1200 characters)."
 - "View replies in your support inbox" link navigates to `/support`
 
-### Helpful links section
+### Resources card
 
-Three link cards (only visible when URLs are configured in env):
-- **Practice room booking form** → `/booking`
-- **Jam reservation calendar** → `/jam`
-- **CS Practice Room group chat** → External Telegram group URL
+- **Telegram** (optional): Shown when the group URL env var is set; otherwise a dashed placeholder explains the env var.
+- **Terms & Conditions** → external Fillout URL
+- **Meet with us** → external scheduling URL
 
-Each card has an icon, title, and short description.
+Booking and calendar navigation live in the **header nav** (**Booking**, **Calendar**) and in the hero bullet list, not in this card.
 
 ---
 
-## Page: Booking Form (`/booking`)
+## Page: Booking (`/booking`)
 
 **Route:** `app/booking/page.tsx`
 
@@ -150,7 +149,7 @@ Each card has an icon, title, and short description.
 
 ---
 
-## Page: Jam Reservations (`/jam`)
+## Page: Calendar (`/jam`)
 
 **Route:** `app/jam/page.tsx` → `components/CalendarView.tsx`
 
@@ -165,10 +164,10 @@ Each card has an icon, title, and short description.
 
 1. **Header + auth card** (context: "Drag-select on the calendar below to reserve or cancel jams.")
 2. **Calendar info card**:
-   - "CS PRACTICE ROOM" label (small caps, tracking)
-   - "Jam Reservations" heading
-   - Description text
-   - Legend: Practice booking (gray dot), Jam reservation (blue dot), Temporary hold (dashed circle)
+   - Heading: **"The NEW Calendar..."**
+   - Intro copy (`text-sm` / `sm:text-base`, neutral-400): two stacked lines, each prefixed with `-`, covering viewing/canceling own bookings via event clicks and drag-select jam reservations
+   - Note (`text-xs` / `sm:text-sm`, neutral-500): starts with `Note:` (same grey as the rest of the note), then semibold neutral-300 phrase **"Jam Sessions are different than normal practices"**, then `...` and CSPR drumset/keyboard clarification
+   - Legend: Practice (gray dot), Jam (blue dot), Temporary hold (dashed circle)
    - Navigation: **Prev** / **Today** (blue) / **Next** buttons
    - "Room availability" label with current date range (desktop only)
 3. **Calendar grid**: FullCalendar time grid
@@ -421,3 +420,4 @@ The "Support" link in the header shows an unread indicator (amber dot) when any 
 | --- | --- | --- |
 | 2026-04-09 | Initial look book created — baseline of all current UI states | (original screenshots) |
 | 2026-04-09 | Added desktop (1440×900) and mobile (390×844) screenshots with full-page scrolling for all pages | `desktop-*` and `mobile-*` in `docs/screenshots/` |
+| 2026-04-10 | Main nav labels: **Booking** / **Calendar**; calendar page info card copy and typography (heading, body, note); look book text aligned | (refresh screenshots when convenient) |

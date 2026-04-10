@@ -3,7 +3,7 @@
 /**
  * @module CalendarView
  *
- * Top-level calendar orchestrator for the Jam Reservations page.
+ * Top-level calendar orchestrator for the Calendar page (`/jam`).
  *
  * Renders a FullCalendar (timeGridWeek on desktop, timeGridDay on mobile)
  * wrapped in custom navigation controls, a drag-select reservation flow,
@@ -605,12 +605,27 @@ export default function CalendarView() {
           <div className="flex flex-col gap-4 xl:flex-row xl:items-start xl:justify-between">
             <div>
               <h1 className="text-3xl font-semibold text-white sm:text-4xl">
-                Jam Reservations
+                The NEW Calendar...
               </h1>
 
-              <p className="mt-3 max-w-2xl text-sm text-neutral-400 sm:text-base">
-                View booked practice times and reserve open room time for a
-                quick jam session.
+              <div className="mt-3 max-w-2xl space-y-2 text-sm text-neutral-400 sm:text-base">
+                <p>
+                  - View booked practices by clicking on events (you can also
+                  cancel YOUR bookings).
+                </p>
+                <p>
+                  - Reserve time for a quick jam session by clicking and dragging
+                  across a free timeslot.
+                </p>
+              </div>
+
+              <p className="mt-3 max-w-2xl text-xs text-neutral-500 sm:text-sm">
+                Note:{" "}
+                <span className="font-semibold text-neutral-300">
+                  Jam Sessions are different than normal practices
+                </span>
+                ...they are for personal practicing with the CSPR drumset or
+                keyboard.
               </p>
             </div>
 
@@ -618,12 +633,12 @@ export default function CalendarView() {
               <div className="flex flex-wrap justify-center gap-5 border-t border-white/8 pt-4 text-sm text-neutral-300 md:justify-end md:border-0 md:pt-0">
                 <div className="flex items-center gap-2">
                   <span className="h-3 w-3 rounded-full bg-neutral-500" />
-                  <span>Practice booking</span>
+                  <span>Practice</span>
                 </div>
 
                 <div className="flex items-center gap-2">
                   <span className="h-3 w-3 rounded-full bg-[#3f56c9]" />
-                  <span>Jam reservation</span>
+                  <span>Jam</span>
                 </div>
 
                 <div className="flex items-center gap-2">

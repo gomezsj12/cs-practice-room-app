@@ -17,12 +17,12 @@ test("homepage shows the main navigation and hero copy", async ({ page }) => {
   ).toBeVisible();
   await expect(
     page.getByRole("navigation", { name: /Main/i }).getByRole("link", {
-      name: /^Booking Form$/i,
+      name: /^Booking$/i,
     }),
   ).toBeVisible();
   await expect(
     page.getByRole("navigation", { name: /Main/i }).getByRole("link", {
-      name: /^Jams$/i,
+      name: /^Calendar$/i,
     }),
   ).toBeVisible();
   await expect(

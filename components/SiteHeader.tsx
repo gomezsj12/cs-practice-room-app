@@ -21,8 +21,8 @@ import SupportNavLink from "@/components/SupportNavLink";
 
 const navItems = [
   { href: "/", label: "Home" },
-  { href: "/booking", label: "Booking Form" },
-  { href: "/jam", label: "Jams" },
+  { href: "/booking", label: "Booking" },
+  { href: "/jam", label: "Calendar" },
   { href: "/support", label: "Support" },
 ];
 

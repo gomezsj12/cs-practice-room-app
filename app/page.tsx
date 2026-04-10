@@ -132,7 +132,7 @@ export default function Home() {
                       href="/booking"
                       className="text-blue-300 transition hover:text-blue-200"
                     >
-                      Booking Form
+                      Booking
                     </Link>{" "}
                     in the menu bar.
                   </li>
@@ -145,7 +145,7 @@ export default function Home() {
                       href="/jam"
                       className="text-blue-300 transition hover:text-blue-200"
                     >
-                      Jams
+                      Calendar
                     </Link>{" "}
                     in the menu bar, drag accross a timeslot to reserve it (only
                     works when logged in).
@@ -156,7 +156,7 @@ export default function Home() {
                       href="/jam"
                       className="text-blue-300 transition hover:text-blue-200"
                     >
-                      Jams
+                      Calendar
                     </Link>{" "}
                     the menu bar (you don't need to be logged in to view the
                     calendar).
