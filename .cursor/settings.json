@@ -3,6 +3,7 @@
   //
   // After code changes: run npm run dev (see SETTINGS.md + dev-server-cleanup rule); prompt owner for feedback.
   // Git: Do NOT commit (or push) until the project owner has tested on localhost and asked you to.
+  // Git terminal: use full permissions (all) for every git command — see rules/git-commands.mdc.
   //
   // - Code map: docs/ARCHITECTURE.md
   // - Planning + git change log + regressions: docs/change-log.md

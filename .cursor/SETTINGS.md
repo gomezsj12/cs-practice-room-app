@@ -16,6 +16,10 @@ Typical flow:
 
 Same idea for **`git push`**: only when they ask, unless they have said otherwise for a specific task.
 
+### Git in the agent terminal (permissions)
+
+When an agent runs git in Cursor’s terminal tool, it must use **full permissions** (outside the sandbox) for **every** git command — including `status`, `log`, `commit`, and `push`. Sandboxed runs can fail quietly or leave the branch out of sync with `origin`. See [`.cursor/rules/git-commands.mdc`](./rules/git-commands.mdc).
+
 ## Local dev server after changes
 
 **After completing code changes for the current task**, start the app with **`npm run dev`** in the terminal for this repo (from the project root). That way the project owner can open the local URL and test right away.
@@ -49,3 +53,4 @@ See `docs/README.md` for the full list of documentation files and their purposes
 - [`rules/documentation-protocol.mdc`](./rules/documentation-protocol.mdc) — full documentation update protocol.
 - [`rules/browser-verification.mdc`](./rules/browser-verification.mdc) — browser verification before hand-off.
 - [`rules/dev-server-cleanup.mdc`](./rules/dev-server-cleanup.mdc) — dev server management.
+- [`rules/git-commands.mdc`](./rules/git-commands.mdc) — run git with full permissions in the agent terminal.
