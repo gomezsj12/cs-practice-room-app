@@ -217,6 +217,124 @@ export function emptyDepartments(): DepartmentFlags {
   };
 }
 
+/** Loose shape for people / profile-log property values from the Notion API. */
+type NotionPeopleProp = {
+  type: string;
+  email?: string | null;
+  checkbox?: boolean;
+  multi_select?: Array<{ name: string }>;
+  select?: { name: string } | null;
+  rich_text?: Array<{ plain_text?: string }>;
+  title?: Array<{ plain_text?: string }>;
+};
+
+/**
+ * Checkbox on the profile-creation log data source. When checked, the
+ * Notion webhook handler deletes the Supabase `profiles` row for the
+ * row's Google Email.
+ */
+export const NOTION_PROFILE_LOG_DELETE_PROP = "Remove from Supabase";
+
+/** Fields read from a people data-source row for Supabase sync. */
+export type NotionPersonSyncFields = {
+  pageId: string;
+  wwuEmail: string | null;
+  displayName: string | null;
+  departments: DepartmentFlags;
+  sjBand: string | null;
+  type: string | null;
+};
+
+export function getDataSourceIdFromNotionParent(page: {
+  parent: { type: string; data_source_id?: string };
+}): string | null {
+  if (
+    page.parent.type === "data_source_id" &&
+    page.parent.data_source_id
+  ) {
+    return page.parent.data_source_id;
+  }
+  return null;
+}
+
+function parsePeopleDataSourceProperties(
+  pageId: string,
+  properties: Record<string, NotionPeopleProp>,
+): NotionPersonSyncFields {
+  const departments = emptyDepartments();
+
+  let sjBand: string | null = null;
+  let type: string | null = null;
+  let wwuEmail: string | null = null;
+  let displayName: string | null = null;
+
+  const serviceType = properties["Service Type"];
+
+  if (serviceType?.type === "multi_select" && serviceType.multi_select) {
+    for (const option of serviceType.multi_select) {
+      const col = DEPT_MAP[option.name];
+      if (col) departments[col] = true;
+    }
+  }
+
+  const sjBandProp = properties["SJ Band"];
+  if (sjBandProp?.type === "select") {
+    sjBand = sjBandProp.select?.name ?? null;
+  } else if (sjBandProp?.type === "rich_text") {
+    const text = (sjBandProp.rich_text ?? [])
+      .map((chunk) => chunk.plain_text ?? "")
+      .join("")
+      .trim();
+    sjBand = text || null;
+  } else if (sjBandProp?.type === "title") {
+    const text = (sjBandProp.title ?? [])
+      .map((chunk) => chunk.plain_text ?? "")
+      .join("")
+      .trim();
+    sjBand = text || null;
+  }
+
+  const typeProp = properties["Type"];
+  if (typeProp?.type === "select") {
+    type = typeProp.select?.name ?? null;
+  } else if (typeProp?.type === "rich_text") {
+    const text = (typeProp.rich_text ?? [])
+      .map((chunk) => chunk.plain_text ?? "")
+      .join("")
+      .trim();
+    type = text || null;
+  } else if (typeProp?.type === "title") {
+    const text = (typeProp.title ?? [])
+      .map((chunk) => chunk.plain_text ?? "")
+      .join("")
+      .trim();
+    type = text || null;
+  }
+
+  const wwuProp = properties["Walla Walla Email"];
+  if (wwuProp?.type === "email") {
+    wwuEmail = wwuProp.email ?? null;
+  }
+
+  const nameProp = properties["Name"];
+  if (nameProp?.type === "title" && nameProp.title) {
+    const text = nameProp.title
+      .map((chunk) => chunk.plain_text ?? "")
+      .join("")
+      .trim();
+    displayName = text || null;
+  }
+
+  return {
+    pageId,
+    wwuEmail,
+    displayName,
+    departments,
+    sjBand,
+    type,
+  };
+}
+
 /**
  * Search the Notion people data source for a user by their Walla Walla
  * University email. Returns the page ID and department flags extracted
@@ -245,70 +363,76 @@ export async function findNotionPersonByWWUEmail(
   });
 
   const page = result.results[0];
-  if (!page) return null;
+  if (!page || !("properties" in page)) return null;
 
-  const departments = emptyDepartments();
+  const parsed = parsePeopleDataSourceProperties(
+    page.id,
+    page.properties as Record<string, NotionPeopleProp>,
+  );
 
-  let sjBand: string | null = null;
-  let type: string | null = null;
+  return {
+    pageId: parsed.pageId,
+    departments: parsed.departments,
+    sjBand: parsed.sjBand,
+    type: parsed.type,
+  };
+}
 
-  if ("properties" in page) {
-    const properties = page.properties as Record<
-      string,
-      {
-        type: string;
-        multi_select?: Array<{ name: string }>;
-        select?: { name: string } | null;
-        rich_text?: Array<{ plain_text?: string }>;
-        title?: Array<{ plain_text?: string }>;
-      }
-    >;
+/** Resolved action for a `page.properties_updated` webhook on profile-related data sources. */
+export type NotionProfileWebhookAction =
+  | { action: "delete_profile"; googleEmail: string }
+  | { action: "sync_profile"; fields: NotionPersonSyncFields }
+  | { action: "none" };
 
-    const serviceType = properties["Service Type"];
-
-    if (serviceType?.type === "multi_select" && serviceType.multi_select) {
-      for (const option of serviceType.multi_select) {
-        const col = DEPT_MAP[option.name];
-        if (col) departments[col] = true;
-      }
-    }
-
-    const sjBandProp = properties["SJ Band"];
-    if (sjBandProp?.type === "select") {
-      sjBand = sjBandProp.select?.name ?? null;
-    } else if (sjBandProp?.type === "rich_text") {
-      const text = (sjBandProp.rich_text ?? [])
-        .map((chunk) => chunk.plain_text ?? "")
-        .join("")
-        .trim();
-      sjBand = text || null;
-    } else if (sjBandProp?.type === "title") {
-      const text = (sjBandProp.title ?? [])
-        .map((chunk) => chunk.plain_text ?? "")
-        .join("")
-        .trim();
-      sjBand = text || null;
-    }
-
-    const typeProp = properties["Type"];
-    if (typeProp?.type === "select") {
-      type = typeProp.select?.name ?? null;
-    } else if (typeProp?.type === "rich_text") {
-      const text = (typeProp.rich_text ?? [])
-        .map((chunk) => chunk.plain_text ?? "")
-        .join("")
-        .trim();
-      type = text || null;
-    } else if (typeProp?.type === "title") {
-      const text = (typeProp.title ?? [])
-        .map((chunk) => chunk.plain_text ?? "")
-        .join("")
-        .trim();
-      type = text || null;
-    }
+/**
+ * Inspect a Notion page once and decide whether to delete or sync a Supabase profile.
+ * Uses one `pages.retrieve` call per webhook delivery.
+ */
+export async function resolveNotionProfileWebhookAction(
+  pageId: string,
+): Promise<NotionProfileWebhookAction> {
+  const logDs = process.env.NOTION_PROFILE_LOG_DB_ID;
+  const peopleDs = process.env.NOTION_PEOPLE_DB_ID;
+  if (!logDs) {
+    throw new Error("Missing NOTION_PROFILE_LOG_DB_ID environment variable.");
+  }
+  if (!peopleDs) {
+    throw new Error("Missing NOTION_PEOPLE_DB_ID environment variable.");
   }
 
-  return { pageId: page.id, departments, sjBand, type };
+  const notion = getNotionClient();
+  const page = await notion.pages.retrieve({ page_id: pageId });
+
+  if (!("properties" in page)) {
+    return { action: "none" };
+  }
+
+  const parentDs = getDataSourceIdFromNotionParent(page);
+  const props = page.properties as Record<string, NotionPeopleProp>;
+
+  if (parentDs === logDs) {
+    const delProp = props[NOTION_PROFILE_LOG_DELETE_PROP];
+    const removeFromSupabase =
+      delProp?.type === "checkbox" && delProp.checkbox === true;
+
+    const googleProp = props["Google Email"];
+    const googleEmail =
+      googleProp?.type === "email" ? (googleProp.email ?? null) : null;
+
+    if (removeFromSupabase && googleEmail) {
+      return { action: "delete_profile", googleEmail };
+    }
+    return { action: "none" };
+  }
+
+  if (parentDs === peopleDs) {
+    return {
+      action: "sync_profile",
+      fields: parsePeopleDataSourceProperties(page.id, props),
+    };
+  }
+
+  return { action: "none" };
 }
 
 /** Parameters for {@link logProfileCreationToNotion}. */
@@ -323,6 +447,9 @@ type ProfileLogParams = {
 
 /**
  * Write an audit row to the Notion profile-creation log database.
+ *
+ * When a people-DB match exists, links it via the "CSPR Notion Profile"
+ * relation property (page id of the matched row).
  *
  * Called fire-and-forget from the profile-setup API route — a failure
  * here should never block profile creation in Supabase.
@@ -343,10 +470,6 @@ export async function logProfileCreationToNotion({
 
   const notion = getNotionClient();
 
-  const notionProfileUrl = notionPageId
-    ? `https://www.notion.so/${notionPageId.replace(/-/g, "")}`
-    : "";
-
   await notion.pages.create({
     parent: { type: "data_source_id", data_source_id: dbId },
     properties: {
@@ -362,14 +485,10 @@ export async function logProfileCreationToNotion({
       "Found in Notion": {
         checkbox: foundInNotion,
       },
-      ...(notionProfileUrl
+      ...(notionPageId
         ? {
-            "Notion Profile": {
-              rich_text: [
-                {
-                  text: { content: notionProfileUrl },
-                },
-              ],
+            "CSPR Notion Profile": {
+              relation: [{ id: notionPageId }],
             },
           }
         : {}),
