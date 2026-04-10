@@ -11,6 +11,8 @@
  * 1. **Not ready** — user isn't signed in or profile isn't complete → sign-in prompt.
  * 2. **No booking access** — profile exists but no Notion page → "no access" message.
  * 3. **Ready** — profile with Notion page → embedded Fillout form with pre-filled params.
+ * Until the iframe `load` event, `pointer-events: none` keeps parent-page scrolling
+ *    responsive on mobile; after load, the embed behaves normally.
  *
  * @see {@link @/app/api/profile/me/route} — profile data endpoint
  * @see {@link @/app/booking/page} — passes `filloutBaseUrl` from server env
@@ -48,6 +50,31 @@ function buildFormUrl(profile: ProfileRow, filloutBaseUrl: string): string {
 type Props = {
   filloutBaseUrl: string;
 };
+
+const IFRAME_POINTER_FALLBACK_MS = 20_000;
+
+function BookingFormIframe({ formUrl }: { formUrl: string }) {
+  const [pointerEnabled, setPointerEnabled] = useState(false);
+
+  useEffect(() => {
+    const id = window.setTimeout(() => {
+      setPointerEnabled(true);
+    }, IFRAME_POINTER_FALLBACK_MS);
+    return () => window.clearTimeout(id);
+  }, [formUrl]);
+
+  return (
+    <iframe
+      src={formUrl}
+      title="CS Practice Room booking form"
+      onLoad={() => setPointerEnabled(true)}
+      onError={() => setPointerEnabled(true)}
+      className={`h-full min-h-0 w-full flex-1 border-0 bg-transparent ${
+        pointerEnabled ? "" : "pointer-events-none"
+      }`}
+    />
+  );
+}
 
 export default function BookingContent({ filloutBaseUrl }: Props) {
   const { data: session, status: sessionStatus } = useSession();
@@ -218,11 +245,7 @@ export default function BookingContent({ filloutBaseUrl }: Props) {
                 md:min-h-[max(36rem,calc(100dvh-14rem))]
               "
             >
-              <iframe
-                src={formUrl}
-                title="CS Practice Room booking form"
-                className="h-full min-h-0 w-full flex-1 border-0 bg-transparent"
-              />
+              <BookingFormIframe key={formUrl} formUrl={formUrl} />
             </div>
           </div>
         </section>

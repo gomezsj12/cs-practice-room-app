@@ -223,8 +223,8 @@ export default function AccountSetupModal() {
             <p className="mt-1.5 text-sm text-neutral-400">
               Checking your university email
             </p>
-            <div className="mt-6 h-1.5 w-full overflow-hidden rounded-full bg-white/10">
-              <div className="h-full animate-pulse rounded-full bg-blue-500" style={{ width: "70%" }} />
+            <div className="cpsr-profile-indeterminate-track mt-6 h-1.5 w-full rounded-full bg-white/10">
+              <div className="cpsr-profile-indeterminate-bar" aria-hidden />
             </div>
           </div>
         )}
