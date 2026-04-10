@@ -9,14 +9,17 @@
  * @module
  */
 
+/** Base URL for the Fillout booking form when no `NEXT_PUBLIC_FILLOUT_URL` is set. */
+export const DEFAULT_FILLOUT_URL =
+  "https://cspracticeroom.fillout.com/t/t1jM8vTCXtus";
+
 /** App-wide constants consumed by metadata helpers, the PWA manifest, and UI chrome. */
 export const siteConfig = {
   name: "CS Practice Room App",
   shortName: "Practice Room",
   description:
     "A shared home for practice-room booking, jam reservations, and future student support tools.",
-  filloutUrl:
-    process.env.NEXT_PUBLIC_FILLOUT_URL ?? "https://cspracticeroom.fillout.com/t/t1jM8vTCXtus",
+  filloutUrl: process.env.NEXT_PUBLIC_FILLOUT_URL ?? DEFAULT_FILLOUT_URL,
   telegramContactUrl: process.env.NEXT_PUBLIC_TELEGRAM_CONTACT_URL ?? "",
   telegramGroupUrl: process.env.NEXT_PUBLIC_TELEGRAM_GROUP_URL ?? "",
 };

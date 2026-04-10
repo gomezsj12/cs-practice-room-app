@@ -13,12 +13,11 @@
  * 3. **Ready** — profile with Notion page → embedded Fillout form with pre-filled params.
  *
  * @see {@link @/app/api/profile/me/route} — profile data endpoint
- * @see {@link @/lib/siteConfig} — base Fillout URL
+ * @see {@link @/app/booking/page} — passes `filloutBaseUrl` from server env
  */
 
 import { useEffect, useState } from "react";
 import { useSession } from "next-auth/react";
-import { siteConfig } from "@/lib/siteConfig";
 import type { ProfileRow } from "@/lib/types";
 
 type State =
@@ -28,7 +27,7 @@ type State =
   | { status: "error" }
   | { status: "ready"; formUrl: string };
 
-function buildFormUrl(profile: ProfileRow): string {
+function buildFormUrl(profile: ProfileRow, filloutBaseUrl: string): string {
   const params = new URLSearchParams({
     name: profile.display_name,
     wwu_email: profile.walla_walla_email,
@@ -43,10 +42,14 @@ function buildFormUrl(profile: ProfileRow): string {
     Other: String(profile.dept_other),
     Mosaic: String(profile.dept_mosaic),
   });
-  return `${siteConfig.filloutUrl}?${params.toString()}`;
+  return `${filloutBaseUrl}?${params.toString()}`;
 }
 
-export default function BookingContent() {
+type Props = {
+  filloutBaseUrl: string;
+};
+
+export default function BookingContent({ filloutBaseUrl }: Props) {
   const { data: session, status: sessionStatus } = useSession();
   const [state, setState] = useState<State>({ status: "loading" });
 
@@ -80,7 +83,10 @@ export default function BookingContent() {
         if (!profile.notion_page_id) {
           setState({ status: "no-access" });
         } else {
-          setState({ status: "ready", formUrl: buildFormUrl(profile) });
+          setState({
+            status: "ready",
+            formUrl: buildFormUrl(profile, filloutBaseUrl),
+          });
         }
       } catch {
         if (!cancelled) setState({ status: "error" });
@@ -91,7 +97,7 @@ export default function BookingContent() {
     return () => {
       cancelled = true;
     };
-  }, [sessionStatus, isReady]);
+  }, [sessionStatus, isReady, filloutBaseUrl]);
 
   if (state.status === "loading") {
     return (
