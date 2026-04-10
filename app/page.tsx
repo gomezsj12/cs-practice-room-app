@@ -129,7 +129,7 @@ export default function Home() {
                   <li>
                     <strong>- To book a practice:</strong> Select{" "}
                     <Link
-                      href="/booking-form"
+                      href="/booking"
                       className="text-blue-300 transition hover:text-blue-200"
                     >
                       Booking Form
@@ -142,7 +142,7 @@ export default function Home() {
                     </strong>{" "}
                     Select{" "}
                     <Link
-                      href="/jams"
+                      href="/jam"
                       className="text-blue-300 transition hover:text-blue-200"
                     >
                       Jams
@@ -153,7 +153,7 @@ export default function Home() {
                   <li>
                     <strong>- To view the CSPR calendar:</strong> Select{" "}
                     <Link
-                      href="/jams"
+                      href="/jam"
                       className="text-blue-300 transition hover:text-blue-200"
                     >
                       Jams
