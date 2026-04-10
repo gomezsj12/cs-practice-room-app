@@ -99,10 +99,6 @@ export default function ContactSupportForm() {
   return (
     <>
       <form onSubmit={handleSubmit} className="mt-5 space-y-3">
-        <p className="text-xs text-neutral-400">
-          Sending as {session.user.name || session.user.email}
-        </p>
-
         <label className="block">
           <span className="sr-only">Support message</span>
           <textarea

@@ -23,9 +23,9 @@ const authCardShell =
 function headerSignOutCardClass(pathname: string) {
   if (pathname.startsWith("/booking")) {
     return {
-      wrap: "border-amber-500/25 bg-amber-500/10",
-      headline: "text-amber-100",
-      body: "text-amber-100/80",
+      wrap: "border-emerald-500/30 bg-emerald-500/10",
+      headline: "text-emerald-100",
+      body: "text-emerald-100/85",
     };
   }
   if (pathname.startsWith("/jam")) {
@@ -33,6 +33,13 @@ function headerSignOutCardClass(pathname: string) {
       wrap: "border-amber-500/25 bg-amber-500/10",
       headline: "text-amber-100",
       body: "text-amber-100/80",
+    };
+  }
+  if (pathname.startsWith("/support")) {
+    return {
+      wrap: "border-red-500/30 bg-red-500/10",
+      headline: "text-red-100",
+      body: "text-red-100/85",
     };
   }
   return {
@@ -45,12 +52,15 @@ function headerSignOutCardClass(pathname: string) {
 /** Returns contextual body copy shown when the user is signed out. */
 function headerSignOutBody(pathname: string): string {
   if (pathname.startsWith("/booking")) {
-    return "The booking form works when signed-out.";
+    return "The booking form still works.";
   }
   if (pathname.startsWith("/jam")) {
-    return "Browse the calendar anytime. Sign in to drag-select and reserve.";
+    return "Browse the calendar anytime, sign in to reserve Jams.";
   }
-  return "One account for jam scheduling and other shared tools in this app.";
+  if (pathname.startsWith("/support")) {
+    return "You don't have access to your support chats.";
+  }
+  return "Sign in to access more features.";
 }
 
 /** Returns per-page colour tokens for the signed-in auth card. */
@@ -147,7 +157,7 @@ export default function AuthButton() {
           <p
             className={`text-sm font-semibold leading-snug ${card.headline}`}
           >
-            Google sign-in
+            Signed out
           </p>
           <p className={`mt-0.5 text-xs leading-snug ${card.body}`}>{body}</p>
         </div>

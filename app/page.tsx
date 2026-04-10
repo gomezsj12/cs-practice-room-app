@@ -115,21 +115,58 @@ export default function Home() {
     <main className="px-4 pb-8 pt-5 text-white">
       <div className="mx-auto flex max-w-7xl flex-col gap-6">
         <section className={`${cardClass} hidden md:block`}>
-          <div className="max-w-3xl space-y-4">
-            <p className="text-sm font-medium uppercase tracking-[0.22em] text-blue-300">
-              CS Practice Room
-            </p>
-            <div className="space-y-3">
+          <div className="space-y-4">
+            <div className="space-y-5">
               <h1 className="text-4xl font-semibold tracking-tight sm:text-5xl">
-                One home for room booking, jam reservations, and student support.
+                Welcome to the NEW CS Practice Room App!
               </h1>
-              <p className="max-w-2xl text-base leading-7 text-neutral-300 sm:text-lg">
-                This new app keeps the existing jam reservation workflow, adds a
-                dedicated booking page for the Fillout form, and gives students a
-                simpler front door for practice-room resources. Sign in from the
-                header when you want one Google identity across jam scheduling and
-                future tools.
-              </p>
+              <div className="space-y-4 text-base leading-7 text-neutral-300 sm:text-lg">
+                <p>
+                  This is a one-stop shop for everything relating to the practice
+                  room. Here are some things you might want to do:
+                </p>
+                <ul className="space-y-2">
+                  <li>
+                    <strong>- To book a practice:</strong> Select{" "}
+                    <Link
+                      href="/booking-form"
+                      className="text-blue-300 transition hover:text-blue-200"
+                    >
+                      Booking Form
+                    </Link>{" "}
+                    in the menu bar.
+                  </li>
+                  <li>
+                    <strong>
+                      - To use the Drums or Keyboard for personal practicing:
+                    </strong>{" "}
+                    Select{" "}
+                    <Link
+                      href="/jams"
+                      className="text-blue-300 transition hover:text-blue-200"
+                    >
+                      Jams
+                    </Link>{" "}
+                    in the menu bar, drag accross a timeslot to reserve it (only
+                    works when logged in).
+                  </li>
+                  <li>
+                    <strong>- To view the CSPR calendar:</strong> Select{" "}
+                    <Link
+                      href="/jams"
+                      className="text-blue-300 transition hover:text-blue-200"
+                    >
+                      Jams
+                    </Link>{" "}
+                    the menu bar (you don't need to be logged in to view the
+                    calendar).
+                  </li>
+                </ul>
+                <p>
+                  Feel free to send us a message below if you have any
+                  questions...
+                </p>
+              </div>
             </div>
           </div>
         </section>

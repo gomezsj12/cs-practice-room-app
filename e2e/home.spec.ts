@@ -12,7 +12,7 @@ test("homepage shows the main navigation and hero copy", async ({ page }) => {
   await expect(page).toHaveTitle(/CS Practice Room App/i);
   await expect(
     page.getByRole("heading", {
-      name: /One home for room booking, jam reservations, and student support/i,
+      name: /Welcome to the NEW CS Practice Room App!/i,
     }),
   ).toBeVisible();
   await expect(
