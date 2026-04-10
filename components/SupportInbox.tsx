@@ -24,8 +24,9 @@
  * painted, using a double-`rAF + setTimeout(0)` to handle both initial paint
  * and any late layout shifts.
  *
- * **Context menu:** Right-click (desktop) or long-press (mobile, 550 ms)
- * on a thread item opens a floating menu with a "Delete conversation" option.
+ * **Context menu (lg+ only):** Right-click or long-press (550 ms) on a thread
+ * item opens a floating menu with a "Delete conversation" option. Below `lg`,
+ * mobile uses a **Delete chat** control in the conversation header instead.
  *
  * @see ContactSupportForm — creates new threads that appear here
  * @see SupportNavLink — nav badge driven by the same unread state
@@ -103,6 +104,8 @@ export default function SupportInbox() {
     x: number;
     y: number;
   } | null>(null);
+  /** Tailwind `lg` (1024px): floating delete menu + thread long-press. */
+  const [isDesktopLg, setIsDesktopLg] = useState(false);
   const longPressTimerRef = useRef<number | null>(null);
   const composerRef = useRef<HTMLTextAreaElement | null>(null);
   const messageListRef = useRef<HTMLDivElement | null>(null);
@@ -266,6 +269,20 @@ export default function SupportInbox() {
     };
   }, []);
 
+  useEffect(() => {
+    const mq = window.matchMedia("(min-width: 1024px)");
+    const sync = () => setIsDesktopLg(mq.matches);
+    sync();
+    mq.addEventListener("change", sync);
+    return () => mq.removeEventListener("change", sync);
+  }, []);
+
+  useEffect(() => {
+    if (!isDesktopLg) {
+      setMenu(null);
+    }
+  }, [isDesktopLg]);
+
   async function handleReplySubmit(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault();
     if (!thread?.id || isReplySubmitting) {
@@ -356,6 +373,9 @@ export default function SupportInbox() {
   }
 
   function openThreadMenu(threadId: string, x: number, y: number) {
+    if (!isDesktopLg) {
+      return;
+    }
     setMenu({ threadId, x, y });
   }
 
@@ -448,7 +468,7 @@ export default function SupportInbox() {
         <aside
           className={`relative rounded-3xl border border-white/10 bg-black/20 p-3 ${
             showMobileChat ? "hidden lg:block" : "block"
-          } h-[calc(100dvh-5rem)] overflow-y-auto md:h-[66vh] lg:h-[74vh]`}
+          } h-[calc(100dvh-4rem)] overflow-y-auto md:h-[72vh] lg:h-[80vh]`}
         >
           <div className="mb-3 px-2 py-1">
             <p className="text-xl font-semibold tracking-tight text-neutral-100">
@@ -469,6 +489,9 @@ export default function SupportInbox() {
                     setMobileView("chat");
                   }}
                   onContextMenu={(event) => {
+                    if (!isDesktopLg) {
+                      return;
+                    }
                     event.preventDefault();
                     openThreadMenu(
                       supportThread.id,
@@ -476,19 +499,23 @@ export default function SupportInbox() {
                       event.clientY,
                     );
                   }}
-                  onTouchStart={(event) => {
-                    clearLongPressTimer();
-                    const touch = event.touches[0];
-                    longPressTimerRef.current = window.setTimeout(() => {
-                      openThreadMenu(
-                        supportThread.id,
-                        touch?.clientX ?? window.innerWidth / 2,
-                        touch?.clientY ?? window.innerHeight / 2,
-                      );
-                    }, 550);
-                  }}
-                  onTouchEnd={clearLongPressTimer}
-                  onTouchCancel={clearLongPressTimer}
+                  onTouchStart={
+                    isDesktopLg
+                      ? (event) => {
+                          clearLongPressTimer();
+                          const touch = event.touches[0];
+                          longPressTimerRef.current = window.setTimeout(() => {
+                            openThreadMenu(
+                              supportThread.id,
+                              touch?.clientX ?? window.innerWidth / 2,
+                              touch?.clientY ?? window.innerHeight / 2,
+                            );
+                          }, 550);
+                        }
+                      : undefined
+                  }
+                  onTouchEnd={isDesktopLg ? clearLongPressTimer : undefined}
+                  onTouchCancel={isDesktopLg ? clearLongPressTimer : undefined}
                   className={`w-full rounded-2xl border px-3 py-3 text-left transition ${
                     isSelected
                       ? "border-white/25 bg-white/10"
@@ -539,38 +566,40 @@ export default function SupportInbox() {
         <div
           className={`rounded-3xl border border-white/10 bg-black/20 p-3 ${
             showMobileList ? "hidden lg:flex" : "flex"
-          } h-[calc(100dvh-5rem)] flex-col md:h-[66vh] lg:h-[74vh]`}
+          } h-[calc(100dvh-4rem)] flex-col md:h-[72vh] lg:h-[80vh]`}
         >
-          <div className="relative mb-3 flex items-start gap-2 border-b border-white/10 pb-2 lg:hidden">
-            <button
-              type="button"
-              onClick={() => setMobileView("list")}
-              className="absolute left-0 top-0 inline-flex h-10 w-10 items-center justify-center text-3xl font-semibold leading-none text-neutral-200 transition hover:text-white"
-              aria-label="Back to conversations"
-            >
-              <svg
-                aria-hidden="true"
-                viewBox="0 0 24 24"
-                className="h-7 w-7"
-                fill="none"
+          <div className="mb-3 grid min-w-0 grid-cols-[1fr_auto_1fr] items-center gap-1 self-stretch rounded-t-3xl rounded-b-none border-b border-white/10 bg-neutral-950 px-3 pb-4 pt-3 -mx-3 -mt-3 lg:hidden">
+            <div className="flex h-10 items-center justify-start">
+              <button
+                type="button"
+                onClick={() => setMobileView("list")}
+                className="-ml-1 inline-flex h-10 w-10 items-center justify-center text-3xl font-semibold leading-none text-neutral-200 transition hover:text-white"
+                aria-label="Back to conversations"
               >
-                <path
-                  d="M15 6L9 12L15 18"
-                  stroke="currentColor"
-                  strokeWidth="2.4"
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                />
-              </svg>
-            </button>
-            <div className="px-12 text-center">
+                <svg
+                  aria-hidden="true"
+                  viewBox="0 0 24 24"
+                  className="h-7 w-7"
+                  fill="none"
+                >
+                  <path
+                    d="M15 6L9 12L15 18"
+                    stroke="currentColor"
+                    strokeWidth="2.4"
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                  />
+                </svg>
+              </button>
+            </div>
+            <div className="min-w-0 max-w-[min(18rem,calc(100vw-7rem))] -translate-x-1 justify-self-center text-center">
               <p className="truncate text-sm font-semibold text-neutral-100">
                 {selectedThreadSummary
                   ? formatConversationName(selectedThreadSummary.created_at)
                   : "Support chat"}
               </p>
               {selectedThreadSummary ? (
-                <div className="mt-1 flex items-center justify-center gap-2">
+                <div className="mt-1 flex flex-wrap items-center justify-center gap-2">
                   <span
                     className={`rounded-full px-2 py-0.5 text-[10px] font-medium ${threadStatusClass(
                       selectedThreadSummary.status,
@@ -584,6 +613,42 @@ export default function SupportInbox() {
                   </p>
                 </div>
               ) : null}
+            </div>
+            <div className="flex h-10 items-center justify-end pr-2">
+              {selectedThreadId ? (
+                <button
+                  type="button"
+                  disabled={isDeletingThread}
+                  aria-busy={isDeletingThread}
+                  onClick={() => void handleDeleteThreadById(selectedThreadId)}
+                  className="inline-flex h-10 w-10 items-center justify-center text-red-400 transition hover:text-red-300 disabled:cursor-not-allowed disabled:opacity-50"
+                  aria-label="Delete chat"
+                >
+                  {isDeletingThread ? (
+                    <span
+                      className="inline-block h-5 w-5 animate-spin rounded-full border-2 border-red-400/30 border-t-red-400"
+                      aria-hidden="true"
+                    />
+                  ) : (
+                    <svg
+                      aria-hidden="true"
+                      viewBox="0 0 24 24"
+                      className="h-7 w-7"
+                      fill="none"
+                    >
+                      <path
+                        d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"
+                        stroke="currentColor"
+                        strokeWidth="2"
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                      />
+                    </svg>
+                  )}
+                </button>
+              ) : (
+                <span className="inline-block h-10 w-10 shrink-0" aria-hidden />
+              )}
             </div>
           </div>
           <div ref={messageListRef} className="min-h-0 flex-1 overflow-y-auto pr-1">
@@ -628,7 +693,7 @@ export default function SupportInbox() {
           </div>
 
           <form onSubmit={handleReplySubmit} className="mt-3 space-y-2">
-            <div className="flex items-end gap-2 rounded-2xl border border-white/10 bg-black/30 px-3 py-2">
+            <div className="flex items-end gap-2 rounded-2xl border border-white/10 bg-neutral-950 px-3 py-2">
               <textarea
                 ref={composerRef}
                 value={replyDraft}
@@ -649,10 +714,10 @@ export default function SupportInbox() {
                 rows={1}
                 maxLength={1200}
                 placeholder={isConversationLoading ? "Loading conversation..." : "Write a message..."}
-                className="max-h-[88px] min-h-[40px] w-full resize-none bg-transparent py-2 text-sm text-white placeholder:text-neutral-500 focus:outline-none"
+                className="max-h-[88px] min-h-[40px] w-full resize-none bg-transparent pb-2 pt-[11px] text-sm text-white placeholder:text-neutral-500 focus:outline-none"
               />
               {isConversationLoading ? (
-                <div className="inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-full border border-white/15 bg-black/40">
+                <div className="-translate-y-0.5 inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-full border border-white/15 bg-black/40">
                   <span
                     className="inline-block h-4 w-4 animate-spin rounded-full border-2 border-white/25 border-t-blue-400"
                     aria-label="Loading conversation"
@@ -662,7 +727,7 @@ export default function SupportInbox() {
                 <button
                   type="submit"
                   disabled={isReplySubmitting || !replyDraft.trim() || !thread?.id}
-                  className="inline-flex h-9 shrink-0 items-center rounded-full bg-blue-500 px-3 text-sm font-medium text-white transition hover:bg-blue-400 disabled:cursor-not-allowed disabled:opacity-50"
+                  className="-translate-y-0.5 inline-flex h-9 shrink-0 items-center rounded-full bg-blue-500 px-3 text-sm font-medium text-white transition hover:bg-blue-400 disabled:cursor-not-allowed disabled:opacity-50"
                   aria-label="Send follow-up"
                 >
                   {isReplySubmitting ? "..." : "Send"}
@@ -688,7 +753,7 @@ export default function SupportInbox() {
         type="info"
         onClose={() => setToastOpen(false)}
       />
-      {menu ? (
+      {menu && isDesktopLg ? (
         <div
           className="fixed z-[90] min-w-[170px] rounded-xl border border-white/15 bg-black/90 p-1 shadow-2xl backdrop-blur"
           style={{ left: menu.x, top: menu.y }}

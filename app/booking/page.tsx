@@ -18,7 +18,7 @@ export default function BookingPage() {
   const hasEmbedUrl = Boolean(siteConfig.filloutUrl);
 
   return (
-    <main className="px-4 py-4 text-white md:flex md:h-full md:min-h-0 md:flex-1 md:flex-col">
+    <main className="px-4 pb-4 pt-5 text-white md:flex md:h-full md:min-h-0 md:flex-1 md:flex-col">
       <div className="mx-auto w-full max-w-7xl md:flex md:h-full md:min-h-0 md:flex-1 md:flex-col">
         {hasEmbedUrl ? (
           <section

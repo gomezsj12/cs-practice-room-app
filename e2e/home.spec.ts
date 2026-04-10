@@ -2,7 +2,7 @@
  * @file Smoke test for the homepage.
  *
  * Verifies the critical above-the-fold content renders: page title, hero heading,
- * navigation links to booking and jam pages, and the contact/support section.
+ * main nav links to booking and jam pages, and the contact section.
  */
 import { expect, test } from "@playwright/test";
 
@@ -16,12 +16,16 @@ test("homepage shows the main navigation and hero copy", async ({ page }) => {
     }),
   ).toBeVisible();
   await expect(
-    page.getByRole("link", { name: /Practice room booking form/i }),
+    page.getByRole("navigation", { name: /Main/i }).getByRole("link", {
+      name: /^Booking Form$/i,
+    }),
   ).toBeVisible();
   await expect(
-    page.getByRole("link", { name: /Jam reservation calendar/i }),
+    page.getByRole("navigation", { name: /Main/i }).getByRole("link", {
+      name: /^Jams$/i,
+    }),
   ).toBeVisible();
   await expect(
-    page.getByRole("heading", { name: /Get help or ask a question/i }),
+    page.getByRole("heading", { name: /Contact Us/i }),
   ).toBeVisible();
 });

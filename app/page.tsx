@@ -4,8 +4,8 @@
  * Renders three sections:
  * 1. **Hero banner** (desktop-only) — introduces the app's purpose.
  * 2. **Contact card** — embeds `ContactSupportForm` for quick support.
- * 3. **Quick-links card** — links to `/booking`, `/jam`, and the optional
- *    Telegram group chat (shown when `NEXT_PUBLIC_TELEGRAM_GROUP_URL` is set).
+ * 3. **Resources card** — optional Telegram group chat (shown when
+ *    `NEXT_PUBLIC_TELEGRAM_GROUP_URL` is set).
  *
  * This is a server component; dynamic client behaviour comes from
  * `ContactSupportForm` (client component imported within).
@@ -35,10 +35,84 @@ function TelegramIcon() {
   );
 }
 
+/** Document with signature line and pen — Terms & Conditions link. */
+function SignedDocumentIcon() {
+  return (
+    <svg
+      aria-hidden="true"
+      viewBox="0 0 24 24"
+      className="h-5 w-5 shrink-0 text-neutral-500"
+      fill="none"
+      xmlns="http://www.w3.org/2000/svg"
+    >
+      <path
+        d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8l-6-6Z"
+        stroke="currentColor"
+        strokeWidth="1.5"
+        strokeLinejoin="round"
+      />
+      <path
+        d="M14 2v6h6"
+        stroke="currentColor"
+        strokeWidth="1.5"
+        strokeLinejoin="round"
+      />
+      <path
+        d="M8 12h8M8 16h5"
+        stroke="currentColor"
+        strokeWidth="1.5"
+        strokeLinecap="round"
+      />
+      <path
+        d="M7.5 20c1.3-.6 2.7-.8 4.2-.4 1.6.4 3 1.2 4.3 2.4"
+        stroke="currentColor"
+        strokeWidth="1.5"
+        strokeLinecap="round"
+      />
+      <path
+        d="m17.5 18.5 3.5 3.5M19 17l2 2"
+        stroke="currentColor"
+        strokeWidth="1.5"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      />
+    </svg>
+  );
+}
+
+/** Video camera — Meet with us / video meeting link. */
+function MeetWithUsIcon() {
+  return (
+    <svg
+      aria-hidden="true"
+      viewBox="0 0 24 24"
+      className="h-5 w-5 shrink-0 text-neutral-500"
+      fill="none"
+      xmlns="http://www.w3.org/2000/svg"
+    >
+      <rect
+        x="3"
+        y="7"
+        width="10"
+        height="10"
+        rx="2"
+        stroke="currentColor"
+        strokeWidth="1.5"
+      />
+      <path
+        d="M13 8.5 19.75 6.25V17.75L13 15.5Z"
+        stroke="currentColor"
+        strokeWidth="1.5"
+        strokeLinejoin="round"
+      />
+    </svg>
+  );
+}
+
 /** Homepage server component. */
 export default function Home() {
   return (
-    <main className="px-4 py-8 text-white">
+    <main className="px-4 pb-8 pt-5 text-white">
       <div className="mx-auto flex max-w-7xl flex-col gap-6">
         <section className={`${cardClass} hidden md:block`}>
           <div className="max-w-3xl space-y-4">
@@ -62,37 +136,31 @@ export default function Home() {
 
         <section className="grid gap-4 md:grid-cols-2">
           <article className={cardClass}>
-            <p className="text-sm font-medium text-blue-300">Contact</p>
-            <h2 className="mt-3 text-2xl font-semibold">
-              Get help or ask a question
-            </h2>
-            <p className="mt-3 text-sm leading-6 text-neutral-300">
-              Send a support request from inside the app. We include your signed-in
-              Google name and email so staff can reply faster.
+            <h2 className="text-2xl font-semibold">Contact Us</h2>
+            <div className="mt-3 space-y-3 text-sm leading-6 text-neutral-300">
+              <p>
+                Send us a message here! Feel free to ask us about reservation
+                problems or any questions you may have.
+              </p>
+              <p>
+                Also let us know if you would like to request a room closure or
+                use of the CSPR drum set for an external event.
+              </p>
+            </div>
+            <p className="mt-3 text-sm">
+              <Link
+                href="/support"
+                className="text-blue-300 transition hover:text-blue-200"
+              >
+                View our replies in the support tab.
+              </Link>
             </p>
             <ContactSupportForm />
           </article>
 
           <article className={cardClass}>
-            <p className="text-sm font-medium text-blue-300">Helpful links</p>
-            <h2 className="mt-3 text-2xl font-semibold">Practice room resources</h2>
-            <p className="mt-3 text-sm leading-6 text-neutral-300">
-              Jump to the booking form, jam calendar, or group chat when the links
-              below are configured.
-            </p>
-            <div className="mt-5 grid gap-3 sm:grid-cols-2">
-              <Link
-                href="/booking"
-                className="rounded-2xl border border-white/10 bg-black/20 px-4 py-4 text-sm text-neutral-200 transition hover:border-white/20 hover:bg-black/30"
-              >
-                Practice room booking form
-              </Link>
-              <Link
-                href="/jam"
-                className="rounded-2xl border border-white/10 bg-black/20 px-4 py-4 text-sm text-neutral-200 transition hover:border-white/20 hover:bg-black/30"
-              >
-                Jam reservation calendar
-              </Link>
+            <h2 className="text-2xl font-semibold">Resources</h2>
+            <div className="mt-5 grid gap-3">
               {siteConfig.telegramGroupUrl ? (
                 <a
                   href={siteConfig.telegramGroupUrl}
@@ -109,6 +177,24 @@ export default function Home() {
                   `NEXT_PUBLIC_TELEGRAM_GROUP_URL`.
                 </div>
               )}
+              <a
+                href="https://cspracticeroom.fillout.com/terms_and_conditions"
+                target="_blank"
+                rel="noreferrer"
+                className="inline-flex items-center gap-2 rounded-2xl border border-white/15 bg-white/10 px-4 py-4 text-sm font-medium text-neutral-200 transition hover:border-white/25 hover:bg-white/[0.14] hover:text-white"
+              >
+                <SignedDocumentIcon />
+                <span>Terms & Conditions</span>
+              </a>
+              <a
+                href="https://book.morgen.so/gomezsj12737/general_meeting"
+                target="_blank"
+                rel="noreferrer"
+                className="inline-flex items-center gap-2 rounded-2xl border border-white/15 bg-white/10 px-4 py-4 text-sm font-medium text-neutral-200 transition hover:border-white/25 hover:bg-white/[0.14] hover:text-white"
+              >
+                <MeetWithUsIcon />
+                <span>Meet with us</span>
+              </a>
             </div>
           </article>
         </section>

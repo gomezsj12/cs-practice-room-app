@@ -601,14 +601,10 @@ export default function CalendarView() {
   return (
     <>
       <section className="mb-5 rounded-3xl border border-white/10 bg-[#080808] shadow-[0_0_0_1px_rgba(255,255,255,0.02)]">
-        <div className="flex flex-col gap-5 p-5 md:p-6">
+        <div className="flex flex-col gap-5 p-6">
           <div className="flex flex-col gap-4 xl:flex-row xl:items-start xl:justify-between">
             <div>
-              <p className="text-xs font-semibold uppercase tracking-[0.22em] text-neutral-500">
-                CS Practice Room
-              </p>
-
-              <h1 className="mt-2 text-3xl font-semibold text-white sm:text-4xl">
+              <h1 className="text-3xl font-semibold text-white sm:text-4xl">
                 Jam Reservations
               </h1>
 

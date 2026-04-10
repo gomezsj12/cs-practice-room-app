@@ -53,15 +53,34 @@ function headerSignOutBody(pathname: string): string {
   return "One account for jam scheduling and other shared tools in this app.";
 }
 
-/** Returns contextual body copy shown when the user is signed in. */
-function headerSignedInBody(pathname: string): string {
+/** Returns per-page colour tokens for the signed-in auth card. */
+function headerSignedInCardClass(pathname: string) {
   if (pathname.startsWith("/booking")) {
-    return "Fillout below; jam scheduling shares this Google account.";
+    return {
+      wrap: "border-yellow-500/30 bg-yellow-500/10",
+      headline: "text-yellow-100",
+      body: "text-yellow-100/85",
+    };
+  }
+  return {
+    wrap: "border-emerald-500/25 bg-emerald-500/10",
+    headline: "text-emerald-100",
+    body: "text-emerald-100/85",
+  };
+}
+
+/** Returns contextual body copy shown when the user is signed in. */
+function headerSignedInBody(pathname: string, email: string): string {
+  if (pathname.startsWith("/booking")) {
+    return "Google authentication is not yet available on this page.";
   }
   if (pathname.startsWith("/jam")) {
-    return "Drag-select on the calendar below to reserve or cancel jams.";
+    return `${email} will be used to reserve or cancel Jams.`;
   }
-  return "Booking, jam scheduler, and future tools share this Google account.";
+  if (pathname.startsWith("/support")) {
+    return `${email} will be used to reply in support chats.`;
+  }
+  return `${email} will be used in this app.`;
 }
 
 /**
@@ -91,17 +110,18 @@ export default function AuthButton() {
   }
 
   if (session?.user?.email) {
-    const body = headerSignedInBody(pathname);
+    const body = headerSignedInBody(pathname, session.user.email);
+    const signedInCard = headerSignedInCardClass(pathname);
     return (
-      <div
-        className={`${authCardShell} border-emerald-500/25 bg-emerald-500/10`}
-      >
+      <div className={`${authCardShell} ${signedInCard.wrap}`}>
         <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between sm:gap-3">
           <div className="min-w-0">
-            <p className="text-sm font-semibold leading-snug text-emerald-100">
+            <p
+              className={`text-sm font-semibold leading-snug ${signedInCard.headline}`}
+            >
               Signed in
             </p>
-            <p className="mt-0.5 text-xs leading-snug text-emerald-100/85">
+            <p className={`mt-0.5 text-xs leading-snug ${signedInCard.body}`}>
               {body}
             </p>
           </div>

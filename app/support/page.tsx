@@ -16,7 +16,7 @@ const cardClass =
 /** Support page — wraps the SupportInbox in a responsive card layout. */
 export default function SupportPage() {
   return (
-    <main className="px-4 py-8 text-white">
+    <main className="px-4 pb-8 pt-5 text-white">
       <div className="mx-auto flex max-w-4xl flex-col gap-6">
         <section className={cardClass}>
           <SupportInbox />

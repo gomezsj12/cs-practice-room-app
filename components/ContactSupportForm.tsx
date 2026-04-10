@@ -13,9 +13,9 @@
  * @see SupportInbox — where the user views and replies to threads
  */
 
-import Link from "next/link";
 import { useState } from "react";
 import { useSession } from "next-auth/react";
+import Toast from "@/components/Toast";
 
 const MIN_MESSAGE_LENGTH = 10;
 const MAX_MESSAGE_LENGTH = 1200;
@@ -30,6 +30,8 @@ export default function ContactSupportForm() {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState("");
   const [success, setSuccess] = useState("");
+  const [toastOpen, setToastOpen] = useState(false);
+  const [lastLengthToastAtMax, setLastLengthToastAtMax] = useState(false);
 
   const trimmedLength = message.trim().length;
   const canSubmit =
@@ -69,6 +71,8 @@ export default function ContactSupportForm() {
 
       setSuccess("Message sent. We will reply in the app.");
       setMessage("");
+      setLastLengthToastAtMax(false);
+      setToastOpen(false);
     } catch {
       setError("Something went wrong. Please try again.");
     } finally {
@@ -93,55 +97,64 @@ export default function ContactSupportForm() {
   }
 
   return (
-    <form onSubmit={handleSubmit} className="mt-5 space-y-3">
-      <p className="text-xs text-neutral-400">
-        Sending as {session.user.name || session.user.email}
-      </p>
-
-      <label className="block">
-        <span className="sr-only">Support message</span>
-        <textarea
-          value={message}
-          onChange={(event) => setMessage(event.target.value)}
-          placeholder="What do you need help with?"
-          rows={4}
-          maxLength={MAX_MESSAGE_LENGTH}
-          className="w-full rounded-2xl border border-white/10 bg-black/20 px-4 py-3 text-sm text-white placeholder:text-neutral-500 focus:border-blue-400/80 focus:outline-none"
-        />
-      </label>
-
-      <div className="flex items-center justify-between gap-3">
+    <>
+      <form onSubmit={handleSubmit} className="mt-5 space-y-3">
         <p className="text-xs text-neutral-400">
-          {trimmedLength}/{MAX_MESSAGE_LENGTH}
+          Sending as {session.user.name || session.user.email}
         </p>
-        <button
-          type="submit"
-          disabled={!canSubmit}
-          className="rounded-full bg-blue-500 px-4 py-2 text-sm font-medium text-white transition hover:bg-blue-400 disabled:cursor-not-allowed disabled:opacity-50"
-        >
-          {isSubmitting ? "Sending..." : "Send support request"}
-        </button>
-      </div>
 
-      {error ? (
-        <p className="rounded-xl border border-red-500/35 bg-red-500/10 px-3 py-2 text-sm text-red-200">
-          {error}
-        </p>
-      ) : null}
+        <label className="block">
+          <span className="sr-only">Support message</span>
+          <textarea
+            value={message}
+            onChange={(event) => {
+              const nextValue = event.target.value.slice(0, MAX_MESSAGE_LENGTH);
+              setMessage(nextValue);
 
-      {success ? (
-        <p className="rounded-xl border border-emerald-500/35 bg-emerald-500/10 px-3 py-2 text-sm text-emerald-200">
-          {success}
-        </p>
-      ) : null}
+              if (nextValue.length < MAX_MESSAGE_LENGTH && lastLengthToastAtMax) {
+                setLastLengthToastAtMax(false);
+              }
 
-      <p className="text-xs text-neutral-400">
-        View replies in your{" "}
-        <Link href="/support" className="text-blue-300 hover:text-blue-200">
-          support inbox
-        </Link>
-        .
-      </p>
-    </form>
+              if (nextValue.length >= MAX_MESSAGE_LENGTH && !lastLengthToastAtMax) {
+                setLastLengthToastAtMax(true);
+                setToastOpen(true);
+              }
+            }}
+            placeholder="What do you need help with?"
+            rows={4}
+            maxLength={MAX_MESSAGE_LENGTH}
+            className="w-full rounded-2xl border border-white/10 bg-black/20 px-4 py-3 text-sm text-white placeholder:text-neutral-500 focus:border-blue-400/80 focus:outline-none"
+          />
+        </label>
+
+        <div className="flex justify-end">
+          <button
+            type="submit"
+            disabled={!canSubmit}
+            className="rounded-full bg-blue-500 px-4 py-2 text-sm font-medium text-white transition hover:bg-blue-400 disabled:cursor-not-allowed disabled:opacity-50"
+          >
+            {isSubmitting ? "Submitting..." : "Submit support request"}
+          </button>
+        </div>
+
+        {error ? (
+          <p className="rounded-xl border border-red-500/35 bg-red-500/10 px-3 py-2 text-sm text-red-200">
+            {error}
+          </p>
+        ) : null}
+
+        {success ? (
+          <p className="rounded-xl border border-emerald-500/35 bg-emerald-500/10 px-3 py-2 text-sm text-emerald-200">
+            {success}
+          </p>
+        ) : null}
+      </form>
+      <Toast
+        isOpen={toastOpen}
+        message={`Message limit reached (${MAX_MESSAGE_LENGTH} characters).`}
+        type="info"
+        onClose={() => setToastOpen(false)}
+      />
+    </>
   );
 }
