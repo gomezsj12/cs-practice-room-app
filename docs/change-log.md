@@ -12,7 +12,7 @@ This file is the **single source of truth** for the full project history — fro
 
 **What to write:** Short **subject** (or first line of commit message), **`abc1234` hash**, **one optional sentence** if the subject is vague, and **Attribution** = `Cursor agent`, `Human`, or `ChatGPT-era` (use `ChatGPT-era` for commits from before Cursor was used, if you know; otherwise `Human`).
 
-**Commit hash workflow:** You don't know the hash before committing. Use `—` as a placeholder, commit, then read the hash from git's output and replace the placeholder. Amend once with `git commit --amend --no-edit`. Do **not** amend a second time — the hash changes on every amend, creating an infinite loop. One amend is the maximum.
+**Commit hash workflow (rolling placeholder):** You don't know the **new** commit's hash until after it exists. **Before** `git commit`: run `git rev-parse --short=7 HEAD`; if the **last** Part 2 table row still has `—` in the Commit column, replace it with that hash (in backticks, same as other rows). Then append your **new** row with `—` for its commit, date, bold summary, and attribution—include that file in **one** normal commit. Do **not** use `git commit --amend` to fill in the new row's hash; the **next** commit's prep step will backfill it. Result: every filled hash in Part 2 matches a real git object; only the tip row stays `—` until the following commit.
 
 **Do not** log uncommitted experiments here — only **committed** history.
 
@@ -112,10 +112,14 @@ This file is the **single source of truth** for the full project history — fro
 | `d74dee9` | 2026-04-09 08:58 | **Refine support chat UX and thread handling.** Improved message display, thread state management, and overall inbox polish. | Cursor agent |
 | `9ac3328` | 2026-04-09 10:10 | **Refine support inbox mobile/chat styling and message bubble sizing.** Mobile-responsive chat layout, properly sized message bubbles. | Cursor agent |
 | `339c36e` | 2026-04-09 11:47 | **Fix support page stuck on loading during client-side navigation.** Resolved a bug where navigating to `/support` via client-side routing showed an infinite loading state. | Cursor agent |
-| `e7a899a` | 2026-04-09 20:20 | **Comprehensive code review: docs, comments, audit fixes, and review process.** Consolidated change-log, expanded ARCHITECTURE.md, created error-log/ui-lookbook/code-audit/CODE_REVIEW.md, implemented 8 low-risk audit fixes (dedup constants/types/helpers, removed dead exports, parallelized API calls), added JSDoc to all ~57 source files, added desktop+mobile screenshots, created documentation protocol and review checklists. | Cursor agent |
-| `9d83121` | 2026-04-09 20:30 | **Update change-log.md with code review commit.** Added missing entry for `e7a899a`. | Cursor agent |
-| `41db08f` | 2026-04-09 20:35 | **Strengthen change-log update requirement in agent rules.** Made change-log update a hard mandatory requirement in documentation-protocol, change-log.mdc, and SETTINGS.md so future agents cannot skip it. | Cursor agent |
-| `1f16e0c` | 2026-04-09 20:45 | **Add commit-hash workflow to prevent amend loops.** Added step-by-step instructions in change-log.mdc, documentation-protocol.mdc, and change-log.md for using a placeholder hash, committing, then amending exactly once. | Cursor agent |
+| `e7a899a` | 2026-04-09 13:31 | **Comprehensive code review: docs, comments, audit fixes, and review process.** Consolidated change-log, expanded ARCHITECTURE.md, created error-log/ui-lookbook/code-audit/CODE_REVIEW.md, implemented 8 low-risk audit fixes (dedup constants/types/helpers, removed dead exports, parallelized API calls), added JSDoc to all ~57 source files, added desktop+mobile screenshots, created documentation protocol and review checklists. | Cursor agent |
+| `9d83121` | 2026-04-09 13:33 | **Update change-log.md with code review commit e7a899a.** | Cursor agent |
+| `41db08f` | 2026-04-09 13:35 | **Strengthen change-log update requirement in agent rules.** Made change-log update a hard mandatory requirement in documentation-protocol, change-log.mdc, and SETTINGS.md so future agents cannot skip it. | Cursor agent |
+| `6d8bea9` | 2026-04-09 13:37 | **Fix commit hash reference in change-log.** | Cursor agent |
+| `08fe9b0` | 2026-04-09 13:41 | **Add commit-hash workflow to prevent amend loops.** Added step-by-step instructions in change-log.mdc, documentation-protocol.mdc, and change-log.md for using a placeholder hash, committing, then amending exactly once. | Cursor agent |
+| `a00090e` | 2026-04-09 15:03 | **Support inbox: update sidebar header and remove subtitle.** | Cursor agent |
+| `9252c77` | 2026-04-09 18:52 | **Polish homepage, header auth copy, support UI, and resource links.** | Cursor agent |
+| `—` | 2026-04-09 | **Change-log: sync Part 2 hashes with git; rolling placeholder convention.** Corrected recent commit hashes and dates; added missing rows (`6d8bea9`, `a00090e`, `9252c77`). Replaced amend-based hash workflow with rolling `—` backfill (`git rev-parse --short=7 HEAD`) in `change-log.mdc` and `documentation-protocol.mdc`; updated maintenance text in `change-log.md`. | Cursor agent |
 
 ---
 

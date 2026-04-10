@@ -13,14 +13,16 @@ See the "How to maintain" section at the top of that file for the exact row form
 
 ## How to handle the commit hash
 
-You cannot know the commit hash before committing. Use this workflow:
+You cannot know the **new** commit's hash before it exists. Use a rolling placeholder so every filled-in hash matches a real object in git (no `git commit --amend` for this).
 
-1. Add the change-log row **before** committing with a `—` placeholder for the hash column.
-2. Stage `docs/change-log.md` along with your other files and commit.
-3. After the commit succeeds, read the hash from the git output (e.g., `[main abc1234]`).
-4. Replace the `—` placeholder with the real hash.
-5. Stage and `git commit --amend --no-edit` to fold the hash into the same commit.
-6. **STOP.** Do NOT amend again. The hash will change on amend but that is fine — the entry is close enough and amending a second time creates an infinite loop. One amend to fill in the hash is the maximum.
+**Before `git commit`** (same edit pass—do this right before staging and committing, including before `git push`):
+
+1. Run `git rev-parse --short=7 HEAD` (or `--short`—match the style of other Part 2 rows) for the current tip. Omit this step only when there is no commit yet—empty repo.
+2. In **Part 2** (`CS Practice Room commit log`), if the **last data row** has `—` in the Commit column, replace that placeholder with the hash from step 1 in backticks (same style as other rows, e.g. `` `a1b2c3d` ``). That value is the commit that actually introduced the previous changelog row, so hashes stay aligned with the git DAG.
+3. Append a **new** row for **this** commit with `—` in the Commit column, plus date, bold summary, and attribution.
+4. Stage `docs/change-log.md` with your other files and run **`git commit` once**. Do **not** amend to patch the hash—the next commit will backfill this row's `—`.
+
+**Tip:** The latest row in Part 2 always shows `—` until the following commit; every row above it should show a real hash (after this convention is in use).
 
 ## Background
 
