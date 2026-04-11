@@ -122,8 +122,8 @@ type NotionPageForCalendarCancel = Parameters<
 export async function processNotionCalendarCancellationFromPage(
   page: NotionPageForCalendarCancel,
 ): Promise<NotionCalendarCancelWebhookResult> {
-  const jamDs = process.env.NOTION_DATA_SOURCE_ID;
-  const practiceDs = process.env.NOTION_FILLOUT_MASTER_DATA_SOURCE_ID;
+  const jamDs = process.env.NOTION_DATA_SOURCE_ID?.trim();
+  const practiceDs = process.env.NOTION_FILLOUT_MASTER_DATA_SOURCE_ID?.trim();
 
   if (!jamDs && !practiceDs) {
     return { outcome: "not_calendar_page" };

@@ -200,7 +200,7 @@ const NOTION_PRACTICE_CUSTOM_EVENT_ID_PROP = "Custom Event ID";
 export async function markPracticeBookingCancelledInNotionByCustomId(
   customEventId: string,
 ) {
-  const dataSourceId = process.env.NOTION_FILLOUT_MASTER_DATA_SOURCE_ID;
+  const dataSourceId = process.env.NOTION_FILLOUT_MASTER_DATA_SOURCE_ID?.trim();
 
   if (!dataSourceId) {
     throw new Error(

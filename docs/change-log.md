@@ -142,7 +142,8 @@ This file is the **single source of truth** for the full project history — fro
 | `ecaab0c` | 2026-04-11 | **Backfill Part 2 change-log for missing commits; reinforce mandatory rolling hash workflow for agents.** | Cursor agent |
 | `3de39e4` | 2026-04-11 | **Rename calendar route from `/jam` to `/calendar` with permanent redirect.** | Cursor agent |
 | `c6b7909` | 2026-04-11 | **Add admin role system gated by `ADMIN_EMAILS` env var.** Admins can cancel any calendar event, see all support threads, and reply as Staff. New `lib/admin.ts` helper, `is_admin` column on profiles, admin welcome copy in setup modal, admin support inbox view. | Cursor agent |
-| `—` | 2026-04-11 | **Fix Notion practice sync: diagnostic logging, wall-clock fallback for cancel→Notion, and Notion→Calendar delete for practice bookings.** Adds `console.warn`/`info` to `markPracticeBookingCancelledInNotionByCustomId`; retries with wall-clock Custom Event ID when UTC misses; new practice branch in `processNotionCalendarCancellationFromPage` parses Custom Event ID, searches practice calendar by time window, and deletes the matched event. | Cursor agent |
+| `a06f1d9` | 2026-04-11 | **Fix Notion practice sync: diagnostic logging, wall-clock fallback for cancel→Notion, and Notion→Calendar delete for practice bookings.** Adds `console.warn`/`info` to `markPracticeBookingCancelledInNotionByCustomId`; retries with wall-clock Custom Event ID when UTC misses; new practice branch in `processNotionCalendarCancellationFromPage` parses Custom Event ID, searches practice calendar by time window, and deletes the matched event. | Cursor agent |
+| `—` | 2026-04-11 | **Fix trailing newline in `NOTION_FILLOUT_MASTER_DATA_SOURCE_ID` env var.** Removed `\n` suffix from Vercel production env var that caused parent-ID mismatch in the Notion webhook practice branch. Added defensive `.trim()` on env var reads in `notion.ts` and `notion-calendar-webhook.ts`. | Cursor agent |
 
 ---
 
