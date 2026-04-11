@@ -3,7 +3,7 @@
 /**
  * @module CalendarView
  *
- * Top-level calendar orchestrator for the Calendar page (`/jam`).
+ * Top-level calendar orchestrator for the Calendar page (`/calendar`).
  *
  * Renders a FullCalendar (timeGridWeek on desktop, timeGridDay on mobile)
  * wrapped in custom navigation controls, a drag-select reservation flow,

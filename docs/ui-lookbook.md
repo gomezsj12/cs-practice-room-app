@@ -43,7 +43,7 @@ The auth card below the header changes its helper text depending on the current 
 | --- | --- | --- |
 | `/` (Home) | "Booking, jam scheduler, and future tools share this Google account." | "Sign in with Google" |
 | `/booking` | "Fillout below; jam scheduling shares this Google account." | "Sign in with Google" |
-| `/jam` | "Drag-select on the calendar below to reserve or cancel jams." | "Sign in with Google" |
+| `/calendar` | "Drag-select on the calendar below to reserve or cancel jams." | "Sign in with Google" |
 | `/support` | "Booking, jam scheduler, and future tools share this Google account." | "Sign in with Google" |
 
 ### Toast notifications
@@ -149,9 +149,9 @@ Booking and calendar navigation live in the **header nav** (**Booking**, **Calen
 
 ---
 
-## Page: Calendar (`/jam`)
+## Page: Calendar (`/calendar`)
 
-**Route:** `app/jam/page.tsx` → `components/CalendarView.tsx`
+**Route:** `app/calendar/page.tsx` → `components/CalendarView.tsx`
 
 **Screenshots:**
 - Desktop top: [desktop-jam-page-top.png](screenshots/desktop-jam-page-top.png) — 7-day week view header, legend, Prev/Today/Next, date range "Apr 5–11, 2026", top of time grid with events

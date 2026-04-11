@@ -139,7 +139,8 @@ This file is the **single source of truth** for the full project history — fro
 | `97876e0` | 2026-04-11 | **Telegram support: fallback to General topic when forum sendMessage fails.** | Cursor agent |
 | `079525e` | 2026-04-11 | **Telegram support: align topic titles with inbox chat names.** | Cursor agent |
 | `86511b6` | 2026-04-11 | **Stop header auth card flashing on client navigation.** Root layout passes `auth()` session into `SessionProvider`; `AuthButton` prefers cached session over transient loading state. | Cursor agent |
-| `—` | 2026-04-11 | **Backfill Part 2 change-log for missing commits; reinforce mandatory rolling hash workflow for agents.** | Cursor agent |
+| `ecaab0c` | 2026-04-11 | **Backfill Part 2 change-log for missing commits; reinforce mandatory rolling hash workflow for agents.** | Cursor agent |
+| `—` | 2026-04-11 | **Rename calendar route from `/jam` to `/calendar` with permanent redirect.** | Cursor agent |
 
 ---
 

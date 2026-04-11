@@ -91,7 +91,7 @@ Routes to add:
 
 - `/` homepage with welcome text, helpful links, and clear navigation cards/buttons
 - `/booking` page for the embedded Fillout booking form
-- `/jam` page for the current jam scheduler experience
+- `/calendar` page for the current calendar (practice + jam) experience
 
 Implementation direction:
 

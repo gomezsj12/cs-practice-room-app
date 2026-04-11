@@ -43,7 +43,7 @@ For Cursor agent browser checks, the same guide also documents the recommended `
 
 - `/` homepage and navigation hub
 - `/booking` embedded practice-room booking form
-- `/jam` jam reservation calendar
+- `/calendar` practice room calendar (practice + jam reservations)
 - `/support` signed-in support inbox
 
 ## Support inbox setup (Phase 3)

@@ -2,7 +2,7 @@
  * @file Smoke test for the homepage.
  *
  * Verifies the critical above-the-fold content renders: page title, hero heading,
- * main nav links to booking and jam pages, and the contact section.
+ * main nav links to booking and calendar pages, and the contact section.
  */
 import { expect, test } from "@playwright/test";
 

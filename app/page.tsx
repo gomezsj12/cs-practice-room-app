@@ -142,7 +142,7 @@ export default function Home() {
                     </strong>{" "}
                     Select{" "}
                     <Link
-                      href="/jam"
+                      href="/calendar"
                       className="text-blue-300 transition hover:text-blue-200"
                     >
                       Calendar
@@ -153,7 +153,7 @@ export default function Home() {
                   <li>
                     <strong>- To view the CSPR calendar:</strong> Select{" "}
                     <Link
-                      href="/jam"
+                      href="/calendar"
                       className="text-blue-300 transition hover:text-blue-200"
                     >
                       Calendar

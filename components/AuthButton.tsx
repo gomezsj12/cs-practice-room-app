@@ -4,7 +4,7 @@
  * @module AuthButton
  *
  * Displays a sign-in / sign-out card whose colour scheme and helper text
- * adapt to the current page context (home, booking, jam, support).
+ * adapt to the current page context (home, booking, calendar, support).
  *
  * When signed out, the card prompts the user with Google OAuth; when signed
  * in, it shows a confirmation banner with a sign-out button. The card is
@@ -28,7 +28,7 @@ function headerSignOutCardClass(pathname: string) {
       body: "text-red-100/85",
     };
   }
-  if (pathname.startsWith("/jam")) {
+  if (pathname.startsWith("/calendar")) {
     return {
       wrap: "border-amber-500/25 bg-amber-500/10",
       headline: "text-amber-100",
@@ -54,7 +54,7 @@ function headerSignOutBody(pathname: string): string {
   if (pathname.startsWith("/booking")) {
     return "You do not have access to the booking form";
   }
-  if (pathname.startsWith("/jam")) {
+  if (pathname.startsWith("/calendar")) {
     return "Browse the calendar anytime, sign in to reserve Jams.";
   }
   if (pathname.startsWith("/support")) {
@@ -98,7 +98,7 @@ function headerSignedInBody(
     }
     return "Your account does not have access to book practices.";
   }
-  if (pathname.startsWith("/jam")) {
+  if (pathname.startsWith("/calendar")) {
     return `${email} will be used to reserve or cancel Jams.`;
   }
   if (pathname.startsWith("/support")) {

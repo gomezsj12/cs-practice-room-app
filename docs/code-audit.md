@@ -183,8 +183,8 @@ This document records findings from a full code audit. Each finding includes a r
 
 ### AUDIT-019: CalendarView could be dynamically imported
 
-- **File:** `app/jam/page.tsx`
-- **Issue:** FullCalendar + all plugins load on initial route. Dynamic import would defer to `/jam` visits.
+- **File:** `app/calendar/page.tsx`
+- **Issue:** FullCalendar + all plugins load on initial route. Dynamic import would defer to `/calendar` visits.
 - **Proposed:** `next/dynamic` with `ssr: false` for CalendarView.
 - **Risk:** Medium (changes loading experience on jam page)
 - **Status:** Deferred — would change the loading UX, needs product decision.

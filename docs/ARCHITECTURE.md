@@ -35,7 +35,7 @@ flowchart TD
     subgraph browser [Browser / PWA]
         HomePage["/ Homepage"]
         BookingPage["/booking Fillout Embed"]
-        JamPage["/jam Calendar View"]
+        CalendarPage["/calendar Calendar View"]
         SupportPage["/support Inbox"]
         SW["Service Worker"]
     end
@@ -45,7 +45,7 @@ flowchart TD
             LayoutTsx["layout.tsx"]
             PageTsx["page.tsx"]
             BookingTsx["booking/page.tsx"]
-            JamTsx["jam/page.tsx"]
+            CalendarTsx["calendar/page.tsx"]
             SupportTsx["support/page.tsx"]
         end
 
@@ -71,14 +71,14 @@ flowchart TD
     end
 
     HomePage --> BookingPage
-    HomePage --> JamPage
+    HomePage --> CalendarPage
     HomePage --> SupportPage
 
-    JamPage --> EventsAPI
-    JamPage --> ReserveAPI
-    JamPage --> CancelAPI
-    JamPage --> HoldsCreateAPI
-    JamPage --> HoldsReleaseAPI
+    CalendarPage --> EventsAPI
+    CalendarPage --> ReserveAPI
+    CalendarPage --> CancelAPI
+    CalendarPage --> HoldsCreateAPI
+    CalendarPage --> HoldsReleaseAPI
 
     SupportPage --> SupportAPIs
     BookingPage --> Fillout
@@ -315,8 +315,8 @@ cs-practice-room-app/
 │   ├── apple-icon.tsx             # Next.js metadata: 180px Apple touch icon via createPwaIcon
 │   ├── booking/
 │   │   └── page.tsx               # Fillout iframe embed for practice-room booking
-│   ├── jam/
-│   │   └── page.tsx               # CalendarView wrapper for jam reservations
+│   ├── calendar/
+│   │   └── page.tsx               # CalendarView wrapper (practice + jam grid)
 │   ├── support/
 │   │   └── page.tsx               # SupportInbox wrapper for support threads
 │   └── api/
