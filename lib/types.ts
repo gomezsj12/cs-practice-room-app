@@ -145,6 +145,7 @@ export type SupportThreadRow = {
   unread_for_user: boolean;
   telegram_chat_id: string | null;
   telegram_root_message_id: number | null;
+  telegram_topic_id: number | null;
   created_at: string;
   updated_at: string;
 };

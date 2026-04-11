@@ -526,6 +526,7 @@ The support system provides a bidirectional messaging channel between app users 
 | `unread_for_user` | boolean | Whether admin has sent unread messages |
 | `telegram_chat_id` | text | Telegram chat where the notification was sent |
 | `telegram_root_message_id` | bigint | Telegram message ID for native reply mapping |
+| `telegram_topic_id` | bigint | Telegram forum topic ID for topic-based threading |
 | `created_at` / `updated_at` | timestamptz | Timestamps |
 
 **`support_messages`**
@@ -542,10 +543,11 @@ The support system provides a bidirectional messaging channel between app users 
 
 ### Telegram admin commands
 
+- **Forum topic**: Each new support thread creates a dedicated topic in the admin supergroup; admins can type directly in the topic without commands
 - **Native reply**: Reply to a bot notification message in Telegram → the webhook resolves the thread from `telegram_root_message_id` and inserts an admin message
 - **`/reply SR-<thread-id> <text>`**: Explicit reply command when native reply context is unavailable
-- **`/close`** (as a reply): Closes the thread and notifies the user
-- **`/close SR-<thread-id>`**: Explicit close command
+- **`/close`** (as a reply): Closes the thread, notifies the user, and closes the Telegram topic
+- **`/close SR-<thread-id>`**: Explicit close command (also closes the topic)
 
 ### API routes (8 endpoints under `/api/support/`)
 

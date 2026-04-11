@@ -59,6 +59,7 @@ create table if not exists public.support_threads (
   unread_for_user boolean not null default false,
   telegram_chat_id text,
   telegram_root_message_id bigint,
+  telegram_topic_id bigint,
   created_at timestamptz not null default now(),
   updated_at timestamptz not null default now()
 );

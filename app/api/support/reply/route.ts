@@ -74,7 +74,7 @@ export async function POST(request: NextRequest) {
     const { data: thread, error: threadError } = await supabase
       .from("support_threads")
       .select(
-        "id, user_email, telegram_chat_id, telegram_root_message_id, unread_for_user",
+        "id, user_email, telegram_chat_id, telegram_root_message_id, telegram_topic_id, unread_for_user, status",
       )
       .eq("id", threadId)
       .eq("user_email", userEmail)
@@ -103,6 +103,27 @@ export async function POST(request: NextRequest) {
     }
 
     const chatId = thread.telegram_chat_id || defaultAdminChatId;
+
+    // If the thread was closed and has a topic, reopen it so the new
+    // message is visible in Telegram.
+    if (thread.status === "closed" && thread.telegram_topic_id) {
+      try {
+        await fetch(
+          `https://api.telegram.org/bot${botToken}/reopenForumTopic`,
+          {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+              chat_id: chatId,
+              message_thread_id: thread.telegram_topic_id,
+            }),
+          },
+        );
+      } catch (reopenError) {
+        console.warn("reopenForumTopic failed:", reopenError);
+      }
+    }
+
     const telegramText = [
       "User follow-up message",
       `Thread: ${toSupportThreadKey(thread.id)}`,
@@ -118,8 +139,10 @@ export async function POST(request: NextRequest) {
       disable_web_page_preview: true,
     };
 
-    // Thread the Telegram message under the original notification so the
-    // admin sees the full conversation in one Telegram thread.
+    if (thread.telegram_topic_id) {
+      telegramPayload.message_thread_id = thread.telegram_topic_id;
+    }
+
     if (thread.telegram_root_message_id) {
       telegramPayload.reply_to_message_id = thread.telegram_root_message_id;
       telegramPayload.allow_sending_without_reply = true;
@@ -129,9 +152,7 @@ export async function POST(request: NextRequest) {
       `https://api.telegram.org/bot${botToken}/sendMessage`,
       {
         method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
+        headers: { "Content-Type": "application/json" },
         body: JSON.stringify(telegramPayload),
       },
     );

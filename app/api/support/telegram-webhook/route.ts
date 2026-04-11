@@ -2,7 +2,7 @@
  * @file Telegram webhook handler (`POST /api/support/telegram-webhook`).
  *
  * Receives inbound Telegram updates (admin replies / close commands) and
- * persists them as `support_messages` rows. The handler supports three
+ * persists them as `support_messages` rows. The handler supports four
  * resolution strategies for mapping a Telegram message to a support thread,
  * tried in priority order:
  *
@@ -10,7 +10,9 @@
  * 2. **Native Telegram reply** — if the message is a reply-to a message
  *    whose `message_id` + `chat.id` match a `support_threads` row's
  *    `telegram_root_message_id` / `telegram_chat_id`.
- * 3. **`/reply SR-<id> <body>` command** or thread-ID mention in text —
+ * 3. **Forum topic ID** — if the message carries `message_thread_id`,
+ *    look up the thread whose `telegram_topic_id` matches.
+ * 4. **`/reply SR-<id> <body>` command** or thread-ID mention in text —
  *    parsed by `parseReplyCommand` / `extractSupportThreadIdFromText`.
  *
  * Idempotency: every message includes the Telegram `update_id`. Before
@@ -36,6 +38,7 @@ type TelegramWebhookPayload = {
   update_id?: number;
   message?: {
     message_id?: number;
+    message_thread_id?: number;
     chat?: {
       id?: number | string;
     };
@@ -158,9 +161,30 @@ export async function POST(request: NextRequest) {
       }
     }
 
-    // Priority: explicit /close command > native reply link > text-based match.
+    // Resolve via forum topic ID — every message sent inside a topic carries
+    // message_thread_id, so the admin can just type freely in the topic.
+    let threadIdFromTopic = "";
+    const incomingTopicId = message?.message_thread_id;
+
+    if (!threadIdFromNativeReply && incomingTopicId) {
+      const { data: topicThread, error: topicThreadError } = await supabase
+        .from("support_threads")
+        .select("id")
+        .eq("telegram_topic_id", incomingTopicId)
+        .maybeSingle();
+
+      if (topicThreadError) {
+        throw topicThreadError;
+      }
+
+      if (topicThread?.id) {
+        threadIdFromTopic = topicThread.id;
+      }
+    }
+
+    // Priority: /close command > native reply > topic match > text-based match.
     const threadId =
-      closeCommand?.threadId || threadIdFromNativeReply || reply?.threadId || "";
+      closeCommand?.threadId || threadIdFromNativeReply || threadIdFromTopic || reply?.threadId || "";
     const replyBody = reply?.replyBody || message?.text || message?.caption || "";
 
     if (!threadId) {
@@ -169,7 +193,7 @@ export async function POST(request: NextRequest) {
 
     const { data: thread, error: threadError } = await supabase
       .from("support_threads")
-      .select("id, user_email")
+      .select("id, user_email, telegram_chat_id, telegram_topic_id")
       .eq("id", threadId)
       .maybeSingle();
 
@@ -229,6 +253,27 @@ export async function POST(request: NextRequest) {
 
       if (closeUpdateError) {
         throw closeUpdateError;
+      }
+
+      if (thread.telegram_topic_id && thread.telegram_chat_id) {
+        const botToken = process.env.TELEGRAM_BOT_TOKEN;
+        if (botToken) {
+          try {
+            await fetch(
+              `https://api.telegram.org/bot${botToken}/closeForumTopic`,
+              {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({
+                  chat_id: thread.telegram_chat_id,
+                  message_thread_id: thread.telegram_topic_id,
+                }),
+              },
+            );
+          } catch (closeTopicError) {
+            console.warn("closeForumTopic failed:", closeTopicError);
+          }
+        }
       }
 
       return NextResponse.json({ ok: true, closed: true });

@@ -9,10 +9,10 @@
  * 3. **Validation** — message length between 10 and 1 200 characters.
  * 4. **Supabase insert** — creates a `support_threads` row + first
  *    `support_messages` row (author_type = "user").
- * 5. **Telegram forward** — sends a formatted message to the admin chat
- *    via the Bot API; on success, persists the returned `message_id` and
- *    `chat.id` back into the thread row so future Telegram replies can
- *    be mapped back to the correct thread.
+ * 5. **Telegram topic** — creates a forum topic in the admin supergroup
+ *    via `createForumTopic`, then sends the notification into that topic.
+ *    On success, persists the topic ID, `message_id`, and `chat.id` back
+ *    into the thread row so future messages stay in the same topic.
  *
  * @see {@link @/lib/support} — `toSupportThreadKey` (human-readable thread ID)
  * @see {@link @/app/api/support/telegram-webhook/route} — inbound Telegram replies
@@ -160,27 +160,65 @@ export async function POST(request: NextRequest) {
       );
     }
 
+    const threadKey = toSupportThreadKey(supportThreadId);
+    let topicId: number | undefined;
+
+    // Create a dedicated forum topic for this support thread so all
+    // messages stay grouped in the admin supergroup.
+    try {
+      const topicResponse = await fetch(
+        `https://api.telegram.org/bot${botToken}/createForumTopic`,
+        {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            chat_id: adminChatId,
+            name: `${threadKey} | ${userName}`,
+          }),
+        },
+      );
+
+      if (topicResponse.ok) {
+        const topicPayload = (await topicResponse.json()) as {
+          ok?: boolean;
+          result?: { message_thread_id?: number };
+        };
+        topicId = topicPayload.result?.message_thread_id;
+      } else {
+        console.warn(
+          "createForumTopic failed (topics may not be enabled):",
+          await topicResponse.text(),
+        );
+      }
+    } catch (topicError) {
+      console.warn("createForumTopic request failed:", topicError);
+    }
+
     const telegramText = [
       "New support request",
-      `Thread: ${toSupportThreadKey(supportThreadId)}`,
+      `Thread: ${threadKey}`,
       `From: ${userName}`,
       `Email: ${userEmail}`,
       "",
       message,
     ].join("\n");
 
+    const sendPayload: Record<string, unknown> = {
+      chat_id: adminChatId,
+      text: telegramText,
+      disable_web_page_preview: true,
+    };
+
+    if (topicId) {
+      sendPayload.message_thread_id = topicId;
+    }
+
     const telegramResponse = await fetch(
       `https://api.telegram.org/bot${botToken}/sendMessage`,
       {
         method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({
-          chat_id: adminChatId,
-          text: telegramText,
-          disable_web_page_preview: true,
-        }),
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(sendPayload),
       },
     );
 
@@ -194,8 +232,6 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Persist the outbound Telegram message identity so admins can simply
-    // reply to that message and we can map the response back to the thread.
     try {
       const telegramPayload = (await telegramResponse.json()) as {
         ok?: boolean;
@@ -215,6 +251,7 @@ export async function POST(request: NextRequest) {
           .update({
             telegram_chat_id: String(telegramChatId),
             telegram_root_message_id: rootMessageId,
+            ...(topicId ? { telegram_topic_id: topicId } : {}),
             updated_at: new Date().toISOString(),
           })
           .eq("id", supportThreadId);
