@@ -121,7 +121,8 @@ This file is the **single source of truth** for the full project history — fro
 | `9252c77` | 2026-04-09 18:52 | **Polish homepage, header auth copy, support UI, and resource links.** | Cursor agent |
 | `f728f2d` | 2026-04-09 | **Change-log: sync Part 2 hashes with git; rolling placeholder convention.** Corrected recent commit hashes and dates; added missing rows (`6d8bea9`, `a00090e`, `9252c77`). Replaced amend-based hash workflow with rolling `—` backfill (`git rev-parse --short=7 HEAD`) in `change-log.mdc` and `documentation-protocol.mdc`; updated maintenance text in `change-log.md`. | Cursor agent |
 | `5239b93` | 2026-04-09 19:49 | **Agent git terminal: require full permissions.** Added `git-commands.mdc` (always apply); linked from `SETTINGS.md` and `settings.json` so git runs outside the sandbox and push/status stay reliable. | Cursor agent |
-| `—` | 2026-04-10 23:28 | **Show practice booking details in the calendar and allow owner-only cancellation.** Practice event modals now display cleaned Google description text, and cancellation is gated by WWU attendee email plus the booker name in the title; jam/practice confirmation copy was unified and calendar docs/screenshots were updated. | Cursor agent |
+| `1d9ba2c` | 2026-04-10 23:28 | **Show practice booking details in the calendar and allow owner-only cancellation.** Practice event modals now display cleaned Google description text, and cancellation is gated by WWU attendee email plus the booker name in the title; jam/practice confirmation copy was unified and calendar docs/screenshots were updated. | Cursor agent |
+| `—` | 2026-04-11 | **Stop header auth card flashing on client navigation.** Root layout passes `auth()` session into `SessionProvider`; `AuthButton` prefers cached session over a transient loading state. | Cursor agent |
 
 ---
 

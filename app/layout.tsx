@@ -1,7 +1,8 @@
 /**
  * @file Root layout for the CS Practice Room app.
  *
- * Wraps every page with the NextAuth session provider (`AuthProvider`),
+ * Wraps every page with the NextAuth session provider (`AuthProvider`), passing
+ * the server session from `auth()` so the client session context starts resolved,
  * the shared site header, the PWA service-worker registration script, and
  * the native-style "Add to Home Screen" install prompt.
  *
@@ -14,6 +15,7 @@
  */
 
 import type { Metadata, Viewport } from "next";
+import { auth } from "@/auth";
 import AuthProvider from "@/components/AuthProvider";
 import InstallPrompt from "@/components/InstallPrompt";
 import ServiceWorkerRegistration from "@/components/ServiceWorkerRegistration";
@@ -40,15 +42,17 @@ export const viewport: Viewport = {
  * mobile (avoids the iOS Safari address-bar gap). The inner flex column lets
  * pages like `/booking` fill remaining vertical space for the Fillout iframe.
  */
-export default function RootLayout({
+export default async function RootLayout({
   children,
 }: Readonly<{
   children: React.ReactNode;
 }>) {
+  const session = await auth();
+
   return (
     <html lang="en" className="h-full antialiased">
       <body className="flex min-h-dvh flex-col bg-[#030303] text-white">
-        <AuthProvider>
+        <AuthProvider session={session}>
           <SiteHeader />
           <div className="flex min-h-0 flex-1 flex-col">{children}</div>
           <ServiceWorkerRegistration />

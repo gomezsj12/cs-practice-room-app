@@ -123,16 +123,8 @@ export default function AuthButton() {
     void signOut({ callbackUrl: "/" });
   };
 
-  if (status === "loading") {
-    return (
-      <div
-        className={`${authCardShell} border-neutral-800 bg-neutral-900 text-sm text-neutral-400`}
-      >
-        Loading...
-      </div>
-    );
-  }
-
+  // Prefer cached session while status is "loading" (e.g. refetch) so the card
+  // does not swap to a loading shell between navigations.
   if (session?.user?.email) {
     const body = headerSignedInBody(
       pathname,
@@ -161,6 +153,16 @@ export default function AuthButton() {
             Sign out
           </button>
         </div>
+      </div>
+    );
+  }
+
+  if (status === "loading") {
+    return (
+      <div
+        className={`${authCardShell} border-neutral-800 bg-neutral-900 text-sm text-neutral-400`}
+      >
+        Loading...
       </div>
     );
   }

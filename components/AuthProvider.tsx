@@ -15,6 +15,7 @@
  * @see AccountSetupModal — first-time account setup overlay
  */
 
+import type { Session } from "next-auth";
 import { SessionProvider } from "next-auth/react";
 import AccountSetupModal from "@/components/AccountSetupModal";
 
@@ -23,14 +24,19 @@ import AccountSetupModal from "@/components/AccountSetupModal";
  * renders the first-time account-setup modal when needed.
  *
  * @param props.children - Application components that may consume `useSession()`.
+ * @param props.session - Session from `auth()` in the root layout. When set (including
+ *   `null` for signed-out), the client skips the initial "loading" state so the header
+ *   auth card does not flash on navigation.
  */
 export default function AuthProvider({
   children,
+  session,
 }: {
   children: React.ReactNode;
+  session: Session | null;
 }) {
   return (
-    <SessionProvider>
+    <SessionProvider session={session}>
       {children}
       <AccountSetupModal />
     </SessionProvider>
