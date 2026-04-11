@@ -261,11 +261,11 @@ Used by `lib/google.ts` so the **server** can read/write calendars without each 
 | `NOTION_PEOPLE_DB_ID` | Database ID for the people directory (user profile lookup) |
 | `NOTION_PROFILE_LOG_DB_ID` | Database ID for the profile-creation audit log |
 | `NOTION_WEBHOOK_VERIFICATION_TOKEN` | Secret for `X-Notion-Signature` on `POST /api/webhooks/notion` (subscription verify + `page.properties_updated`) |
-| `NOTION_WEBHOOK_CALENDAR_DEBUG` | Optional: set to `1` to log parent ids and parsed status fields for calendar-cancel webhook troubleshooting |
+| `NOTION_WEBHOOK_CALENDAR_DEBUG` | Optional: set to `1` to log parent ids and parsed jam **Status** for webhook troubleshooting |
 
-Jam and Fillout master databases should include a **Text** property **`CSPR Cancel origin`**. The app sets it to `calendar_app` when cancelling from Google first so the webhook skips a redundant Calendar delete.
+Jam and Fillout master databases should include a **Text** property **`CSPR Cancel origin`**. The app sets it to `calendar_app` when cancelling from the calendar UI first so the jam webhook skips a redundant Google delete.
 
-**Notion → Calendar cancel:** `NOTION_DATA_SOURCE_ID` / `NOTION_FILLOUT_MASTER_DATA_SOURCE_ID` must match a `data_source_id` or `database_id` on the page’s `parent` (the handler checks both). Jam **Status** and practice **Session Status** are read whether Notion stores them as **`select`** or **`status`**.
+**Notion → Calendar cancel (jams only):** `NOTION_DATA_SOURCE_ID` must match a `data_source_id` or `database_id` on the page’s `parent`. Jam **Status** is read whether Notion stores it as **`select`** or **`status`**. Practice Session Status changes in Notion do **not** delete Google events.
 
 ### Supabase (profiles, temporary holds + support)
 
@@ -377,10 +377,10 @@ cs-practice-room-app/
 │   ├── calendar-events.ts         # Event description cleanup, attendee normalization, cancel ownership rules
 │   ├── formatting.ts              # Shared date/time formatting utilities
 │   ├── google.ts                  # Google service account JWT auth + Calendar API client singleton
-│   ├── google-calendar-webhook-delete.ts # Idempotent Calendar deletes for Notion webhook (404-safe)
+│   ├── google-calendar-webhook-delete.ts # Idempotent jam Calendar delete for Notion webhook (404-safe)
 │   ├── hold-helpers.ts            # Optimistic hold events, sessionStorage persistence, hold ID utils
 │   ├── notion.ts                  # Notion client singleton + reservation create/cancel helpers
-│   ├── notion-calendar-webhook.ts # Notion **Cancelled** → delete Google event (jam / practice)
+│   ├── notion-calendar-webhook.ts # Jam Notion **Cancelled** → delete Google event
 │   ├── notion-sync-constants.ts   # **CSPR Cancel origin** property name + `calendar_app` value
 │   ├── practice-custom-event-id.ts # UTC **Custom Event ID** string for practice ↔ Notion row match
 │   ├── pwaIcon.tsx                # createPwaIcon: JSX-based ImageResponse for PWA icons
@@ -724,7 +724,7 @@ Builds JWT auth from `GOOGLE_CLIENT_EMAIL`, `GOOGLE_PRIVATE_KEY` (newline fix `r
 `getSupabaseAdmin()`: `SUPABASE_URL` + `SUPABASE_SERVICE_ROLE_KEY`, no session persistence (server-only). Lazy singleton.
 
 ### `lib/notion.ts`
-`getNotionClient()` / headers with `NOTION_TOKEN` and fixed API version. `createJamReservationInNotion`: `pages.create` with parent `data_source_id`. `markJamReservationCancelledInNotion` / `markPracticeBookingCancelledInNotionByCustomId`: set Cancelled + **CSPR Cancel origin** when the cancel originated in the app. `processNotionCalendarCancellationWebhook` ([`lib/notion-calendar-webhook.ts`](lib/notion-calendar-webhook.ts)): reverse direction — Notion Cancelled → Google `events.delete` (practice: match **Custom Event ID**). `findNotionPersonByWWUEmail`: queries the people database by "Walla Walla Email" for profile setup. `logProfileCreationToNotion`: writes an audit row to the profile-creation log database (fire-and-forget).
+`getNotionClient()` / headers with `NOTION_TOKEN` and fixed API version. `createJamReservationInNotion`: `pages.create` with parent `data_source_id`. `markJamReservationCancelledInNotion` / `markPracticeBookingCancelledInNotionByCustomId`: set Cancelled + **CSPR Cancel origin** when the cancel originated in the app (practice: calendar → Notion only; Notion does not delete practice Google events). `processNotionCalendarCancellationWebhook` ([`lib/notion-calendar-webhook.ts`](lib/notion-calendar-webhook.ts)): jam only — Notion **Cancelled** → Google `events.delete`. `findNotionPersonByWWUEmail`: queries the people database by "Walla Walla Email" for profile setup. `logProfileCreationToNotion`: writes an audit row to the profile-creation log database (fire-and-forget).
 
 ### `lib/pwaIcon.tsx`
 `ImageResponse` JSX: dark rounded square, "Room" / "Jam" typography.
@@ -806,7 +806,7 @@ See [Support system architecture](#support-system-architecture) above.
 1. **Browse**: `GET /api/events` merges Google (practice + jam) + optional Supabase holds; UI assigns colors, cleaned descriptions, and owner-aware `canCancel` flags.
 2. **Select slot** (authenticated): `POST /api/holds/create` → optional 30-second hold, or fallback UI if disabled/fails.
 3. **Confirm**: `POST /api/reserve` → verify hold if any → overlap check → Google insert → Notion insert (best-effort) → delete hold.
-4. **Cancel**: `POST /api/cancel` → authorize by event type → Google delete → Notion status update for jams (Google Event ID) and practice (**Custom Event ID**, best-effort), stamping **CSPR Cancel origin** = `calendar_app`. **Notion → Google:** `POST /api/webhooks/notion` on `page.properties_updated` deletes the Calendar event when **Status** / **Session Status** is **Cancelled** and origin is not `calendar_app`.
+4. **Cancel**: `POST /api/cancel` → authorize by event type → Google delete → Notion status update for jams (Google Event ID) and practice (**Custom Event ID**, best-effort), stamping **CSPR Cancel origin** = `calendar_app`. **Notion → Google (jams only):** `POST /api/webhooks/notion` on `page.properties_updated` deletes the jam Calendar event when **Status** is **Cancelled** and origin is not `calendar_app`.
 5. **Support**: User submits via `/api/support/contact` → Supabase + Telegram. Admin replies via Telegram webhook or `/api/support/reply`.
 
 **Source of truth for "what is booked"** is **Google Calendar** (two calendars). **Notion** is a **log/audit** mirror. **Supabase** is **ephemeral coordination** for holds and **persistent storage** for support threads.

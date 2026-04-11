@@ -6,9 +6,9 @@
  *   deletes the Supabase `profiles` row for that log row's Google Email.
  * - People data source: pushes Notion field changes to the matching profile
  *   (`notion_page_id` = people row page id).
- * - Jam / Fillout practice data sources: **Status** / **Session Status** set to
- *   **Cancelled** (without **CSPR Cancel origin** = `calendar_app`) deletes the
- *   Google Calendar event.
+ * - Jam data source: **Status** set to **Cancelled** (without **CSPR Cancel origin**
+ *   = `calendar_app`) deletes the Google Calendar jam event. Practice (Fillout)
+ *   rows are ignored by this route for calendar deletes.
  *
  * Configure in the Notion integration (Webhooks tab): URL must be HTTPS.
  * Set `NOTION_WEBHOOK_VERIFICATION_TOKEN` to the verification token from the

@@ -1,17 +1,14 @@
 /**
- * Notion webhook branch: when **Status** (jam) or **Session Status** (practice) is
- * **Cancelled**, delete the matching Google Calendar event unless
- * {@link NOTION_CSPR_CANCEL_ORIGIN_CALENDAR_APP} was stamped by `/api/cancel`.
+ * Notion webhook branch: when jam **Status** is **Cancelled**, delete the matching
+ * Google Calendar event unless {@link NOTION_CSPR_CANCEL_ORIGIN_CALENDAR_APP} was
+ * stamped by `/api/cancel`.
+ *
+ * Practice (Fillout) rows are not handled here — calendar → Notion updates still
+ * run from `/api/cancel` only.
  */
-import {
-  deleteGoogleCalendarEventIdempotent,
-  deletePracticeCalendarEventsMatchingCustomId,
-} from "@/lib/google-calendar-webhook-delete";
+import { deleteGoogleCalendarEventIdempotent } from "@/lib/google-calendar-webhook-delete";
 import { getCalendarClient } from "@/lib/google";
-import {
-  getNotionClient,
-  getNotionPageParentIds,
-} from "@/lib/notion";
+import { getNotionClient, getNotionPageParentIds } from "@/lib/notion";
 import {
   NOTION_CSPR_CANCEL_ORIGIN_CALENDAR_APP,
   NOTION_CSPR_CANCEL_ORIGIN_PROPERTY,
@@ -19,8 +16,6 @@ import {
 
 const JAM_STATUS_PROP = "Status";
 const JAM_GOOGLE_EVENT_ID_PROP = "Google Event ID";
-const PRACTICE_SESSION_STATUS_PROP = "Session Status";
-const PRACTICE_CUSTOM_EVENT_ID_PROP = "Custom Event ID";
 
 type CalendarCancelPageProp = {
   type: string;
@@ -98,12 +93,6 @@ export type NotionCalendarCancelWebhookResult =
   | { outcome: "skipped_app_cancelled" }
   | { outcome: "noop_missing_fields" }
   | { outcome: "deleted_jam"; eventId: string }
-  | {
-      outcome: "deleted_practice";
-      customEventId: string;
-      deletedCount: number;
-      alreadyGoneCount: number;
-    }
   | { outcome: "error"; message: string };
 
 type NotionPageForCalendarCancel = Parameters<
@@ -114,17 +103,15 @@ type NotionPageForCalendarCancel = Parameters<
 };
 
 /**
- * If this page is a jam or practice row marked Cancelled (and not app-stamped),
- * delete the Google Calendar event(s). Uses an already-retrieved page (no extra
- * `pages.retrieve`).
+ * If this page is a jam row marked Cancelled (and not app-stamped), delete the
+ * Google Calendar event. Uses an already-retrieved page (no extra `pages.retrieve`).
  */
 export async function processNotionCalendarCancellationFromPage(
   page: NotionPageForCalendarCancel,
 ): Promise<NotionCalendarCancelWebhookResult> {
   const jamDs = process.env.NOTION_DATA_SOURCE_ID;
-  const practiceDs = process.env.NOTION_FILLOUT_MASTER_DATA_SOURCE_ID;
 
-  if (!jamDs && !practiceDs) {
+  if (!jamDs) {
     return { outcome: "not_calendar_page" };
   }
 
@@ -139,7 +126,6 @@ export async function processNotionCalendarCancellationFromPage(
   const stampedByApp = origin === NOTION_CSPR_CANCEL_ORIGIN_CALENDAR_APP;
 
   const isJamPage = Boolean(jamDs && parentIds.includes(jamDs));
-  const isPracticePage = Boolean(practiceDs && parentIds.includes(practiceDs));
 
   if (calendarWebhookDebugEnabled()) {
     console.info("[notion webhook] calendar debug", {
@@ -147,11 +133,8 @@ export async function processNotionCalendarCancellationFromPage(
       parent: page.parent,
       parentIds,
       jamDsConfigured: Boolean(jamDs),
-      practiceDsConfigured: Boolean(practiceDs),
       isJamPage,
-      isPracticePage,
       jamStatus: selectOrStatusName(props[JAM_STATUS_PROP]),
-      practiceSession: selectOrStatusName(props[PRACTICE_SESSION_STATUS_PROP]),
     });
   }
 
@@ -187,59 +170,12 @@ export async function processNotionCalendarCancellationFromPage(
     }
   }
 
-  if (isPracticePage && practiceDs) {
-    const sessionName = selectOrStatusName(props[PRACTICE_SESSION_STATUS_PROP]);
-    if (!isCancelledNotionStatus(sessionName)) {
-      return { outcome: "not_calendar_page" };
-    }
-    if (stampedByApp) {
-      return { outcome: "skipped_app_cancelled" };
-    }
-    const customEventId = notionPlainTextProperty(
-      props,
-      PRACTICE_CUSTOM_EVENT_ID_PROP,
-    );
-    if (!customEventId) {
-      return { outcome: "noop_missing_fields" };
-    }
-    const practiceCalendarId = process.env.PRACTICE_CALENDAR_ID;
-    if (!practiceCalendarId) {
-      return { outcome: "error", message: "Missing PRACTICE_CALENDAR_ID" };
-    }
-    try {
-      const { deletedCount, alreadyGoneCount } =
-        await deletePracticeCalendarEventsMatchingCustomId(
-          getCalendarClient(),
-          practiceCalendarId,
-          customEventId,
-        );
-      if (deletedCount === 0 && alreadyGoneCount === 0) {
-        console.warn(
-          "[notion webhook] No practice calendar event matched Custom Event ID:",
-          customEventId,
-        );
-      }
-      return {
-        outcome: "deleted_practice",
-        customEventId,
-        deletedCount,
-        alreadyGoneCount,
-      };
-    } catch (err) {
-      console.error("[notion webhook] Practice calendar delete failed:", err);
-      return {
-        outcome: "error",
-        message: err instanceof Error ? err.message : "calendar delete failed",
-      };
-    }
-  }
-
   return { outcome: "not_calendar_page" };
 }
 
 /**
- * If this page is a jam or practice row marked Cancelled (and not app-stamped),
- * delete the Google Calendar event(s). Safe to call for any page id.
+ * If this page is a jam row marked Cancelled (and not app-stamped), delete the
+ * Google Calendar event. Safe to call for any page id.
  */
 export async function processNotionCalendarCancellationWebhook(
   pageId: string,
