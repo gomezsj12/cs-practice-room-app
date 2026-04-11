@@ -59,6 +59,15 @@ function compareZonedCalendarDays(a: ZonedYmdhm, b: ZonedYmdhm): number {
   return ak - bk;
 }
 
+/** `weekday: "short"` in `timeZone` (e.g. "Fri") for overlap with the drag-select Friday rule. */
+function shortWeekdayInZone(date: Date, timeZone: string): string {
+  const parts = new Intl.DateTimeFormat("en-US", {
+    timeZone,
+    weekday: "short",
+  }).formatToParts(date);
+  return parts.find((p) => p.type === "weekday")?.value ?? "";
+}
+
 /**
  * UTC instant when the room's wall clock reads y-mo-d h:mi in `timeZone`.
  * Scans ±48h around a naive UTC noon guess (no extra deps; DST-safe enough for our grid).
@@ -290,6 +299,32 @@ export function validateBookingTimes(
       error: "That start time is no longer available.",
       status: 400,
     };
+  }
+
+  if (shortWeekdayInZone(requestStart, roomTimeZone) === "Fri") {
+    const z = getZonedCalendarParts(requestStart, roomTimeZone);
+    const fridayCutoffUtc = roomWallClockToUtc(
+      roomTimeZone,
+      z.year,
+      z.month,
+      z.day,
+      14,
+      30,
+    );
+    if (!fridayCutoffUtc) {
+      return {
+        valid: false,
+        error: "Unable to validate booking time.",
+        status: 400,
+      };
+    }
+    if (requestEnd.getTime() > fridayCutoffUtc.getTime()) {
+      return {
+        valid: false,
+        error: "On Fridays, jam sessions must end by 2:30 PM.",
+        status: 400,
+      };
+    }
   }
 
   return { valid: true, requestStart, requestEnd };

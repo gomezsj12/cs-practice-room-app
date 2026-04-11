@@ -53,11 +53,24 @@ import {
 import { useToast } from "@/hooks/useToast";
 import {
   dayDateForColumn,
+  FRIDAY_JAM_OVERLAY_START_MINUTES,
+  isFridayLocalDay,
   isPastCalendarDay,
+  mirrorBoundsFromMinutesToGridBottom,
+  parseSlotTimeToMinutes,
   SLOT_MAX_STR,
   SLOT_MIN_STR,
 } from "@/lib/timeGridDragSelect";
 import type { PendingSelection } from "@/lib/types";
+
+/** Positions for Friday restriction bands — same coordinate space as {@link useNowIndicatorOverlay} (wrap-relative + scroll). */
+type FridayJamOverlayRect = {
+  key: string;
+  top: number;
+  left: number;
+  width: number;
+  height: number;
+};
 
 /**
  * Checks whether the given event target is an element the user is likely
@@ -195,6 +208,10 @@ export default function CalendarView() {
   const [calendarTitle, setCalendarTitle] = useState("");
   /** Bumped after layout-affecting calendar updates so the now overlay can remeasure. */
   const [calendarLayoutEpoch, setCalendarLayoutEpoch] = useState(0);
+  /** Friday 2 PM+ restriction bands (wrap-relative coords; refreshed like the now line). */
+  const [fridayJamOverlays, setFridayJamOverlays] = useState<
+    FridayJamOverlayRect[]
+  >([]);
   /** Re-render periodically so “past” event styling updates as time passes. */
   const [nowTick, setNowTick] = useState(() => Date.now());
 
@@ -270,6 +287,115 @@ export default function CalendarView() {
       });
     }
   }, [isLoading]);
+
+  // Keep Friday grey bands aligned when the time grid scrolls or the window resizes.
+  useEffect(() => {
+    const wrap = calendarInteractRef.current;
+    if (!wrap || isLoading) {
+      return;
+    }
+
+    let scheduled = 0;
+    const scheduleLayoutBump = () => {
+      if (scheduled) {
+        return;
+      }
+      scheduled = requestAnimationFrame(() => {
+        scheduled = 0;
+        setCalendarLayoutEpoch((n) => n + 1);
+      });
+    };
+
+    wrap.addEventListener("scroll", scheduleLayoutBump, true);
+    window.addEventListener("scroll", scheduleLayoutBump, true);
+    window.addEventListener("resize", scheduleLayoutBump);
+
+    const ro = new ResizeObserver(scheduleLayoutBump);
+    ro.observe(wrap);
+
+    return () => {
+      ro.disconnect();
+      wrap.removeEventListener("scroll", scheduleLayoutBump, true);
+      window.removeEventListener("scroll", scheduleLayoutBump, true);
+      window.removeEventListener("resize", scheduleLayoutBump);
+      if (scheduled) {
+        cancelAnimationFrame(scheduled);
+      }
+    };
+  }, [isLoading]);
+
+  // Friday afternoon restriction overlay — same positioning strategy as useNowIndicatorOverlay
+  // (absolute inside wrap, not fixed viewport coords, so it stays aligned when the page or grid scrolls).
+  useEffect(() => {
+    if (isLoading) {
+      setFridayJamOverlays([]);
+      return;
+    }
+
+    const wrap = calendarInteractRef.current;
+    const cal = calendarRef.current;
+    if (!wrap || !cal) {
+      return;
+    }
+
+    const slotMinMin = parseSlotTimeToMinutes(SLOT_MIN_STR);
+    const slotMaxMin = parseSlotTimeToMinutes(SLOT_MAX_STR);
+
+    let raf = 0;
+    raf = requestAnimationFrame(() => {
+      raf = 0;
+      const wrapEl = calendarInteractRef.current;
+      const calInst = calendarRef.current;
+      if (!wrapEl || !calInst) {
+        return;
+      }
+
+      const wrapRect = wrapEl.getBoundingClientRect();
+      const calApi = calInst.getApi();
+      const cols = wrapEl.querySelectorAll(
+        ".fc-timegrid-body .fc-timegrid-col:not(.fc-timegrid-axis)",
+      );
+      const next: FridayJamOverlayRect[] = [];
+
+      cols.forEach((node, i) => {
+        const dayDate = dayDateForColumn(calApi, i);
+        if (!isFridayLocalDay(dayDate)) {
+          return;
+        }
+        const col = node as HTMLElement;
+        const b = mirrorBoundsFromMinutesToGridBottom(
+          col,
+          wrapEl,
+          FRIDAY_JAM_OVERLAY_START_MINUTES,
+          slotMinMin,
+          slotMaxMin,
+        );
+        if (b) {
+          next.push({
+            key: `fri-jam-${dayDate.getFullYear()}-${dayDate.getMonth() + 1}-${dayDate.getDate()}`,
+            top: b.top - wrapRect.top + wrapEl.scrollTop,
+            left: b.left - wrapRect.left + wrapEl.scrollLeft,
+            width: b.width,
+            height: b.height,
+          });
+        }
+      });
+
+      setFridayJamOverlays(next);
+    });
+
+    return () => {
+      if (raf) {
+        cancelAnimationFrame(raf);
+      }
+    };
+  }, [
+    isLoading,
+    calendarLayoutEpoch,
+    calendarTitle,
+    isMobile,
+    events,
+  ]);
 
   // Re-render every 60 s (and on tab re-focus) so "past" event styling
   // updates as the current time crosses event end boundaries.
@@ -796,6 +922,32 @@ export default function CalendarView() {
 
             {nowIndicatorOverlay ? (
               <NowIndicatorOverlayLayer o={nowIndicatorOverlay} />
+            ) : null}
+
+            {fridayJamOverlays.length > 0 ? (
+              <div
+                className="pointer-events-none absolute inset-0 z-[28]"
+                aria-hidden
+              >
+                {fridayJamOverlays.map((o) => (
+                  <div
+                    key={o.key}
+                    className="absolute overflow-hidden rounded-2xl border-2 border-dashed border-red-400/75 bg-[rgba(239,68,68,0.16)] shadow-[inset_0_1px_0_rgba(255,255,255,0.08),0_8px_24px_rgba(0,0,0,0.22)] backdrop-blur-[6px]"
+                    style={{
+                      top: o.top,
+                      left: o.left,
+                      width: o.width,
+                      height: o.height,
+                    }}
+                  >
+                    <div className="fc-custom-event flex h-full flex-col justify-start">
+                      <div className="fc-custom-event-title">
+                        Practice Room Closed
+                      </div>
+                    </div>
+                  </div>
+                ))}
+              </div>
             ) : null}
 
             {dragMirror ? (

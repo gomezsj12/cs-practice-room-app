@@ -56,11 +56,14 @@ import {
 import {
   SLOT_MAX_STR,
   SLOT_MIN_STR,
+  applyFridayJamCutoffToRange,
   applyMinBookableStartToRange,
   clientYToSnappedMinutes,
   dayDateForColumn,
   earliestBookableStartForColumnDay,
   findBodyColumnIndex,
+  fridayJamLatestEndOnDay,
+  isFridayLocalDay,
   isInstantInsideBusy,
   isPastCalendarDay,
   mergeSelectionRange,
@@ -262,12 +265,15 @@ export function useDragSelect(
       );
 
       const now = new Date();
-      const merged = applyMinBookableStartToRange(
-        mergedRaw,
+      const merged = applyFridayJamCutoffToRange(
+        applyMinBookableStartToRange(
+          mergedRaw,
+          dayDate,
+          now,
+          slotMinMin,
+          source.blockers,
+        ),
         dayDate,
-        now,
-        slotMinMin,
-        source.blockers,
       );
 
       if (!merged) {
@@ -374,6 +380,17 @@ export function useDragSelect(
         return;
       }
 
+      if (isFridayLocalDay(dayDate)) {
+        const friCap = fridayJamLatestEndOnDay(dayDate);
+        if (anchor.getTime() >= friCap.getTime()) {
+          showToast(
+            "Jam reservations on Fridays end by 2:30 PM. Pick an earlier time.",
+            "info",
+          );
+          return;
+        }
+      }
+
       const pointerType = e.pointerType || "mouse";
 
       // Mouse/pen: arm immediately for a snappy desktop feel.
@@ -434,17 +451,22 @@ export function useDragSelect(
       const mergedRaw = mergeSelectionRange(anchor, pointerDate, blockers);
 
       const now = new Date();
-      const merged = applyMinBookableStartToRange(
-        mergedRaw,
+      const merged = applyFridayJamCutoffToRange(
+        applyMinBookableStartToRange(
+          mergedRaw,
+          dayDate,
+          now,
+          slotMinMin,
+          blockers,
+        ),
         dayDate,
-        now,
-        slotMinMin,
-        blockers,
       );
 
       if (!merged) {
         showToast(
-          "There isn\u2019t 30 minutes of open time before the next booking here. Try another spot or time.",
+          isFridayLocalDay(dayDate)
+            ? "On Fridays, jam sessions must end by 2:30 PM. Try an earlier time or a shorter slot."
+            : "There isn\u2019t 30 minutes of open time before the next booking here. Try another spot or time.",
           "info",
         );
         return;
@@ -608,6 +630,18 @@ export function useDragSelect(
           );
           cleanupTouchPending();
           return;
+        }
+
+        if (isFridayLocalDay(dayDateNow)) {
+          const friCapTouch = fridayJamLatestEndOnDay(dayDateNow);
+          if (touchPending.anchor.getTime() >= friCapTouch.getTime()) {
+            showToast(
+              "Jam reservations on Fridays end by 2:30 PM. Pick an earlier time.",
+              "info",
+            );
+            cleanupTouchPending();
+            return;
+          }
         }
 
         touchPending.armed = true;

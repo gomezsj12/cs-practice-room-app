@@ -17,6 +17,11 @@ export const MIN_BOOKING_MS = 30 * 60 * 1000;
 /** Maximum bookable duration (6 hours). */
 export const MAX_BOOKING_MS = 6 * 60 * 60 * 1000;
 
+/** Latest wall-clock end for jam drag-select on Fridays (2:30 PM, local column day). */
+export const FRIDAY_JAM_LATEST_END_MINUTES = 14 * 60 + 30;
+/** Top of the Friday “closed for jam” overlay — same instant as {@link FRIDAY_JAM_LATEST_END_MINUTES}. */
+export const FRIDAY_JAM_OVERLAY_START_MINUTES = FRIDAY_JAM_LATEST_END_MINUTES;
+
 /** Latest 15-minute snap that still lies on the booking day (avoids setHours(24) → next day). */
 function lastSnappedMinuteBeforeSlotMax(slotMaxMin: number): number {
   return snapMinutes(slotMaxMin - SNAP_MINUTES, SNAP_MINUTES);
@@ -430,6 +435,81 @@ export function clientYToSnappedMinutes(
 /** Convenience wrapper: combine a day date and minutes-from-midnight into one `Date`. */
 export function minutesOnDayToDate(dayDate: Date, minutesFromMidnight: number): Date {
   return dateAtLocalMinutes(new Date(dayDate), minutesFromMidnight);
+}
+
+/** True when `dayDate` is a Friday in the browser’s local calendar (matches column `dayDateForColumn`). */
+export function isFridayLocalDay(dayDate: Date): boolean {
+  return dayDate.getDay() === 5;
+}
+
+/** Local instant at 2:30 PM on the same calendar day as `dayDate`. */
+export function fridayJamLatestEndOnDay(dayDate: Date): Date {
+  return minutesOnDayToDate(dayDate, FRIDAY_JAM_LATEST_END_MINUTES);
+}
+
+/**
+ * Clamp jam selection so it does not end after 2:30 PM on Fridays.
+ * Returns null if no valid range remains (e.g. start at or after the cutoff).
+ */
+export function applyFridayJamCutoffToRange(
+  merged: { start: Date; end: Date } | null,
+  dayDate: Date,
+): { start: Date; end: Date } | null {
+  if (!merged || !isFridayLocalDay(dayDate)) {
+    return merged;
+  }
+
+  const cap = fridayJamLatestEndOnDay(dayDate);
+  let { start, end } = merged;
+
+  if (start.getTime() >= cap.getTime()) {
+    return null;
+  }
+
+  end = new Date(Math.min(end.getTime(), cap.getTime()));
+  if (end.getTime() - start.getTime() < MIN_BOOKING_MS) {
+    return null;
+  }
+
+  return { start, end };
+}
+
+/**
+ * Overlay band from `fromMinutesFromMidnight` down to slot max (e.g. Friday
+ * “closed” strip starting at 2:30 PM).
+ */
+export function mirrorBoundsFromMinutesToGridBottom(
+  colEl: HTMLElement,
+  calendarRoot: HTMLElement,
+  fromMinutesFromMidnight: number,
+  slotMinMin: number,
+  slotMaxMin: number,
+): { top: number; left: number; width: number; height: number } | null {
+  const slots = getSharedTimeGridSlotsEl(calendarRoot);
+  if (!slots) {
+    return null;
+  }
+  const slotsRect = slots.getBoundingClientRect();
+  const colRect = colEl.getBoundingClientRect();
+  const span = slotMaxMin - slotMinMin;
+  if (span <= 0) {
+    return null;
+  }
+
+  const clampedFrom = Math.min(
+    Math.max(fromMinutesFromMidnight, slotMinMin),
+    slotMaxMin,
+  );
+  const topFrac = (clampedFrom - slotMinMin) / span;
+  const topPx = topFrac * slotsRect.height;
+  const heightPx = slotsRect.height - topPx;
+
+  return {
+    top: slotsRect.top + topPx,
+    left: colRect.left,
+    width: colRect.width,
+    height: Math.max(8, heightPx),
+  };
 }
 
 /**
