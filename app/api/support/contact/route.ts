@@ -213,7 +213,7 @@ export async function POST(request: NextRequest) {
       sendPayload.message_thread_id = topicId;
     }
 
-    const telegramResponse = await fetch(
+    let telegramResponse = await fetch(
       `https://api.telegram.org/bot${botToken}/sendMessage`,
       {
         method: "POST",
@@ -221,6 +221,25 @@ export async function POST(request: NextRequest) {
         body: JSON.stringify(sendPayload),
       },
     );
+
+    // When the group has Topics enabled, sendMessage without a topic may
+    // fail.  Retry once targeting the General topic (thread ID 1).
+    if (!telegramResponse.ok && !sendPayload.message_thread_id) {
+      console.warn(
+        "sendMessage failed without topic, retrying with General topic:",
+        await telegramResponse.text(),
+      );
+
+      sendPayload.message_thread_id = 1;
+      telegramResponse = await fetch(
+        `https://api.telegram.org/bot${botToken}/sendMessage`,
+        {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(sendPayload),
+        },
+      );
+    }
 
     if (!telegramResponse.ok) {
       const telegramError = await telegramResponse.text();
