@@ -728,7 +728,7 @@ Builds JWT auth from `GOOGLE_CLIENT_EMAIL`, `GOOGLE_PRIVATE_KEY` (newline fix `r
 Admin-role helpers. `getAdminEmails()` parses the `ADMIN_EMAILS` env var into a `Set<string>`; `isAdminEmail(email)` checks membership. Used in `auth.ts` JWT callback, profile setup, cancel routes, and support routes.
 
 ### `lib/supabase.ts`
-`getSupabaseAdmin()`: `SUPABASE_URL` + `SUPABASE_SERVICE_ROLE_KEY`, no session persistence (server-only). Lazy singleton.
+`getSupabaseAdmin()`: `SUPABASE_URL` + `SUPABASE_SERVICE_ROLE_KEY`, no session persistence (server-only). Lazy singleton. The service role key bypasses RLS, so all tables are accessible even though RLS is enabled with no permissive policies (see [Row-Level Security](#row-level-security-rls)).
 
 ### `lib/notion.ts`
 `getNotionClient()` / headers with `NOTION_TOKEN` and fixed API version. `createJamReservationInNotion`: `pages.create` with parent `data_source_id`. `markJamReservationCancelledInNotion` / `markPracticeBookingCancelledInNotionByCustomId`: set Cancelled + **CSPR Cancel origin** when the cancel originated in the app (practice: calendar → Notion only; Notion does not delete practice Google events). `processNotionCalendarCancellationWebhook` ([`lib/notion-calendar-webhook.ts`](lib/notion-calendar-webhook.ts)): jam only — Notion **Cancelled** → Google `events.delete`. `findNotionPersonByWWUEmail`: queries the people database by "Walla Walla Email" for profile setup. `logProfileCreationToNotion`: writes an audit row to the profile-creation log database (fire-and-forget).
@@ -774,6 +774,16 @@ Thread ID formatting (`SR-<id>` prefix), Telegram command parsing (`/reply`, `/c
 ---
 
 ## Supabase schema (inferred from code)
+
+### Row-Level Security (RLS)
+
+All public tables have **RLS enabled** with **no permissive policies**. The `anon` and `authenticated` Postgres roles have **zero grants** on any table. This means:
+
+- The Supabase REST API (anon key) cannot read, write, or delete any data.
+- The app is unaffected because it exclusively uses the **service role key** via `getSupabaseAdmin()` in server-side API routes — the service role bypasses RLS entirely.
+- If the app ever introduces a client-side Supabase client (using the anon key), explicit RLS policies would need to be created for the tables it accesses.
+
+This was applied via the `enable_rls_on_all_tables` migration (2026-04-11).
 
 ### Table `reservation_holds`
 

@@ -17,7 +17,7 @@ import { signIn, signOut, useSession } from "next-auth/react";
 import { usePathname } from "next/navigation";
 
 const authCardShell =
-  "w-full max-w-md rounded-xl border px-3 py-2.5 md:max-w-sm";
+  "w-full max-w-md rounded-xl border px-3 py-2.5 sm:max-w-sm";
 
 /** Returns per-page colour tokens for the signed-out auth card. */
 function headerSignOutCardClass(pathname: string) {

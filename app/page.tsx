@@ -114,7 +114,7 @@ export default function Home() {
   return (
     <main className="px-4 pb-8 pt-5 text-white">
       <div className="mx-auto flex max-w-7xl flex-col gap-6">
-        <section className={`${cardClass} hidden md:block`}>
+        <section className={`${cardClass} hidden sm:block`}>
           <div className="space-y-4">
             <div className="space-y-5">
               <h1 className="text-4xl font-semibold tracking-tight sm:text-5xl">
@@ -171,7 +171,7 @@ export default function Home() {
           </div>
         </section>
 
-        <section className="grid gap-4 md:grid-cols-2">
+        <section className="grid gap-4 lg:grid-cols-2">
           <article className={cardClass}>
             <h2 className="text-2xl font-semibold">Contact Us</h2>
             <div className="mt-3 space-y-3 text-sm leading-6 text-neutral-300">

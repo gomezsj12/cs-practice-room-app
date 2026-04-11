@@ -7,8 +7,11 @@
  * app title/tagline, the main navigation pill bar, and the {@link AuthButton}
  * sign-in/out card.
  *
- * Layout uses a responsive CSS Grid: on narrow viewports the three sections
- * stack vertically; on `md+` they sit in a single row (title | nav | auth).
+ * Layout uses a three-tier responsive CSS Grid:
+ * - **Phone (< 640px):** single column, stacked vertically (nav → title → auth).
+ * - **Tablet (sm 640px – lg 1023px):** two-column, two-row grid
+ *   (title + auth on row 1, nav spanning row 2).
+ * - **Desktop (lg 1024px+):** three-column single row (title | nav | auth).
  *
  * @see AuthButton — auth state card placed in the trailing column
  * @see SupportNavLink — special nav item that shows an unread-message badge
@@ -35,10 +38,10 @@ export default function SiteHeader() {
 
   return (
     <header className="border-b border-white/10 bg-black/30 backdrop-blur">
-      <div className="mx-auto grid w-full max-w-7xl grid-cols-1 gap-5 px-4 pb-5 pt-6 text-white sm:gap-6 sm:px-6 sm:pt-7 md:grid-cols-[minmax(0,1fr)_auto_minmax(0,1fr)] md:items-start md:gap-x-6 md:gap-y-0 lg:gap-x-10">
+      <div className="mx-auto grid w-full max-w-7xl grid-cols-1 gap-5 px-4 pb-5 pt-6 text-white sm:grid-cols-[1fr_auto] sm:gap-x-4 sm:gap-y-3 sm:px-6 sm:pt-7 lg:grid-cols-[minmax(0,1fr)_auto_minmax(0,1fr)] lg:items-start lg:gap-x-6 lg:gap-y-0 xl:gap-x-10">
         <nav
           aria-label="Main"
-          className="col-start-1 row-start-1 flex min-w-0 w-full max-w-full flex-nowrap justify-center gap-2.5 overflow-x-auto overscroll-x-contain text-base justify-self-center md:col-start-2 md:row-start-1 md:self-center md:items-center md:justify-center md:overflow-visible"
+          className="col-start-1 row-start-1 flex min-w-0 w-full max-w-full flex-nowrap justify-center gap-2.5 overflow-x-auto overscroll-x-contain text-base justify-self-center sm:col-span-2 sm:row-start-2 lg:col-span-1 lg:col-start-2 lg:row-start-1 lg:self-center lg:items-center lg:justify-center lg:overflow-visible"
         >
           {navItems.map((item) => {
             const isActive = pathname === item.href;
@@ -63,16 +66,16 @@ export default function SiteHeader() {
           })}
         </nav>
 
-        <div className="col-start-1 row-start-2 flex w-full min-w-0 flex-col space-y-2 max-md:pl-[calc(0.75rem+1px)] md:col-start-1 md:row-start-1 md:max-w-3xl md:w-full md:space-y-2 md:justify-self-start lg:max-w-4xl">
-          <span className="block shrink-0 text-4xl font-semibold tracking-tight text-white sm:text-5xl md:text-3xl lg:text-4xl">
+        <div className="col-start-1 row-start-2 flex w-full min-w-0 flex-col space-y-2 max-sm:pl-[calc(0.75rem+1px)] sm:col-start-1 sm:row-start-1 sm:max-w-md sm:justify-self-start md:max-w-lg lg:col-start-1 lg:row-start-1 lg:max-w-3xl lg:w-full xl:max-w-4xl">
+          <span className="block shrink-0 text-4xl font-semibold tracking-tight text-white sm:text-2xl md:text-3xl lg:text-4xl">
             CS Practice Room
           </span>
-          <p className="shrink-0 text-base leading-snug text-neutral-300 max-md:whitespace-nowrap max-md:overflow-x-auto max-md:pb-0.5 md:whitespace-nowrap md:leading-snug lg:text-lg">
+          <p className="shrink-0 text-base leading-snug text-neutral-300 max-sm:whitespace-nowrap max-sm:overflow-x-auto max-sm:pb-0.5 sm:text-sm sm:leading-snug lg:text-base xl:text-lg">
             Booking, Jam Reservations, and Student Support.
           </p>
         </div>
 
-        <div className="col-start-1 row-start-3 flex w-full justify-center md:col-start-3 md:row-start-1 md:w-auto md:justify-end md:justify-self-end md:self-start">
+        <div className="col-start-1 row-start-3 flex w-full justify-center sm:col-start-2 sm:row-start-1 sm:w-auto sm:justify-end sm:justify-self-end sm:self-start lg:col-start-3 lg:row-start-1">
           <AuthButton />
         </div>
       </div>
