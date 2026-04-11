@@ -9,9 +9,9 @@
  * Three-phase UI flow:
  * 1. **form** — collects WWU email with format validation on submit only.
  * 2. **creating** — animated progress bar while the API creates the profile.
- * 3. **done** — success message + booking-access indicator, auto-dismisses.
- *    When the new profile has admin status, a violet "Admin access granted"
- *    card is shown with a summary of admin capabilities.
+ * 3. **done** — success message + booking-access indicator. Dismissed only
+ *    by clicking "Done" (no auto-dismiss timer). When the new profile has
+ *    admin status, a violet "Admin access granted" card is shown.
  *
  * Dismissing the modal at any point signs the user out.
  *
@@ -37,13 +37,47 @@ export default function AccountSetupModal() {
   const [isProfileAdmin, setIsProfileAdmin] = useState(false);
   const [completed, setCompleted] = useState(false);
 
-  const autoDismissTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const [loadingProgress, setLoadingProgress] = useState(0);
+  const loadingInterval = useRef<ReturnType<typeof setInterval> | null>(null);
+  const apiFinished = useRef(false);
 
   useEffect(() => {
+    if (phase === "creating") {
+      setLoadingProgress(0);
+      apiFinished.current = false;
+      let progress = 0;
+      loadingInterval.current = setInterval(() => {
+        if (apiFinished.current) {
+          progress += 5;
+        } else {
+          progress += 2;
+          if (progress >= 90) progress = 90;
+        }
+        if (progress >= 100) {
+          progress = 100;
+          setLoadingProgress(100);
+          if (loadingInterval.current) {
+            clearInterval(loadingInterval.current);
+            loadingInterval.current = null;
+          }
+          setPhase("done");
+          return;
+        }
+        setLoadingProgress(progress);
+      }, 60);
+    } else if (phase !== "done") {
+      if (loadingInterval.current) {
+        clearInterval(loadingInterval.current);
+        loadingInterval.current = null;
+      }
+    }
     return () => {
-      if (autoDismissTimer.current) clearTimeout(autoDismissTimer.current);
+      if (loadingInterval.current) {
+        clearInterval(loadingInterval.current);
+        loadingInterval.current = null;
+      }
     };
-  }, []);
+  }, [phase]);
 
   const isVisible =
     !completed &&
@@ -81,12 +115,7 @@ export default function AccountSetupModal() {
       const { profile } = await res.json();
       setHasBookingAccess(!!profile?.notion_page_id);
       setIsProfileAdmin(!!profile?.is_admin);
-      setPhase("done");
-
-      autoDismissTimer.current = setTimeout(async () => {
-        setCompleted(true);
-        await update({ profileComplete: true });
-      }, 3000);
+      apiFinished.current = true;
     } catch {
       setServerError("Network error — please try again");
       setPhase("form");
@@ -95,7 +124,6 @@ export default function AccountSetupModal() {
 
   function handleDismiss() {
     if (phase === "done") {
-      if (autoDismissTimer.current) clearTimeout(autoDismissTimer.current);
       setCompleted(true);
       void update({ profileComplete: true });
       return;
@@ -227,8 +255,15 @@ export default function AccountSetupModal() {
             <p className="mt-1.5 text-sm text-neutral-400">
               Checking your university email
             </p>
-            <div className="cpsr-profile-indeterminate-track mt-6 h-1.5 w-full rounded-full bg-white/10">
-              <div className="cpsr-profile-indeterminate-bar" aria-hidden />
+            <div className="mt-6 h-1.5 w-full overflow-hidden rounded-full bg-white/10">
+              <div
+                className="h-full rounded-full bg-blue-500 transition-[width] duration-150 ease-out"
+                style={{ width: `${loadingProgress}%` }}
+                role="progressbar"
+                aria-valuenow={loadingProgress}
+                aria-valuemin={0}
+                aria-valuemax={100}
+              />
             </div>
           </div>
         )}

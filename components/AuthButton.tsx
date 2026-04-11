@@ -64,7 +64,18 @@ function headerSignOutBody(pathname: string): string {
 }
 
 /** Returns per-page colour tokens for the signed-in auth card. */
-function headerSignedInCardClass(pathname: string, hasBookingAccess?: boolean) {
+function headerSignedInCardClass(
+  pathname: string,
+  hasBookingAccess?: boolean,
+  isAdmin?: boolean,
+) {
+  if (isAdmin) {
+    return {
+      wrap: "border-violet-500/30 bg-violet-500/10",
+      headline: "text-violet-100",
+      body: "text-violet-100/85",
+    };
+  }
   if (pathname.startsWith("/booking")) {
     if (hasBookingAccess) {
       return {
@@ -126,12 +137,13 @@ export default function AuthButton() {
   // Prefer cached session while status is "loading" (e.g. refetch) so the card
   // does not swap to a loading shell between navigations.
   if (session?.user?.email) {
+    const isAdmin = !!session.isAdmin;
     const body = headerSignedInBody(
       pathname,
       session.user.email,
       session.bookingAccess
     );
-    const signedInCard = headerSignedInCardClass(pathname, session.bookingAccess);
+    const signedInCard = headerSignedInCardClass(pathname, session.bookingAccess, isAdmin);
     return (
       <div className={`${authCardShell} ${signedInCard.wrap}`}>
         <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between sm:gap-3">
@@ -140,6 +152,11 @@ export default function AuthButton() {
               className={`text-sm font-semibold leading-snug ${signedInCard.headline}`}
             >
               Signed in
+              {isAdmin && (
+                <span className="ml-2 inline-flex items-center rounded-full bg-violet-500/20 px-2 py-0.5 align-middle text-[10px] font-semibold tracking-wide text-violet-300">
+                  Admin
+                </span>
+              )}
             </p>
             <p className={`mt-0.5 text-xs leading-snug ${signedInCard.body}`}>
               {body}
