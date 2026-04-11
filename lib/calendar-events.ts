@@ -37,6 +37,40 @@ export function cleanCalendarEventDescription(
   return cleaned || undefined;
 }
 
+/**
+ * For practice booking descriptions that start with `Contact Person:`, removes that
+ * label and the blank line beneath it when present. The name and the rest of the
+ * text stay in the returned body. Same-line `Contact Person: Name` keeps `Name` on
+ * the first body line.
+ */
+export function stripPracticeContactPersonLabel(description: string): {
+  hadLabel: boolean;
+  body: string;
+} {
+  const text = description.replace(/\r\n/g, "\n").trim();
+  const lines = text.split("\n");
+  const first = lines[0] ?? "";
+  const labelMatch = first.match(/^Contact Person:\s*(.*)$/i);
+  if (!labelMatch) {
+    return { hadLabel: false, body: text };
+  }
+
+  const onSameLine = labelMatch[1]?.trim() ?? "";
+  if (onSameLine) {
+    return {
+      hadLabel: true,
+      body: [onSameLine, ...lines.slice(1)].join("\n").trim(),
+    };
+  }
+
+  let i = 1;
+  while (i < lines.length && lines[i]?.trim() === "") {
+    i++;
+  }
+
+  return { hadLabel: true, body: lines.slice(i).join("\n").trim() };
+}
+
 /** Keep only attendee fields the app actually uses and trims blank values. */
 export function sanitizeCalendarEventAttendees(
   attendees?: GoogleApiEvent["attendees"],

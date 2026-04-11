@@ -3,8 +3,8 @@
 /**
  * @module EventDetailsModal
  *
- * Detail overlay for a calendar event. Shows the event title, time range,
- * type badge (jam / practice), description text, and — for events the
+ * Detail overlay for a calendar event. Shows the event title as the headline
+ * (with jam/practice color dot), time range, description text, and — for events the
  * current user owns — a cancel button (gated behind a {@link ConfirmModal}).
  *
  * A live "has ended" check (`nowMs >= end`) disables the cancel action once
@@ -17,8 +17,16 @@
  */
 
 import { useEffect, useState } from "react";
-import { getCalendarEventKindLabel } from "@/lib/calendar-events";
-import { formatBookingDateRange } from "@/lib/formatting";
+import {
+  getCalendarEventKindLabel,
+  stripPracticeContactPersonLabel,
+} from "@/lib/calendar-events";
+import { DescriptionBodyWithLinks } from "@/lib/description-body-links";
+import { formatEventModalDateRange } from "@/lib/formatting";
+import {
+  extractSessionAttendeesLine,
+  sessionAttendeePillClass,
+} from "@/lib/session-attendees";
 import type { CalendarEvent } from "@/lib/types";
 
 type EventDetailsModalProps = {
@@ -74,8 +82,29 @@ export default function EventDetailsModal({
   const start = new Date(event.start);
   const end = new Date(event.end);
   const hasEnded = nowMs >= end.getTime();
-  const description = event.description?.trim();
+  const rawDescription = event.description?.trim();
+  const practiceDescription =
+    !isJam && rawDescription
+      ? stripPracticeContactPersonLabel(rawDescription)
+      : null;
+  const detailsSectionTitle = rawDescription
+    ? practiceDescription?.hadLabel
+      ? "Contact Person"
+      : "Details"
+    : null;
+  let descriptionBody = practiceDescription?.body ?? rawDescription;
+  const sessionAttendeesExtract =
+    descriptionBody != null
+      ? extractSessionAttendeesLine(descriptionBody)
+      : null;
+  if (sessionAttendeesExtract) {
+    descriptionBody = sessionAttendeesExtract.rest;
+  }
+  const sessionAttendeeCount = sessionAttendeesExtract?.count;
   const canShowCancelButton = !!event.canCancel && !hasEnded;
+  const headlineTitle =
+    event.title.trim() ||
+    (isJam ? "Jam reservation" : "Practice booking");
 
   return (
     <div
@@ -100,29 +129,51 @@ export default function EventDetailsModal({
       <div className="w-full max-w-md rounded-3xl border border-neutral-800 bg-[#121212] p-6 text-white shadow-2xl">
         <div className="mb-4 flex items-center gap-2">
           <span
-            className={`inline-block h-3 w-3 rounded-full ${
+            className={`inline-block h-3 w-3 shrink-0 rounded-full ${
               isJam ? "bg-[#3f56c9]" : "bg-neutral-500"
             }`}
           />
-          <h2 className="text-xl font-semibold text-white">
-            {isJam ? "Jam reservation" : "Practice booking"}
+          <h2 className="min-w-0 flex-1 text-xl font-semibold leading-snug text-white">
+            {headlineTitle}
           </h2>
         </div>
 
-        <p className="text-base font-medium text-white">{event.title}</p>
+        <div className="mt-2 flex flex-wrap items-center gap-x-3 gap-y-1">
+          {sessionAttendeeCount != null ? (
+            <span
+              role="status"
+              aria-label={`Session attendees: ${sessionAttendeeCount}`}
+              className={`inline-flex shrink-0 rounded-full px-2.5 py-1 text-sm font-medium ${sessionAttendeePillClass(
+                sessionAttendeeCount,
+              )}`}
+            >
+              Session attendees: {sessionAttendeeCount}
+            </span>
+          ) : null}
+          <p className="min-w-0 text-sm text-neutral-300">
+            {formatEventModalDateRange(start, end)}
+          </p>
+        </div>
 
-        <p className="mt-2 text-sm text-neutral-300">
-          {formatBookingDateRange(start, end)}
-        </p>
-
-        {description ? (
+        {rawDescription ? (
           <div className="mt-5 rounded-2xl border border-white/10 bg-white/5 p-4">
-            <p className="text-xs font-semibold uppercase tracking-[0.18em] text-neutral-400">
-              Details
-            </p>
-            <p className="mt-3 whitespace-pre-line text-sm leading-6 text-neutral-200">
-              {description}
-            </p>
+            {detailsSectionTitle ? (
+              <p
+                className={
+                  detailsSectionTitle === "Contact Person"
+                    ? "text-sm font-semibold uppercase tracking-[0.18em] text-neutral-400"
+                    : "text-xs font-semibold uppercase tracking-[0.18em] text-neutral-400"
+                }
+              >
+                {detailsSectionTitle}
+              </p>
+            ) : null}
+            {descriptionBody ? (
+              <DescriptionBodyWithLinks
+                text={descriptionBody}
+                className="mt-2 text-sm text-neutral-200"
+              />
+            ) : null}
           </div>
         ) : null}
 
