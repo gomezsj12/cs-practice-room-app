@@ -35,6 +35,7 @@
 import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import { useSession } from "next-auth/react";
 import Toast from "@/components/Toast";
+import { formatSupportConversationName } from "@/lib/support";
 import type { SupportMessageRow, SupportThreadRow, ThreadSummary } from "@/lib/types";
 
 type SupportThreadPayload = {
@@ -52,17 +53,6 @@ function formatMessageTime(isoString: string) {
     hour: "numeric",
     minute: "2-digit",
   });
-}
-
-/** Derives a human-readable thread name from its creation timestamp. */
-function formatConversationName(isoString: string) {
-  const date = new Date(isoString);
-  return `Issue ${date.toLocaleString([], {
-    month: "short",
-    day: "numeric",
-    hour: "numeric",
-    minute: "2-digit",
-  })}`;
 }
 
 /** Normalises a thread status string into a display-friendly label. */
@@ -529,7 +519,7 @@ export default function SupportInbox() {
                     <div className="min-w-0 flex-1">
                       <div className="flex items-center justify-between gap-2">
                         <p className="truncate text-sm font-medium text-neutral-100">
-                          {formatConversationName(supportThread.created_at)}
+                          {formatSupportConversationName(supportThread.created_at)}
                         </p>
                       </div>
                       <p className="mt-1 truncate text-xs text-neutral-400">
@@ -595,7 +585,7 @@ export default function SupportInbox() {
             <div className="min-w-0 max-w-[min(18rem,calc(100vw-7rem))] -translate-x-1 justify-self-center text-center">
               <p className="truncate text-sm font-semibold text-neutral-100">
                 {selectedThreadSummary
-                  ? formatConversationName(selectedThreadSummary.created_at)
+                  ? formatSupportConversationName(selectedThreadSummary.created_at)
                   : "Support chat"}
               </p>
               {selectedThreadSummary ? (

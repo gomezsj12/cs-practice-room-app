@@ -9,10 +9,10 @@
  * 3. **Validation** — message length between 10 and 1 200 characters.
  * 4. **Supabase insert** — creates a `support_threads` row + first
  *    `support_messages` row (author_type = "user").
- * 5. **Telegram topic** — creates a forum topic in the admin supergroup
- *    via `createForumTopic`, then sends the notification into that topic.
- *    On success, persists the topic ID, `message_id`, and `chat.id` back
- *    into the thread row so future messages stay in the same topic.
+ * 5. **Telegram topic** — creates a forum topic named like the support
+ *    inbox row (`formatSupportConversationName` from `created_at`), then
+ *    sends the notification into that topic. Persists topic ID, message id,
+ *    and chat id on success.
  *
  * @see {@link @/lib/support} — `toSupportThreadKey` (human-readable thread ID)
  * @see {@link @/app/api/support/telegram-webhook/route} — inbound Telegram replies
@@ -20,7 +20,11 @@
 
 import { NextRequest, NextResponse } from "next/server";
 import { auth } from "@/auth";
-import { toSupportThreadKey } from "@/lib/support";
+import {
+  formatSupportConversationName,
+  toSupportThreadKey,
+  truncateForTelegramForumTopic,
+} from "@/lib/support";
 import { getSupabaseAdmin } from "@/lib/supabase";
 
 const MIN_MESSAGE_LENGTH = 10;
@@ -110,6 +114,7 @@ export async function POST(request: NextRequest) {
     const adminChatId = process.env.TELEGRAM_SUPPORT_ADMIN_CHAT_ID;
 
     let supportThreadId = "";
+    let threadCreatedAt = "";
 
     try {
       const supabase = getSupabaseAdmin();
@@ -121,14 +126,15 @@ export async function POST(request: NextRequest) {
           status: "open",
           unread_for_user: false,
         })
-        .select("id")
+        .select("id, created_at")
         .single();
 
-      if (newThreadError || !newThread?.id) {
+      if (newThreadError || !newThread?.id || !newThread.created_at) {
         throw newThreadError || new Error("Could not create support thread.");
       }
 
       supportThreadId = String(newThread.id);
+      threadCreatedAt = newThread.created_at;
 
       const { error: messageInsertError } = await supabase
         .from("support_messages")
@@ -161,6 +167,12 @@ export async function POST(request: NextRequest) {
     }
 
     const threadKey = toSupportThreadKey(supportThreadId);
+    const primaryLocale =
+      request.headers.get("accept-language")?.split(",")[0]?.split(";")[0]?.trim() ||
+      undefined;
+    const topicTitle = truncateForTelegramForumTopic(
+      formatSupportConversationName(threadCreatedAt, primaryLocale),
+    );
     let topicId: number | undefined;
 
     // Create a dedicated forum topic for this support thread so all
@@ -173,7 +185,7 @@ export async function POST(request: NextRequest) {
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
             chat_id: adminChatId,
-            name: `${threadKey} | ${userName}`,
+            name: topicTitle,
           }),
         },
       );
