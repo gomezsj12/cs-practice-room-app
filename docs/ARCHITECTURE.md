@@ -257,6 +257,7 @@ Used by `lib/google.ts` so the **server** can read/write calendars without each 
 | --- | --- |
 | `NOTION_TOKEN` | Integration token |
 | `NOTION_DATA_SOURCE_ID` | Data source id for jam reservation logging |
+| `NOTION_FILLOUT_MASTER_DATA_SOURCE_ID` | Data source id for Fillout Form Master Database (practice cancel → **Session Status** via **Custom Event ID**) |
 | `NOTION_PEOPLE_DB_ID` | Database ID for the people directory (user profile lookup) |
 | `NOTION_PROFILE_LOG_DB_ID` | Database ID for the profile-creation audit log |
 
@@ -369,6 +370,7 @@ cs-practice-room-app/
 │   ├── google.ts                  # Google service account JWT auth + Calendar API client singleton
 │   ├── hold-helpers.ts            # Optimistic hold events, sessionStorage persistence, hold ID utils
 │   ├── notion.ts                  # Notion client singleton + reservation create/cancel helpers
+│   ├── practice-custom-event-id.ts # UTC **Custom Event ID** string for practice ↔ Notion row match
 │   ├── pwaIcon.tsx                # createPwaIcon: JSX-based ImageResponse for PWA icons
 │   ├── profile-helpers.ts         # Shared Supabase profile lookup by Google email
 │   ├── siteConfig.ts              # Centralized app metadata + public URLs (Fillout, Telegram)
@@ -676,7 +678,7 @@ Central orchestration:
 - Requires sign-in.
 - Accepts `googleEventId` plus `eventType`.
 - Jam cancellation: fetches event from jam calendar, reads `ownerEmail` from private extended properties, allows owner/admin, deletes the event, then best-effort updates Notion.
-- Practice cancellation: fetches event from the practice calendar, loads the current user's linked WWU profile, requires attendee email + title-name ownership match, then deletes the event.
+- Practice cancellation: fetches event from the practice calendar, loads the current user's linked WWU profile, requires attendee email + title-name ownership match, then deletes the event, then best-effort updates Notion (Fillout master DB) by **Custom Event ID** built from UTC start/end (`lib/practice-custom-event-id.ts`).
 - Both paths reject ended events before deletion.
 
 ### `POST app/api/holds/create/route.ts`
@@ -710,7 +712,7 @@ Builds JWT auth from `GOOGLE_CLIENT_EMAIL`, `GOOGLE_PRIVATE_KEY` (newline fix `r
 `getSupabaseAdmin()`: `SUPABASE_URL` + `SUPABASE_SERVICE_ROLE_KEY`, no session persistence (server-only). Lazy singleton.
 
 ### `lib/notion.ts`
-`getNotionClient()` / headers with `NOTION_TOKEN` and fixed API version. `createJamReservationInNotion`: `pages.create` with parent `data_source_id`. `markJamReservationCancelledInNotion`: query by Google Event ID, then `pages.update` Status → Cancelled. `findNotionPersonByWWUEmail`: queries the people database by "Walla Walla Email" for profile setup. `logProfileCreationToNotion`: writes an audit row to the profile-creation log database (fire-and-forget).
+`getNotionClient()` / headers with `NOTION_TOKEN` and fixed API version. `createJamReservationInNotion`: `pages.create` with parent `data_source_id`. `markJamReservationCancelledInNotion`: query by Google Event ID, then `pages.update` Status → Cancelled. `markPracticeBookingCancelledInNotionByCustomId`: query Fillout master data source by **Custom Event ID**, then `pages.update` **Session Status** → Cancelled. `findNotionPersonByWWUEmail`: queries the people database by "Walla Walla Email" for profile setup. `logProfileCreationToNotion`: writes an audit row to the profile-creation log database (fire-and-forget).
 
 ### `lib/pwaIcon.tsx`
 `ImageResponse` JSX: dark rounded square, "Room" / "Jam" typography.
@@ -792,7 +794,7 @@ See [Support system architecture](#support-system-architecture) above.
 1. **Browse**: `GET /api/events` merges Google (practice + jam) + optional Supabase holds; UI assigns colors, cleaned descriptions, and owner-aware `canCancel` flags.
 2. **Select slot** (authenticated): `POST /api/holds/create` → optional 30-second hold, or fallback UI if disabled/fails.
 3. **Confirm**: `POST /api/reserve` → verify hold if any → overlap check → Google insert → Notion insert (best-effort) → delete hold.
-4. **Cancel**: `POST /api/cancel` → authorize by event type → Google delete → Notion status update for jams only (best-effort).
+4. **Cancel**: `POST /api/cancel` → authorize by event type → Google delete → Notion status update for jams (Google Event ID) and practice (**Custom Event ID**, best-effort).
 5. **Support**: User submits via `/api/support/contact` → Supabase + Telegram. Admin replies via Telegram webhook or `/api/support/reply`.
 
 **Source of truth for "what is booked"** is **Google Calendar** (two calendars). **Notion** is a **log/audit** mirror. **Supabase** is **ephemeral coordination** for holds and **persistent storage** for support threads.

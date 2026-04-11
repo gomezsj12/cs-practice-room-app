@@ -3,6 +3,7 @@
  *
  * Manages a singleton Notion client and exposes helpers to:
  * - Create and cancel jam reservations in the Notion data source.
+ * - Mark practice bookings cancelled in the Fillout Form Master Database (Custom Event ID).
  * - Look up users in the Notion people database by WWU email.
  * - Log profile-creation events to a Notion audit database.
  *
@@ -161,6 +162,58 @@ export async function markJamReservationCancelledInNotion(
     properties: {
       Status: {
         select: {
+          name: "Cancelled",
+        },
+      },
+    },
+  });
+
+  return pageId;
+}
+
+/** Notion text column on Fillout Form Master Database (API type is usually `rich_text`). */
+const NOTION_PRACTICE_CUSTOM_EVENT_ID_PROP = "Custom Event ID";
+
+/**
+ * Find a practice-booking row by **Custom Event ID** and set **Session Status** to
+ * **Cancelled**. Returns the page ID on success, or `null` if none matched.
+ *
+ * Requires `NOTION_FILLOUT_MASTER_DATA_SOURCE_ID`.
+ */
+export async function markPracticeBookingCancelledInNotionByCustomId(
+  customEventId: string,
+) {
+  const dataSourceId = process.env.NOTION_FILLOUT_MASTER_DATA_SOURCE_ID;
+
+  if (!dataSourceId) {
+    throw new Error(
+      "Missing NOTION_FILLOUT_MASTER_DATA_SOURCE_ID environment variable.",
+    );
+  }
+
+  const notion = getNotionClient();
+
+  const queryData = await notion.dataSources.query({
+    data_source_id: dataSourceId,
+    filter: {
+      property: NOTION_PRACTICE_CUSTOM_EVENT_ID_PROP,
+      rich_text: {
+        equals: customEventId,
+      },
+    },
+  });
+
+  const pageId = queryData.results?.[0]?.id;
+
+  if (!pageId) {
+    return null;
+  }
+
+  await notion.pages.update({
+    page_id: pageId,
+    properties: {
+      "Session Status": {
+        status: {
           name: "Cancelled",
         },
       },

@@ -143,14 +143,14 @@ export default function EventDetailsModal({
             <span
               role="status"
               aria-label={`Session attendees: ${sessionAttendeeCount}`}
-              className={`inline-flex shrink-0 rounded-full px-2.5 py-1 text-sm font-medium ${sessionAttendeePillClass(
+              className={`inline-flex shrink-0 rounded-full px-2 py-0.5 text-xs font-medium ${sessionAttendeePillClass(
                 sessionAttendeeCount,
               )}`}
             >
               Session attendees: {sessionAttendeeCount}
             </span>
           ) : null}
-          <p className="min-w-0 text-sm text-neutral-300">
+          <p className="min-w-0 text-xs text-neutral-300">
             {formatEventModalDateRange(start, end)}
           </p>
         </div>
@@ -179,8 +179,7 @@ export default function EventDetailsModal({
 
         {event.canCancel && hasEnded ? (
           <p className="mt-3 text-sm text-neutral-400">
-            This {eventKindLabel} has already ended, so it can&apos;t be
-            cancelled from here.
+            {`This ${eventKindLabel} has already ended, so it can\u2019t be cancelled from here.`}
           </p>
         ) : null}
 

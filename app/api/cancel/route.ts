@@ -8,12 +8,14 @@
  *   attendee **and** their name must match the title segment after the hyphen.
  * - Events whose end time has already passed cannot be cancelled.
  *
- * After deleting a jam event, the route also fires a best-effort Notion update
- * to mark the row as cancelled; Notion failures are logged but don't affect
- * the HTTP response.
+ * After deleting an event, the route also fires a best-effort Notion update:
+ * jams by Google Event ID; practice bookings by **Custom Event ID** derived from
+ * UTC start/end. Notion failures are logged but don't affect the HTTP response.
  *
  * @see {@link @/lib/calendar-helpers} — `getEventEnd`
- * @see {@link @/lib/notion} — `markJamReservationCancelledInNotion`
+ * @see {@link @/lib/notion} — `markJamReservationCancelledInNotion`,
+ *   `markPracticeBookingCancelledInNotionByCustomId`
+ * @see {@link @/lib/practice-custom-event-id} — `buildPracticeCustomEventIdFromGoogleEvent`
  */
 
 import { NextRequest, NextResponse } from "next/server";
@@ -24,7 +26,11 @@ import {
 } from "@/lib/calendar-events";
 import { getEventEnd } from "@/lib/calendar-helpers";
 import { getCalendarClient } from "@/lib/google";
-import { markJamReservationCancelledInNotion } from "@/lib/notion";
+import { buildPracticeCustomEventIdFromGoogleEvent } from "@/lib/practice-custom-event-id";
+import {
+  markJamReservationCancelledInNotion,
+  markPracticeBookingCancelledInNotionByCustomId,
+} from "@/lib/notion";
 import { getProfileByGoogleEmail } from "@/lib/profile-helpers";
 import type { GoogleApiEvent } from "@/lib/types";
 
@@ -138,6 +144,11 @@ export async function POST(request: NextRequest) {
       );
     }
 
+    const practiceCustomEventId =
+      eventType === "practice"
+        ? buildPracticeCustomEventIdFromGoogleEvent(event)
+        : null;
+
     await calendar.events.delete({
       calendarId,
       eventId: googleEventId,
@@ -148,6 +159,16 @@ export async function POST(request: NextRequest) {
         await markJamReservationCancelledInNotion(googleEventId);
       } catch (notionError) {
         console.error("Notion cancel logging failed:", notionError);
+      }
+    }
+
+    if (eventType === "practice" && practiceCustomEventId) {
+      try {
+        await markPracticeBookingCancelledInNotionByCustomId(
+          practiceCustomEventId,
+        );
+      } catch (notionError) {
+        console.error("Notion practice cancel logging failed:", notionError);
       }
     }
 
