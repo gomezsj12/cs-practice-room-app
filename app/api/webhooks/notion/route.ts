@@ -6,6 +6,9 @@
  *   deletes the Supabase `profiles` row for that log row's Google Email.
  * - People data source: pushes Notion field changes to the matching profile
  *   (`notion_page_id` = people row page id).
+ * - Jam / Fillout practice data sources: **Status** / **Session Status** set to
+ *   **Cancelled** (without **CSPR Cancel origin** = `calendar_app`) deletes the
+ *   Google Calendar event.
  *
  * Configure in the Notion integration (Webhooks tab): URL must be HTTPS.
  * Set `NOTION_WEBHOOK_VERIFICATION_TOKEN` to the verification token from the
@@ -17,6 +20,7 @@
 import { NextResponse } from "next/server";
 import { getSupabaseAdmin } from "@/lib/supabase";
 import { verifyNotionWebhookSignature } from "@/lib/notion-webhook";
+import { processNotionCalendarCancellationWebhook } from "@/lib/notion-calendar-webhook";
 import {
   resolveNotionProfileWebhookAction,
   type NotionPersonSyncFields,
@@ -121,6 +125,28 @@ export async function POST(req: Request) {
     if (data?.length) {
       return NextResponse.json({ ok: true, action: "updated_profile" });
     }
+  }
+
+  let calendarResult: Awaited<
+    ReturnType<typeof processNotionCalendarCancellationWebhook>
+  >;
+  try {
+    calendarResult = await processNotionCalendarCancellationWebhook(pageId);
+  } catch (err) {
+    console.error("[notion webhook] Calendar cancel branch failed:", err);
+    return new NextResponse("calendar webhook error", { status: 500 });
+  }
+
+  if (calendarResult.outcome === "error") {
+    console.error(
+      "[notion webhook] Calendar cancel error:",
+      calendarResult.message,
+    );
+    return new NextResponse("calendar delete error", { status: 500 });
+  }
+
+  if (calendarResult.outcome !== "not_calendar_page") {
+    return NextResponse.json({ ok: true, calendar: calendarResult });
   }
 
   return NextResponse.json({ ok: true });

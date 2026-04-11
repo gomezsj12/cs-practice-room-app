@@ -3,7 +3,8 @@
  *
  * Manages a singleton Notion client and exposes helpers to:
  * - Create and cancel jam reservations in the Notion data source.
- * - Mark practice bookings cancelled in the Fillout Form Master Database (Custom Event ID).
+ * - Mark practice bookings cancelled in the Fillout Form Master Database (Custom Event ID +
+ *   CSPR Cancel origin when cancelled from the app).
  * - Look up users in the Notion people database by WWU email.
  * - Log profile-creation events to a Notion audit database.
  *
@@ -11,6 +12,10 @@
  * @see {@link ../lib/types.ts}   — shared type definitions.
  */
 import { Client } from "@notionhq/client";
+import {
+  NOTION_CSPR_CANCEL_ORIGIN_CALENDAR_APP,
+  NOTION_CSPR_CANCEL_ORIGIN_PROPERTY,
+} from "@/lib/notion-sync-constants";
 
 /** Pinned Notion API version to avoid breaking changes from upstream. */
 const NOTION_VERSION = "2026-03-11";
@@ -165,6 +170,15 @@ export async function markJamReservationCancelledInNotion(
           name: "Cancelled",
         },
       },
+      [NOTION_CSPR_CANCEL_ORIGIN_PROPERTY]: {
+        rich_text: [
+          {
+            text: {
+              content: NOTION_CSPR_CANCEL_ORIGIN_CALENDAR_APP,
+            },
+          },
+        ],
+      },
     },
   });
 
@@ -216,6 +230,15 @@ export async function markPracticeBookingCancelledInNotionByCustomId(
         status: {
           name: "Cancelled",
         },
+      },
+      [NOTION_CSPR_CANCEL_ORIGIN_PROPERTY]: {
+        rich_text: [
+          {
+            text: {
+              content: NOTION_CSPR_CANCEL_ORIGIN_CALENDAR_APP,
+            },
+          },
+        ],
       },
     },
   });
@@ -308,6 +331,28 @@ export function getDataSourceIdFromNotionParent(page: {
     return page.parent.data_source_id;
   }
   return null;
+}
+
+/**
+ * Collect parent ids Notion may attach to a page (`data_source_id` and/or
+ * `database_id`) for env matching in webhooks.
+ */
+export function getNotionPageParentIds(page: {
+  parent: {
+    type: string;
+    data_source_id?: string;
+    database_id?: string;
+  };
+}): string[] {
+  const p = page.parent;
+  const ids: string[] = [];
+  if (typeof p.data_source_id === "string" && p.data_source_id) {
+    ids.push(p.data_source_id);
+  }
+  if (typeof p.database_id === "string" && p.database_id) {
+    ids.push(p.database_id);
+  }
+  return ids;
 }
 
 function parsePeopleDataSourceProperties(
