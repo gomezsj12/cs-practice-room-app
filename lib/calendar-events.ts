@@ -107,12 +107,18 @@ export function getPracticeBookerNameFromTitle(
   return candidate || undefined;
 }
 
-/** Jam events remain cancellable by their owner or the configured admin. */
+/**
+ * Jam events remain cancellable by their owner, the configured
+ * `ADMIN_EMAIL`, or any user with the `isAdmin` flag.
+ */
 export function canUserCancelJamEvent(
   event: Pick<GoogleApiEvent, "extendedProperties">,
   currentUserEmail?: string | null,
   adminEmail?: string | null,
+  isAdmin?: boolean,
 ) {
+  if (isAdmin) return true;
+
   const ownerEmail =
     event.extendedProperties?.private?.ownerEmail?.trim().toLowerCase() || "";
   const currentEmail = currentUserEmail?.trim().toLowerCase() || "";
@@ -128,12 +134,16 @@ export function canUserCancelJamEvent(
  * Practice cancellations require both:
  * 1. the linked WWU email to appear in attendees
  * 2. the current user's name to match the title segment after the hyphen
+ *
+ * Admin users bypass both checks.
  */
 export function canUserCancelPracticeEvent(
   event: Pick<GoogleApiEvent, "summary" | "attendees">,
   currentUserWwuEmail?: string | null,
   userDisplayNames: Array<string | null | undefined> = [],
+  isAdmin?: boolean,
 ) {
+  if (isAdmin) return true;
   const normalizedWwuEmail = normalizeEmail(currentUserWwuEmail);
   if (!normalizedWwuEmail) {
     return false;

@@ -14,6 +14,7 @@
 
 import { NextRequest, NextResponse } from "next/server";
 import { auth } from "@/auth";
+import { isAdminEmail } from "@/lib/admin";
 import { getSupabaseAdmin } from "@/lib/supabase";
 
 /**
@@ -37,13 +38,18 @@ export async function GET(request: NextRequest) {
     const url = new URL(request.url);
     const requestedThreadId = url.searchParams.get("threadId")?.trim() || "";
 
+    const isAdmin = isAdminEmail(userEmail);
     const supabase = getSupabaseAdmin();
-    const baseThreadQuery = supabase
+
+    let baseThreadQuery = supabase
       .from("support_threads")
       .select(
         "id, user_email, user_name, status, unread_for_user, telegram_chat_id, telegram_root_message_id, created_at, updated_at",
-      )
-      .eq("user_email", userEmail);
+      );
+
+    if (!isAdmin) {
+      baseThreadQuery = baseThreadQuery.eq("user_email", userEmail);
+    }
 
     const threadQuery = requestedThreadId
       ? baseThreadQuery.eq("id", requestedThreadId).limit(1)

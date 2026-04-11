@@ -19,6 +19,7 @@
 
 import { NextResponse } from "next/server";
 import { auth } from "@/auth";
+import { isAdminEmail } from "@/lib/admin";
 import {
   canUserCancelJamEvent,
   canUserCancelPracticeEvent,
@@ -58,6 +59,7 @@ function mapGoogleEventToApiEvent(
     currentUserWwuEmail?: string;
     currentUserNames?: string[];
     adminEmail?: string;
+    isAdmin?: boolean;
   } = {},
 ): ApiCalendarEvent | null {
   const start = event.start?.dateTime || event.start?.date;
@@ -74,11 +76,13 @@ function mapGoogleEventToApiEvent(
           event,
           context.currentUserEmail,
           context.adminEmail,
+          context.isAdmin,
         )
       : canUserCancelPracticeEvent(
           event,
           context.currentUserWwuEmail,
           context.currentUserNames,
+          context.isAdmin,
         );
 
   return {
@@ -205,6 +209,7 @@ export async function GET() {
         currentUserName,
       ].filter((value): value is string => Boolean(value)),
       adminEmail,
+      isAdmin: isAdminEmail(currentUserEmail),
     };
 
     const practiceEvents = (practiceResponse.data.items ?? [])

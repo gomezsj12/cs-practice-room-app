@@ -72,7 +72,8 @@ function threadStatusClass(status: string) {
  * message stream, and reply composer. Requires an authenticated session.
  */
 export default function SupportInbox() {
-  const { status } = useSession();
+  const { data: session, status } = useSession();
+  const isAdmin = !!session?.isAdmin;
   const [threads, setThreads] = useState<ThreadSummary[]>([]);
   const [selectedThreadId, setSelectedThreadId] = useState("");
   const [thread, setThread] = useState<SupportThreadRow | null>(null);
@@ -444,7 +445,9 @@ export default function SupportInbox() {
   if (!selectedThreadId && threads.length === 0) {
     return (
       <p className="rounded-2xl border border-white/10 bg-white/5 px-4 py-3 text-sm text-neutral-300">
-        No support thread yet. Submit your first request on the homepage.
+        {isAdmin
+          ? "No open support threads."
+          : "No support thread yet. Submit your first request on the homepage."}
       </p>
     );
   }
@@ -463,6 +466,11 @@ export default function SupportInbox() {
           <div className="mb-3 px-2 py-1">
             <p className="text-xl font-semibold tracking-tight text-neutral-100">
               Support Inbox
+              {isAdmin && (
+                <span className="ml-2 align-middle rounded-full bg-violet-500/20 px-2 py-0.5 text-[11px] font-medium text-violet-300">
+                  Admin
+                </span>
+              )}
             </p>
           </div>
           {threads.length ? (
@@ -519,9 +527,16 @@ export default function SupportInbox() {
                     <div className="min-w-0 flex-1">
                       <div className="flex items-center justify-between gap-2">
                         <p className="truncate text-sm font-medium text-neutral-100">
-                          {formatSupportConversationName(supportThread.created_at)}
+                          {isAdmin
+                            ? (supportThread.user_name || supportThread.user_email.split("@")[0])
+                            : formatSupportConversationName(supportThread.created_at)}
                         </p>
                       </div>
+                      {isAdmin && (
+                        <p className="mt-0.5 truncate text-[11px] text-neutral-500">
+                          {supportThread.user_email}
+                        </p>
+                      )}
                       <p className="mt-1 truncate text-xs text-neutral-400">
                         {supportThread.latest_message_body || "No messages yet"}
                       </p>
@@ -653,21 +668,26 @@ export default function SupportInbox() {
               {!isConversationLoading &&
                 hasThread &&
                 sortedMessages.map((message) => {
-                  const isAdmin = message.author_type === "admin";
+                  const isStaffMessage = message.author_type === "admin";
+                  const isOwnSide = isAdmin ? isStaffMessage : !isStaffMessage;
                   return (
                     <div
                       key={message.id}
-                      className={`flex ${isAdmin ? "justify-start" : "justify-end"}`}
+                      className={`flex ${isOwnSide ? "justify-end" : "justify-start"}`}
                     >
                       <article
                         className={`w-fit max-w-[88%] rounded-2xl border px-4 py-3 text-sm ${
-                          isAdmin
-                            ? "border-white/15 bg-white/5 text-neutral-100"
-                            : "border-white/10 bg-black/30 text-neutral-100"
+                          isOwnSide
+                            ? "border-white/10 bg-black/30 text-neutral-100"
+                            : "border-white/15 bg-white/5 text-neutral-100"
                         }`}
                       >
                         <p className="text-xs font-medium uppercase tracking-wide text-neutral-300">
-                          {isAdmin ? "Staff reply" : "You"}
+                          {isStaffMessage
+                            ? "Staff"
+                            : isAdmin
+                              ? (thread?.user_name || "User")
+                              : "You"}
                         </p>
                         <p className="mt-2 whitespace-pre-wrap break-words [overflow-wrap:anywhere] leading-5">
                           {message.body}
@@ -703,7 +723,7 @@ export default function SupportInbox() {
                 }}
                 rows={1}
                 maxLength={1200}
-                placeholder={isConversationLoading ? "Loading conversation..." : "Write a message..."}
+                placeholder={isConversationLoading ? "Loading conversation..." : isAdmin ? "Reply as Staff..." : "Write a message..."}
                 className="max-h-[88px] min-h-[40px] w-full resize-none bg-transparent pb-2 pt-[11px] text-sm text-white placeholder:text-neutral-500 focus:outline-none"
               />
               {isConversationLoading ? (
@@ -717,10 +737,14 @@ export default function SupportInbox() {
                 <button
                   type="submit"
                   disabled={isReplySubmitting || !replyDraft.trim() || !thread?.id}
-                  className="-translate-y-0.5 inline-flex h-9 shrink-0 items-center rounded-full bg-blue-500 px-3 text-sm font-medium text-white transition hover:bg-blue-400 disabled:cursor-not-allowed disabled:opacity-50"
-                  aria-label="Send follow-up"
+                  className={`-translate-y-0.5 inline-flex h-9 shrink-0 items-center rounded-full px-3 text-sm font-medium text-white transition disabled:cursor-not-allowed disabled:opacity-50 ${
+                    isAdmin
+                      ? "bg-violet-600 hover:bg-violet-500"
+                      : "bg-blue-500 hover:bg-blue-400"
+                  }`}
+                  aria-label={isAdmin ? "Reply as Staff" : "Send follow-up"}
                 >
-                  {isReplySubmitting ? "..." : "Send"}
+                  {isReplySubmitting ? "..." : isAdmin ? "Reply as Staff" : "Send"}
                 </button>
               )}
             </div>

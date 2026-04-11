@@ -10,6 +10,7 @@
 
 import { NextRequest, NextResponse } from "next/server";
 import { auth } from "@/auth";
+import { isAdminEmail } from "@/lib/admin";
 import { getSupabaseAdmin } from "@/lib/supabase";
 
 /**
@@ -29,6 +30,7 @@ export async function POST(request: NextRequest) {
       );
     }
 
+    const isAdmin = isAdminEmail(userEmail);
     const supabase = getSupabaseAdmin();
     const body = (await request.json().catch(() => ({}))) as {
       threadId?: string;
@@ -40,9 +42,18 @@ export async function POST(request: NextRequest) {
       updated_at: new Date().toISOString(),
     });
 
-    const { error } = threadId
-      ? await updateQuery.eq("user_email", userEmail).eq("id", threadId)
-      : await updateQuery.eq("user_email", userEmail);
+    let finalQuery;
+    if (isAdmin) {
+      finalQuery = threadId
+        ? updateQuery.eq("id", threadId)
+        : updateQuery;
+    } else {
+      finalQuery = threadId
+        ? updateQuery.eq("user_email", userEmail).eq("id", threadId)
+        : updateQuery.eq("user_email", userEmail);
+    }
+
+    const { error } = await finalQuery;
 
     if (error) {
       throw error;

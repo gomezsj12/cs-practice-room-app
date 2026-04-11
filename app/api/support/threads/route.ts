@@ -15,6 +15,7 @@
 
 import { NextResponse } from "next/server";
 import { auth } from "@/auth";
+import { isAdminEmail } from "@/lib/admin";
 import { getSupabaseAdmin } from "@/lib/supabase";
 import type { ThreadSummary } from "@/lib/types";
 
@@ -35,14 +36,21 @@ export async function GET() {
       );
     }
 
+    const isAdmin = isAdminEmail(userEmail);
     const supabase = getSupabaseAdmin();
-    const { data: threads, error: threadError } = await supabase
+
+    let threadQuery = supabase
       .from("support_threads")
       .select(
         "id, user_email, user_name, status, unread_for_user, created_at, updated_at",
       )
-      .eq("user_email", userEmail)
       .order("updated_at", { ascending: false });
+
+    if (!isAdmin) {
+      threadQuery = threadQuery.eq("user_email", userEmail);
+    }
+
+    const { data: threads, error: threadError } = await threadQuery;
 
     if (threadError) {
       throw threadError;

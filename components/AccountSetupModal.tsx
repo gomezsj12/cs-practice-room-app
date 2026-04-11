@@ -10,6 +10,8 @@
  * 1. **form** — collects WWU email with format validation on submit only.
  * 2. **creating** — animated progress bar while the API creates the profile.
  * 3. **done** — success message + booking-access indicator, auto-dismisses.
+ *    When the new profile has admin status, a violet "Admin access granted"
+ *    card is shown with a summary of admin capabilities.
  *
  * Dismissing the modal at any point signs the user out.
  *
@@ -32,6 +34,7 @@ export default function AccountSetupModal() {
   const [serverError, setServerError] = useState("");
   const [phase, setPhase] = useState<Phase>("form");
   const [hasBookingAccess, setHasBookingAccess] = useState(false);
+  const [isProfileAdmin, setIsProfileAdmin] = useState(false);
   const [completed, setCompleted] = useState(false);
 
   const autoDismissTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -77,6 +80,7 @@ export default function AccountSetupModal() {
 
       const { profile } = await res.json();
       setHasBookingAccess(!!profile?.notion_page_id);
+      setIsProfileAdmin(!!profile?.is_admin);
       setPhase("done");
 
       autoDismissTimer.current = setTimeout(async () => {
@@ -233,24 +237,71 @@ export default function AccountSetupModal() {
         {phase === "done" && (
           <div className="flex flex-col items-center py-4">
             {/* Success checkmark */}
-            <div className="flex h-14 w-14 items-center justify-center rounded-full bg-emerald-500/15">
-              <svg
-                width="28"
-                height="28"
-                viewBox="0 0 24 24"
-                fill="none"
-                stroke="#34d399"
-                strokeWidth="2.5"
-                strokeLinecap="round"
-                strokeLinejoin="round"
-              >
-                <polyline points="20 6 9 17 4 12" />
-              </svg>
+            <div
+              className={`flex h-14 w-14 items-center justify-center rounded-full ${
+                isProfileAdmin ? "bg-violet-500/15" : "bg-emerald-500/15"
+              }`}
+            >
+              {isProfileAdmin ? (
+                <svg
+                  width="28"
+                  height="28"
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="#a78bfa"
+                  strokeWidth="2.5"
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                >
+                  <path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z" />
+                </svg>
+              ) : (
+                <svg
+                  width="28"
+                  height="28"
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="#34d399"
+                  strokeWidth="2.5"
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                >
+                  <polyline points="20 6 9 17 4 12" />
+                </svg>
+              )}
             </div>
 
             <p className="mt-4 text-lg font-semibold text-white">
-              Profile created!
+              {isProfileAdmin ? "Welcome, Admin!" : "Profile created!"}
             </p>
+
+            {/* Admin access indicator */}
+            {isProfileAdmin && (
+              <div className="mt-4 flex w-full items-center gap-3 rounded-2xl border border-violet-500/25 bg-violet-500/10 px-4 py-3">
+                <svg
+                  width="20"
+                  height="20"
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="#a78bfa"
+                  strokeWidth="2"
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  className="shrink-0"
+                >
+                  <path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z" />
+                </svg>
+                <div>
+                  <p className="text-sm font-medium text-violet-300">
+                    Admin access granted
+                  </p>
+                  <p className="mt-0.5 text-xs text-neutral-400">
+                    You can cancel any booked session, and you have
+                    full access to all support conversations.
+                  </p>
+                </div>
+              </div>
+            )}
 
             {/* Booking access indicator */}
             <div

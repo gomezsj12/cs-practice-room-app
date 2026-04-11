@@ -20,6 +20,7 @@
 
 import { NextRequest, NextResponse } from "next/server";
 import { auth } from "@/auth";
+import { isAdminEmail } from "@/lib/admin";
 import {
   canUserCancelJamEvent,
   canUserCancelPracticeEvent,
@@ -123,13 +124,15 @@ export async function POST(request: NextRequest) {
       );
     }
 
+    const isAdmin = isAdminEmail(currentUserEmail);
     const canCancel =
       eventType === "jam"
-        ? canUserCancelJamEvent(event, currentUserEmail, adminEmail)
+        ? canUserCancelJamEvent(event, currentUserEmail, adminEmail, isAdmin)
         : canUserCancelPracticeEvent(
             event,
             currentUserProfile?.walla_walla_email,
             [currentUserProfile?.display_name, sessionUserName],
+            isAdmin,
           );
 
     if (!canCancel) {

@@ -249,7 +249,8 @@ Used by `lib/google.ts` so the **server** can read/write calendars without each 
 | `PRACTICE_CALENDAR_ID` | Google Calendar id for practice events (read-only in the app UI) |
 | `JAM_CALENDAR_ID` | Google Calendar id for jam reservations (create/delete/list) |
 | `ROOM_TIME_ZONE` | IANA time zone for new events (code default: `America/Los_Angeles`) |
-| `ADMIN_EMAIL` | Email that may cancel any jam and release others' holds |
+| `ADMIN_EMAIL` | Legacy single-admin email that may cancel any jam and release others' holds |
+| `ADMIN_EMAILS` | Comma-separated Google emails granted admin role (cancel any event, full support access) |
 
 ### Notion
 
@@ -373,6 +374,7 @@ cs-practice-room-app/
 │   └── useToast.ts                # Toast state management with auto-dismiss
 │
 ├── lib/                           # Shared modules (server + client)
+│   ├── admin.ts                   # Admin-role helpers (ADMIN_EMAILS env var parsing)
 │   ├── calendar-helpers.ts        # Date clamping, overlap detection, time range formatting
 │   ├── calendar-events.ts         # Event description cleanup, attendee normalization, cancel ownership rules
 │   ├── formatting.ts              # Shared date/time formatting utilities
@@ -430,8 +432,8 @@ Path alias: `@/*` → project root (`tsconfig.json`).
 - **NextAuth** with the **Google** provider only.
 - **JWT** session strategy.
 - **`trustHost: true`** (important behind proxies like Vercel; pair with correct `AUTH_URL` / deployment URL).
-- **`jwt` callback**: On sign-in and session updates, checks Supabase `profiles` table for a row matching the user's Google email. Sets `token.profileComplete` accordingly.
-- **`session` callback**: Exposes `profileComplete` on the session object for client-side gating.
+- **`jwt` callback**: On sign-in and session updates, checks Supabase `profiles` table for a row matching the user's Google email. Sets `token.profileComplete` accordingly. Also checks `ADMIN_EMAILS` env var to set `token.isAdmin`.
+- **`session` callback**: Exposes `profileComplete` and `isAdmin` on the session object for client-side gating.
 
 ### `app/api/auth/[...nextauth]/route.ts`
 
@@ -672,8 +674,8 @@ Central orchestration:
 - Loads **practice** and **jam** calendars via `getCalendarClient()` for a window: 7 days ago → 30 days ahead.
 - Loads the current user's Supabase profile when available so practice ownership can be evaluated against linked WWU email and display name.
 - Maps Google events to a unified JSON shape: `eventType` `practice` | `jam`, colors, cleaned `description`, normalized `attendees`, and `canCancel`.
-- Jam `canCancel`: owner email from `extendedProperties.private.ownerEmail` vs current user vs `ADMIN_EMAIL`.
-- Practice `canCancel`: linked WWU email must appear in attendees and the booker name in the title (after the hyphen) must match the current user.
+- Jam `canCancel`: owner email from `extendedProperties.private.ownerEmail` vs current user vs `ADMIN_EMAIL`, or `isAdmin` (from `ADMIN_EMAILS` env var).
+- Practice `canCancel`: linked WWU email must appear in attendees and the booker name in the title (after the hyphen) must match the current user, or `isAdmin`.
 - If `ENABLE_TEMP_HOLDS === "true"`, merges pending Supabase holds as `eventType: "hold"` with dashed styling class. Supabase errors are logged; events still return without holds.
 
 ### `POST app/api/reserve/route.ts`
@@ -722,6 +724,9 @@ Central orchestration:
 ### `lib/google.ts`
 Builds JWT auth from `GOOGLE_CLIENT_EMAIL`, `GOOGLE_PRIVATE_KEY` (newline fix `replace(/\\n/g, "\n")`), `GOOGLE_PROJECT_ID`. Scope: `https://www.googleapis.com/auth/calendar`. Lazy singleton `getCalendarClient()`.
 
+### `lib/admin.ts`
+Admin-role helpers. `getAdminEmails()` parses the `ADMIN_EMAILS` env var into a `Set<string>`; `isAdminEmail(email)` checks membership. Used in `auth.ts` JWT callback, profile setup, cancel routes, and support routes.
+
 ### `lib/supabase.ts`
 `getSupabaseAdmin()`: `SUPABASE_URL` + `SUPABASE_SERVICE_ROLE_KEY`, no session persistence (server-only). Lazy singleton.
 
@@ -735,7 +740,7 @@ Builds JWT auth from `GOOGLE_CLIENT_EMAIL`, `GOOGLE_PRIVATE_KEY` (newline fix `r
 Centralized app metadata: name, description, public URLs for Fillout, Telegram contact, and Telegram group. Reads from `NEXT_PUBLIC_*` env vars with fallback defaults.
 
 ### `lib/types.ts`
-Shared TypeScript types: `GoogleApiEvent`, `CalendarEventAttendee`, `HoldRow`, `ApiCalendarEvent`, `CalendarEvent`, `PendingSelection`, `ToastState`, `DragMirrorState`, `SupportThreadRow`, `SupportMessageRow`.
+Shared TypeScript types: `GoogleApiEvent`, `CalendarEventAttendee`, `HoldRow`, `ApiCalendarEvent`, `CalendarEvent`, `PendingSelection`, `ToastState`, `DragMirrorState`, `ProfileRow` (includes `is_admin`), `SupportThreadRow`, `SupportMessageRow`.
 
 ### `lib/calendar-helpers.ts`
 Date clamping, busy-block overlap detection, time range formatting, ISO timestamp utilities.

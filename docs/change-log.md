@@ -140,7 +140,8 @@ This file is the **single source of truth** for the full project history — fro
 | `079525e` | 2026-04-11 | **Telegram support: align topic titles with inbox chat names.** | Cursor agent |
 | `86511b6` | 2026-04-11 | **Stop header auth card flashing on client navigation.** Root layout passes `auth()` session into `SessionProvider`; `AuthButton` prefers cached session over transient loading state. | Cursor agent |
 | `ecaab0c` | 2026-04-11 | **Backfill Part 2 change-log for missing commits; reinforce mandatory rolling hash workflow for agents.** | Cursor agent |
-| `—` | 2026-04-11 | **Rename calendar route from `/jam` to `/calendar` with permanent redirect.** | Cursor agent |
+| `3de39e4` | 2026-04-11 | **Rename calendar route from `/jam` to `/calendar` with permanent redirect.** | Cursor agent |
+| `—` | 2026-04-11 | **Add admin role system gated by `ADMIN_EMAILS` env var.** Admins can cancel any calendar event, see all support threads, and reply as Staff. New `lib/admin.ts` helper, `is_admin` column on profiles, admin welcome copy in setup modal, admin support inbox view. | Cursor agent |
 
 ---
 
@@ -164,6 +165,6 @@ This file is the **single source of truth** for the full project history — fro
 | **Drag-select vs busy** | Selection must respect blockers and 30 min–6 h; upward drags must not show on top of practice. | `lib/timeGridDragSelect.ts` — `clipSelectionEnd` + `clipSelectionStart` in `mergeSelectionRange`. (old-repo `f20cf8a`) |
 | **Mobile drag** | Touch unreliable. | Long-press + touch path. (old-repo `d300dee`) |
 | **Identity vs calendar** | Users must not need Calendar OAuth for your calendars. | Service account + calendar share; NextAuth for identity only. |
-| **Cancel authority** | Only owner + admin cancel jams. | Extended properties + `ADMIN_EMAIL`. |
+| **Cancel authority** | Only owner + admin cancel jams; practice had no admin override. | Extended properties + `ADMIN_EMAIL` for legacy single-admin; `ADMIN_EMAILS` env var + `is_admin` column for multi-admin (both jam and practice). |
 | **Notion failures** | Logging must not block booking. | Google insert first; Notion best-effort after. |
 | **Support page loading** | Client-side navigation to `/support` showed infinite loading spinner. | Fixed session/state initialization on client-side nav. (`339c36e`) |

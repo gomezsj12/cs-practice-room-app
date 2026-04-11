@@ -15,6 +15,7 @@
 
 import { NextRequest, NextResponse } from "next/server";
 import { auth } from "@/auth";
+import { isAdminEmail } from "@/lib/admin";
 import { toSupportThreadKey } from "@/lib/support";
 import { getSupabaseAdmin } from "@/lib/supabase";
 
@@ -70,15 +71,21 @@ export async function POST(request: NextRequest) {
       );
     }
 
+    const isAdmin = isAdminEmail(userEmail);
     const supabase = getSupabaseAdmin();
-    const { data: thread, error: threadError } = await supabase
+
+    let threadQuery = supabase
       .from("support_threads")
       .select(
         "id, user_email, telegram_chat_id, telegram_root_message_id, telegram_topic_id, unread_for_user, status",
       )
-      .eq("id", threadId)
-      .eq("user_email", userEmail)
-      .maybeSingle();
+      .eq("id", threadId);
+
+    if (!isAdmin) {
+      threadQuery = threadQuery.eq("user_email", userEmail);
+    }
+
+    const { data: thread, error: threadError } = await threadQuery.maybeSingle();
 
     if (threadError) {
       throw threadError;
@@ -91,9 +98,10 @@ export async function POST(request: NextRequest) {
       );
     }
 
+    const authorType = isAdmin ? "admin" : "user";
     const { error: userMessageError } = await supabase.from("support_messages").insert({
       thread_id: thread.id,
-      author_type: "user",
+      author_type: authorType,
       body: message,
       source: "app",
     });
@@ -125,7 +133,7 @@ export async function POST(request: NextRequest) {
     }
 
     const telegramText = [
-      "User follow-up message",
+      isAdmin ? "Staff reply (via app)" : "User follow-up message",
       `Thread: ${toSupportThreadKey(thread.id)}`,
       `From: ${userName}`,
       `Email: ${userEmail}`,
@@ -187,7 +195,7 @@ export async function POST(request: NextRequest) {
     const { error: threadUpdateError } = await supabase
       .from("support_threads")
       .update({
-        unread_for_user: false,
+        unread_for_user: isAdmin ? true : false,
         status: "open",
         updated_at: new Date().toISOString(),
       })

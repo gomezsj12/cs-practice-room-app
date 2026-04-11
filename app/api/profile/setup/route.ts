@@ -12,13 +12,14 @@
 
 import { NextResponse } from "next/server";
 import { auth } from "@/auth";
-import { getSupabaseAdmin } from "@/lib/supabase";
+import { isAdminEmail } from "@/lib/admin";
 import {
   findNotionPersonByWWUEmail,
   logProfileCreationToNotion,
   emptyDepartments,
 } from "@/lib/notion";
 import type { DepartmentFlags } from "@/lib/notion";
+import { getSupabaseAdmin } from "@/lib/supabase";
 
 /** Enforces `First.Last@wallawalla.edu` format. */
 const WWU_EMAIL_RE = /^[A-Za-z]+\.[A-Za-z]+@wallawalla\.edu$/;
@@ -70,6 +71,8 @@ export async function POST(req: Request) {
     console.error("[profile/setup] Notion people lookup failed:", err);
   }
 
+  const isAdmin = isAdminEmail(session.user.email);
+
   const { data: profile, error: insertError } = await supabase
     .from("profiles")
     .insert({
@@ -80,6 +83,7 @@ export async function POST(req: Request) {
       notion_page_id: notionPageId,
       sj_band: sjBand,
       type,
+      is_admin: isAdmin,
       ...departments,
     })
     .select()

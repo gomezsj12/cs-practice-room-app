@@ -5,9 +5,10 @@
  * sessions (no database adapter needed).
  *
  * The `jwt` callback checks whether the user has a completed profile in
- * Supabase on every sign-in and session update. The `session` callback
- * exposes `profileComplete` and booking access so client components can gate
- * the account-setup modal and booking messaging.
+ * Supabase on every sign-in and session update, and determines admin status
+ * from the `ADMIN_EMAILS` env var. The `session` callback exposes
+ * `profileComplete`, booking access, and `isAdmin` so client components can
+ * gate the account-setup modal, booking messaging, and admin features.
  *
  * Exports:
  * - `handlers` — `GET` / `POST` route handlers re-exported in
@@ -23,6 +24,7 @@
 
 import NextAuth from "next-auth";
 import Google from "next-auth/providers/google";
+import { isAdminEmail } from "@/lib/admin";
 import { getSupabaseAdmin } from "@/lib/supabase";
 
 export const { handlers, auth, signIn, signOut } = NextAuth({
@@ -48,9 +50,11 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
             .single();
           token.profileComplete = !!data;
           token.bookingAccess = !!data?.notion_page_id;
+          token.isAdmin = isAdminEmail(token.email);
         } catch {
           token.profileComplete = false;
           token.bookingAccess = false;
+          token.isAdmin = false;
         }
       }
       return token;
@@ -58,6 +62,7 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
     async session({ session, token }) {
       session.profileComplete = token.profileComplete;
       session.bookingAccess = token.bookingAccess;
+      session.isAdmin = token.isAdmin;
       return session;
     },
   },

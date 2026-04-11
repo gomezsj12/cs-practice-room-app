@@ -132,6 +132,7 @@ export type ProfileRow = {
   dept_mosaic: boolean;
   dept_battle_springjam: boolean;
   dept_other: boolean;
+  is_admin: boolean;
   created_at: string;
   updated_at: string;
 };
