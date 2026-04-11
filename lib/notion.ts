@@ -482,13 +482,23 @@ export type NotionProfileWebhookAction =
   | { action: "sync_profile"; fields: NotionPersonSyncFields }
   | { action: "none" };
 
+/** Page shape for {@link resolveNotionProfileWebhookActionFromPage} (e.g. webhook retrieve). */
+export type NotionProfileWebhookPage = {
+  id: string;
+  parent: {
+    type: string;
+    data_source_id?: string;
+  };
+  properties: Record<string, NotionPeopleProp>;
+};
+
 /**
- * Inspect a Notion page once and decide whether to delete or sync a Supabase profile.
- * Uses one `pages.retrieve` call per webhook delivery.
+ * Same as {@link resolveNotionProfileWebhookAction} but uses an already-retrieved page
+ * (avoids a second Notion round-trip when combined with calendar webhook handling).
  */
-export async function resolveNotionProfileWebhookAction(
-  pageId: string,
-): Promise<NotionProfileWebhookAction> {
+export function resolveNotionProfileWebhookActionFromPage(
+  page: NotionProfileWebhookPage,
+): NotionProfileWebhookAction {
   const logDs = process.env.NOTION_PROFILE_LOG_DB_ID;
   const peopleDs = process.env.NOTION_PEOPLE_DB_ID;
   if (!logDs) {
@@ -498,15 +508,8 @@ export async function resolveNotionProfileWebhookAction(
     throw new Error("Missing NOTION_PEOPLE_DB_ID environment variable.");
   }
 
-  const notion = getNotionClient();
-  const page = await notion.pages.retrieve({ page_id: pageId });
-
-  if (!("properties" in page)) {
-    return { action: "none" };
-  }
-
   const parentDs = getDataSourceIdFromNotionParent(page);
-  const props = page.properties as Record<string, NotionPeopleProp>;
+  const props = page.properties;
 
   if (parentDs === logDs) {
     const delProp = props[NOTION_PROFILE_LOG_DELETE_PROP];
@@ -531,6 +534,25 @@ export async function resolveNotionProfileWebhookAction(
   }
 
   return { action: "none" };
+}
+
+/**
+ * Inspect a Notion page once and decide whether to delete or sync a Supabase profile.
+ * Uses one `pages.retrieve` call per webhook delivery.
+ */
+export async function resolveNotionProfileWebhookAction(
+  pageId: string,
+): Promise<NotionProfileWebhookAction> {
+  const notion = getNotionClient();
+  const page = await notion.pages.retrieve({ page_id: pageId });
+
+  if (!("properties" in page)) {
+    return { action: "none" };
+  }
+
+  return resolveNotionProfileWebhookActionFromPage(
+    page as NotionProfileWebhookPage,
+  );
 }
 
 /** Parameters for {@link logProfileCreationToNotion}. */

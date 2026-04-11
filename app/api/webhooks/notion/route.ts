@@ -20,10 +20,12 @@
 import { NextResponse } from "next/server";
 import { getSupabaseAdmin } from "@/lib/supabase";
 import { verifyNotionWebhookSignature } from "@/lib/notion-webhook";
-import { processNotionCalendarCancellationWebhook } from "@/lib/notion-calendar-webhook";
+import { processNotionCalendarCancellationFromPage } from "@/lib/notion-calendar-webhook";
 import {
-  resolveNotionProfileWebhookAction,
+  getNotionClient,
+  resolveNotionProfileWebhookActionFromPage,
   type NotionPersonSyncFields,
+  type NotionProfileWebhookPage,
 } from "@/lib/notion";
 
 export const runtime = "nodejs";
@@ -89,11 +91,25 @@ export async function POST(req: Request) {
 
   const pageId = body.entity.id;
 
-  let resolved: Awaited<ReturnType<typeof resolveNotionProfileWebhookAction>>;
+  let page: Awaited<ReturnType<ReturnType<typeof getNotionClient>["pages"]["retrieve"]>>;
   try {
-    resolved = await resolveNotionProfileWebhookAction(pageId);
+    page = await getNotionClient().pages.retrieve({ page_id: pageId });
   } catch (err) {
     console.error("[notion webhook] Notion page read failed:", err);
+    return new NextResponse("notion error", { status: 500 });
+  }
+
+  if (!("properties" in page)) {
+    return NextResponse.json({ ok: true });
+  }
+
+  let resolved: ReturnType<typeof resolveNotionProfileWebhookActionFromPage>;
+  try {
+    resolved = resolveNotionProfileWebhookActionFromPage(
+      page as NotionProfileWebhookPage,
+    );
+  } catch (err) {
+    console.error("[notion webhook] Profile webhook resolve failed:", err);
     return new NextResponse("notion error", { status: 500 });
   }
 
@@ -128,10 +144,10 @@ export async function POST(req: Request) {
   }
 
   let calendarResult: Awaited<
-    ReturnType<typeof processNotionCalendarCancellationWebhook>
+    ReturnType<typeof processNotionCalendarCancellationFromPage>
   >;
   try {
-    calendarResult = await processNotionCalendarCancellationWebhook(pageId);
+    calendarResult = await processNotionCalendarCancellationFromPage(page);
   } catch (err) {
     console.error("[notion webhook] Calendar cancel branch failed:", err);
     return new NextResponse("calendar webhook error", { status: 500 });

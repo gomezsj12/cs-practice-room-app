@@ -106,12 +106,20 @@ export type NotionCalendarCancelWebhookResult =
     }
   | { outcome: "error"; message: string };
 
+type NotionPageForCalendarCancel = Parameters<
+  typeof getNotionPageParentIds
+>[0] & {
+  id?: string;
+  properties?: Record<string, CalendarCancelPageProp>;
+};
+
 /**
  * If this page is a jam or practice row marked Cancelled (and not app-stamped),
- * delete the Google Calendar event(s). Safe to call for any page id.
+ * delete the Google Calendar event(s). Uses an already-retrieved page (no extra
+ * `pages.retrieve`).
  */
-export async function processNotionCalendarCancellationWebhook(
-  pageId: string,
+export async function processNotionCalendarCancellationFromPage(
+  page: NotionPageForCalendarCancel,
 ): Promise<NotionCalendarCancelWebhookResult> {
   const jamDs = process.env.NOTION_DATA_SOURCE_ID;
   const practiceDs = process.env.NOTION_FILLOUT_MASTER_DATA_SOURCE_ID;
@@ -120,10 +128,7 @@ export async function processNotionCalendarCancellationWebhook(
     return { outcome: "not_calendar_page" };
   }
 
-  const notion = getNotionClient();
-  const page = await notion.pages.retrieve({ page_id: pageId });
-
-  if (!("properties" in page)) {
+  if (!("properties" in page) || !page.properties) {
     return { outcome: "not_calendar_page" };
   }
 
@@ -138,7 +143,7 @@ export async function processNotionCalendarCancellationWebhook(
 
   if (calendarWebhookDebugEnabled()) {
     console.info("[notion webhook] calendar debug", {
-      pageId,
+      pageId: page.id,
       parent: page.parent,
       parentIds,
       jamDsConfigured: Boolean(jamDs),
@@ -230,4 +235,18 @@ export async function processNotionCalendarCancellationWebhook(
   }
 
   return { outcome: "not_calendar_page" };
+}
+
+/**
+ * If this page is a jam or practice row marked Cancelled (and not app-stamped),
+ * delete the Google Calendar event(s). Safe to call for any page id.
+ */
+export async function processNotionCalendarCancellationWebhook(
+  pageId: string,
+): Promise<NotionCalendarCancelWebhookResult> {
+  const notion = getNotionClient();
+  const page = await notion.pages.retrieve({ page_id: pageId });
+  return processNotionCalendarCancellationFromPage(
+    page as NotionPageForCalendarCancel,
+  );
 }

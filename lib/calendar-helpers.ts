@@ -11,7 +11,7 @@ import {
 import type { GoogleApiEvent } from "@/lib/types";
 
 /** Wall-clock components in a specific IANA time zone (no offset info). */
-type ZonedYmdhm = {
+export type ZonedYmdhm = {
   year: number;
   month: number;
   day: number;
@@ -24,7 +24,7 @@ type ZonedYmdhm = {
  * as seen by a clock in `timeZone`. Uses `Intl.DateTimeFormat` so no
  * heavy timezone library is needed.
  */
-function getZonedCalendarParts(date: Date, timeZone: string): ZonedYmdhm {
+export function getZonedCalendarParts(date: Date, timeZone: string): ZonedYmdhm {
   const formatter = new Intl.DateTimeFormat("en-US", {
     timeZone,
     year: "numeric",
@@ -63,11 +63,13 @@ function compareZonedCalendarDays(a: ZonedYmdhm, b: ZonedYmdhm): number {
  * UTC instant when the room's wall clock reads y-mo-d h:mi in `timeZone`.
  * Scans ±48h around a naive UTC noon guess (no extra deps; DST-safe enough for our grid).
  */
-function utcInstantForRoomWallClock(
+export function roomWallClockToUtc(
   timeZone: string,
   y: number,
+  /** Calendar month 1–12 */
   mo: number,
   d: number,
+  /** 24-hour clock hour */
   h: number,
   mi: number,
 ): Date | null {
@@ -135,7 +137,7 @@ function earliestBookableUtcForRequestStart(
   const slotM = slotMinMinutes % 60;
 
   if (cmp > 0) {
-    const slotUtc = utcInstantForRoomWallClock(
+    const slotUtc = roomWallClockToUtc(
       roomTimeZone,
       req.year,
       req.month,
@@ -151,7 +153,7 @@ function earliestBookableUtcForRequestStart(
   const fh = Math.floor(floored / 60);
   const fm = floored % 60;
 
-  const slotUtc = utcInstantForRoomWallClock(
+  const slotUtc = roomWallClockToUtc(
     roomTimeZone,
     nw.year,
     nw.month,
@@ -159,7 +161,7 @@ function earliestBookableUtcForRequestStart(
     slotH,
     slotM,
   );
-  const floorUtc = utcInstantForRoomWallClock(
+  const floorUtc = roomWallClockToUtc(
     roomTimeZone,
     nw.year,
     nw.month,
