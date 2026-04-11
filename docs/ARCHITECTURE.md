@@ -266,7 +266,7 @@ Used by `lib/google.ts` so the **server** can read/write calendars without each 
 
 Jam and Fillout master databases should include a **Text** property **`CSPR Cancel origin`**. The app sets it to `calendar_app` when cancelling from the calendar UI first so the jam webhook skips a redundant Google delete.
 
-**Notion → Calendar cancel (jams only):** `NOTION_DATA_SOURCE_ID` must match a `data_source_id` or `database_id` on the page’s `parent`. Jam **Status** is read whether Notion stores it as **`select`** or **`status`**. Practice Session Status changes in Notion do **not** delete Google events.
+**Notion → Calendar cancel (jams + practice):** `NOTION_DATA_SOURCE_ID` must match a `data_source_id` or `database_id` on the page’s `parent`. Jam **Status** is read whether Notion stores it as **`select`** or **`status`**. When a practice page is marked **Cancelled** in Notion (and not stamped by the app), the webhook parses the **Custom Event ID** to find and delete the corresponding practice Google Calendar event. `NOTION_FILLOUT_MASTER_DATA_SOURCE_ID` must also match the page parent for this branch to activate.
 
 ### Supabase (profiles, temporary holds + support)
 

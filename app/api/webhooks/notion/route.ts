@@ -7,8 +7,10 @@
  * - People data source: pushes Notion field changes to the matching profile
  *   (`notion_page_id` = people row page id).
  * - Jam data source: **Status** set to **Cancelled** (without **CSPR Cancel origin**
- *   = `calendar_app`) deletes the Google Calendar jam event. Practice (Fillout)
- *   rows are ignored by this route for calendar deletes.
+ *   = `calendar_app`) deletes the Google Calendar jam event.
+ * - Fillout master data source: **Session Status** set to **Cancelled** (without
+ *   app stamp) parses the **Custom Event ID** and deletes the matching practice
+ *   Google Calendar event.
  *
  * Configure in the Notion integration (Webhooks tab): URL must be HTTPS.
  * Set `NOTION_WEBHOOK_VERIFICATION_TOKEN` to the verification token from the

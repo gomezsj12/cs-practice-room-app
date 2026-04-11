@@ -185,12 +185,15 @@ export async function markJamReservationCancelledInNotion(
   return pageId;
 }
 
-/** Notion text column on Fillout Form Master Database (API type is usually `rich_text`). */
+/** Notion text column on Fillout Form Master Database (API type is `rich_text`). */
 const NOTION_PRACTICE_CUSTOM_EVENT_ID_PROP = "Custom Event ID";
 
 /**
  * Find a practice-booking row by **Custom Event ID** and set **Session Status** to
  * **Cancelled**. Returns the page ID on success, or `null` if none matched.
+ *
+ * Logs diagnostics at each step so silent no-match failures are visible in
+ * Vercel runtime logs.
  *
  * Requires `NOTION_FILLOUT_MASTER_DATA_SOURCE_ID`.
  */
@@ -220,8 +223,17 @@ export async function markPracticeBookingCancelledInNotionByCustomId(
   const pageId = queryData.results?.[0]?.id;
 
   if (!pageId) {
+    console.warn(
+      "[notion] Practice cancel: no Notion page matched Custom Event ID.",
+      { customEventId, dataSourceId, resultCount: queryData.results?.length ?? 0 },
+    );
     return null;
   }
+
+  console.info("[notion] Practice cancel: matched Notion page, updating.", {
+    pageId,
+    customEventId,
+  });
 
   await notion.pages.update({
     page_id: pageId,
