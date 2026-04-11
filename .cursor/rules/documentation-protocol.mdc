@@ -24,7 +24,9 @@ See the "How to maintain" section at the top of `docs/change-log.md` for the exa
 
 **Pre-commit checklist item:** Before running `git commit`, ask yourself: "Did I add a row to `docs/change-log.md`?" If not, add it now.
 
-**Handling the commit hash:** Before committing, if Part 2's last row still has `—`, set it to `git rev-parse --short=7 HEAD`; append the new row with `—`. Commit once—do **not** `git commit --amend` to inject the new hash (avoids amend/hash drift loops).
+**Rolling hash (mandatory):** Before committing, run `git rev-parse --short=7 HEAD`. If Part 2's **last** row still has `—`, **replace that cell** with that hash (it belongs to the *previous* tip commit). Then append **one** new row for *this* commit with `—`. **Never** stack multiple `—` rows or skip the backfill. Commit once—do **not** `git commit --amend` to inject the new hash (avoids amend/hash drift loops).
+
+**Drift repair:** If `main` contains commits with no Part 2 row, repair the table (chronological order, matching `git log`) in the same session before you treat the log as authoritative again.
 
 ## After every error fix
 

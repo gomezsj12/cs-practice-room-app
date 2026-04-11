@@ -12,7 +12,7 @@ This file is the **single source of truth** for the full project history — fro
 
 **What to write:** Short **subject** (or first line of commit message), **`abc1234` hash**, **one optional sentence** if the subject is vague, and **Attribution** = `Cursor agent`, `Human`, or `ChatGPT-era` (use `ChatGPT-era` for commits from before Cursor was used, if you know; otherwise `Human`).
 
-**Commit hash workflow (rolling placeholder):** You don't know the **new** commit's hash until after it exists. **Before** `git commit`: run `git rev-parse --short=7 HEAD`; if the **last** Part 2 table row still has `—` in the Commit column, replace it with that hash (in backticks, same as other rows). Then append your **new** row with `—` for its commit, date, bold summary, and attribution—include that file in **one** normal commit. Do **not** use `git commit --amend` to fill in the new row's hash; the **next** commit's prep step will backfill it. Result: every filled hash in Part 2 matches a real git object; only the tip row stays `—` until the following commit.
+**Commit hash workflow (rolling placeholder — mandatory):** You don't know the **new** commit's hash until after it exists. **Before every `git commit`:** run `git rev-parse --short=7 HEAD`; if the **last** Part 2 table row still has `—` in the Commit column, **you must** replace that placeholder with that hash (in backticks, same as other rows). Then append **one** new row for **this** commit with `—`, date, bold summary, and attribution, and stage `docs/change-log.md` in the **same** commit. **Do not** skip the backfill step, **do not** leave multiple `—` rows, and **do not** use `git commit --amend` to patch hashes. The next commit's prep step backfills the new tip row's `—`. **If history drifted** (commits landed without log rows), repair Part 2 in a dedicated changelog commit before or with your next feature work—never leave long gaps.
 
 **Do not** log uncommitted experiments here — only **committed** history.
 
@@ -120,9 +120,26 @@ This file is the **single source of truth** for the full project history — fro
 | `a00090e` | 2026-04-09 15:03 | **Support inbox: update sidebar header and remove subtitle.** | Cursor agent |
 | `9252c77` | 2026-04-09 18:52 | **Polish homepage, header auth copy, support UI, and resource links.** | Cursor agent |
 | `f728f2d` | 2026-04-09 | **Change-log: sync Part 2 hashes with git; rolling placeholder convention.** Corrected recent commit hashes and dates; added missing rows (`6d8bea9`, `a00090e`, `9252c77`). Replaced amend-based hash workflow with rolling `—` backfill (`git rev-parse --short=7 HEAD`) in `change-log.mdc` and `documentation-protocol.mdc`; updated maintenance text in `change-log.md`. | Cursor agent |
-| `5239b93` | 2026-04-09 19:49 | **Agent git terminal: require full permissions.** Added `git-commands.mdc` (always apply); linked from `SETTINGS.md` and `settings.json` so git runs outside the sandbox and push/status stay reliable. | Cursor agent |
-| `1d9ba2c` | 2026-04-10 23:28 | **Show practice booking details in the calendar and allow owner-only cancellation.** Practice event modals now display cleaned Google description text, and cancellation is gated by WWU attendee email plus the booker name in the title; jam/practice confirmation copy was unified and calendar docs/screenshots were updated. | Cursor agent |
-| `—` | 2026-04-11 | **Stop header auth card flashing on client navigation.** Root layout passes `auth()` session into `SessionProvider`; `AuthButton` prefers cached session over a transient loading state. | Cursor agent |
+| `d51c240` | 2026-04-09 | **Document running git with full permissions in agent terminal.** Reinforced agent guidance to run git outside the sandbox (`SETTINGS.md`, `git-commands.mdc`). | Cursor agent |
+| `55c055d` | 2026-04-09 | **Update homepage and auth card copy styling.** | Cursor agent |
+| `8d7843e` | 2026-04-09 | **Fix homepage hero links to match deployed routes.** | Cursor agent |
+| `f7fac04` | 2026-04-10 | **Add Notion-backed profile metadata and booking access UX updates.** | Cursor agent |
+| `c076c15` | 2026-04-10 | **Fix booking Fillout URL so deploys pick up env changes.** | Cursor agent |
+| `6b204d2` | 2026-04-10 | **Add Notion webhooks for profile sync and Supabase deletion.** | Cursor agent |
+| `46b3dbc` | 2026-04-10 | **Booking iframe and profile UI fixes.** `pointer-events` on Fillout iframe until load; clearer indeterminate state for profile completion. | Cursor agent |
+| `5239b93` | 2026-04-10 | **Rename nav to Booking/Calendar; refresh jam calendar card and legend.** | Cursor agent |
+| `1d9ba2c` | 2026-04-10 | **Show practice booking details and owner-only cancellation.** Practice event modals show cleaned Google description; cancellation gated by WWU attendee email and booker name in title; unified jam/practice confirmation copy; calendar docs/screenshots updated. | Cursor agent |
+| `dbc08bc` | 2026-04-10 | **Improve event details modal: contact layout, links, and session attendees.** | Cursor agent |
+| `a48483b` | 2026-04-10 | **Sync practice cancellations to Notion via Custom Event ID.** | Cursor agent |
+| `e36df23` | 2026-04-10 | **Notion webhook: delete Google Calendar events when Notion marks Cancelled.** | Cursor agent |
+| `2ffa391` | 2026-04-11 | **Faster Notion webhook and improved practice-cancel calendar matching.** | Cursor agent |
+| `465cec9` | 2026-04-11 | **Script helper to sync Vercel env to preview/development.** | Cursor agent |
+| `0d6ffb7` | 2026-04-11 | **Webhook: stop Notion→Calendar delete for practice events.** | Cursor agent |
+| `0c19cda` | 2026-04-11 | **Telegram support: organize chats with forum topics.** | Cursor agent |
+| `97876e0` | 2026-04-11 | **Telegram support: fallback to General topic when forum sendMessage fails.** | Cursor agent |
+| `079525e` | 2026-04-11 | **Telegram support: align topic titles with inbox chat names.** | Cursor agent |
+| `86511b6` | 2026-04-11 | **Stop header auth card flashing on client navigation.** Root layout passes `auth()` session into `SessionProvider`; `AuthButton` prefers cached session over transient loading state. | Cursor agent |
+| `—` | 2026-04-11 | **Backfill Part 2 change-log for missing commits; reinforce mandatory rolling hash workflow for agents.** | Cursor agent |
 
 ---
 

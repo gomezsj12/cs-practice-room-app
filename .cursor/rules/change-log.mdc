@@ -11,18 +11,20 @@ Before running `git commit`, add a row to the **Part 2** commit log table in `do
 
 See the "How to maintain" section at the top of that file for the exact row format.
 
-## How to handle the commit hash
+## Rolling hash workflow (mandatory — do not skip)
 
 You cannot know the **new** commit's hash before it exists. Use a rolling placeholder so every filled-in hash matches a real object in git (no `git commit --amend` for this).
 
-**Before `git commit`** (same edit pass—do this right before staging and committing, including before `git push`):
+**Before every `git commit`** (same edit pass—right before staging and committing, including before `git push`):
 
-1. Run `git rev-parse --short=7 HEAD` (or `--short`—match the style of other Part 2 rows) for the current tip. Omit this step only when there is no commit yet—empty repo.
-2. In **Part 2** (`CS Practice Room commit log`), if the **last data row** has `—` in the Commit column, replace that placeholder with the hash from step 1 in backticks (same style as other rows, e.g. `` `a1b2c3d` ``). That value is the commit that actually introduced the previous changelog row, so hashes stay aligned with the git DAG.
-3. Append a **new** row for **this** commit with `—` in the Commit column, plus date, bold summary, and attribution.
+1. Run `git rev-parse --short=7 HEAD` for the current tip. Omit only when there is no commit yet (empty repo).
+2. In **Part 2** (`CS Practice Room commit log`), if the **last data row** has `—` in the Commit column, **you must** replace that placeholder with the hash from step 1 in backticks (e.g. `` `a1b2c3d` ``). **Never** leave an old `—` unfilled when you add another row, and **never** create two `—` rows.
+3. Append **exactly one** new row for **this** commit with `—` in the Commit column, plus date, bold summary, and attribution.
 4. Stage `docs/change-log.md` with your other files and run **`git commit` once**. Do **not** amend to patch the hash—the next commit will backfill this row's `—`.
 
-**Tip:** The latest row in Part 2 always shows `—` until the following commit; every row above it should show a real hash (after this convention is in use).
+**If Part 2 is missing commits** (history drifted): stop and add the missing rows in **chronological git order** (or a single maintenance commit that only repairs the table and agent rules). Do not keep shipping features while the log lags `main`.
+
+**Tip:** Only the tip row in Part 2 shows `—` until the following commit; every row above it must show a real hash.
 
 ## Background
 
