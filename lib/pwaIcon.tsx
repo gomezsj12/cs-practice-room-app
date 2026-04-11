@@ -43,33 +43,44 @@ export function createPwaIcon(size: number) {
             height: "100%",
           }}
         >
-          <svg
-            width={size * 0.78}
-            height={size * 0.78}
-            viewBox="0 0 512 512"
-            fill="none"
-            xmlns="http://www.w3.org/2000/svg"
+          <div
+            style={{
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "center",
+              width: size * 0.68,
+              height: size * 0.68,
+              transform: `translate(${size * 0.01}px, ${size * -0.015}px)`,
+            }}
           >
-            <g fill="#FFFFFF">
-              <path d="M156 106C156 90 169 77 185 77H394C410 77 423 90 423 106V185H375V128H204V160H156V106Z" />
-              <rect x="156" y="106" width="48" height="274" rx="24" />
-              <rect x="375" y="129" width="48" height="220" rx="24" />
-              <ellipse
-                cx="132"
-                cy="396"
-                rx="74"
-                ry="58"
-                transform="rotate(-24 132 396)"
-              />
-              <ellipse
-                cx="346"
-                cy="354"
-                rx="74"
-                ry="58"
-                transform="rotate(-24 346 354)"
-              />
-            </g>
-          </svg>
+            <svg
+              width="100%"
+              height="100%"
+              viewBox="0 0 512 512"
+              fill="none"
+              xmlns="http://www.w3.org/2000/svg"
+            >
+              <g fill="#FFFFFF">
+                <path d="M156 106C156 90 169 77 185 77H394C410 77 423 90 423 106V185H375V128H204V160H156V106Z" />
+                <rect x="156" y="106" width="48" height="274" rx="24" />
+                <rect x="375" y="129" width="48" height="220" rx="24" />
+                <ellipse
+                  cx="132"
+                  cy="396"
+                  rx="74"
+                  ry="58"
+                  transform="rotate(-24 132 396)"
+                />
+                <ellipse
+                  cx="346"
+                  cy="354"
+                  rx="74"
+                  ry="58"
+                  transform="rotate(-24 346 354)"
+                />
+              </g>
+            </svg>
+          </div>
         </div>
       </div>
     ),
