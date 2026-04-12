@@ -331,8 +331,53 @@ export function validateBookingTimes(
 }
 
 /**
+ * Validate a proposed blocked-time range on the server (admin-only).
+ *
+ * Same basic checks as {@link validateBookingTimes} but without the
+ * max-duration cap or Friday cutoff — admins can block any future range
+ * as long as it's at least 30 minutes.
+ */
+export function validateBlockedTimes(
+  start: string,
+  end: string,
+): BookingTimeValidation {
+  const requestStart = new Date(start);
+  const requestEnd = new Date(end);
+
+  if (
+    Number.isNaN(requestStart.getTime()) ||
+    Number.isNaN(requestEnd.getTime())
+  ) {
+    return { valid: false, error: "Invalid start or end time.", status: 400 };
+  }
+
+  if (requestEnd <= requestStart) {
+    return {
+      valid: false,
+      error: "End time must be after start time.",
+      status: 400,
+    };
+  }
+
+  const durationMs = requestEnd.getTime() - requestStart.getTime();
+
+  if (durationMs < MIN_BOOKING_MS) {
+    return {
+      valid: false,
+      error: "Blocked time must be at least 30 minutes.",
+      status: 400,
+    };
+  }
+
+  return { valid: true, requestStart, requestEnd };
+}
+
+/**
  * Checks both practice and jam Google Calendars for events that overlap
  * the requested time range. Returns true if an overlap is found.
+ * When `excludeBlockedEvents` is true, events with
+ * `extendedProperties.private.blockedTime === "true"` are ignored
+ * (used by the blocked-times endpoint to avoid self-overlap).
  */
 export async function checkGoogleCalendarOverlap(
   calendar: calendar_v3.Calendar,
@@ -340,6 +385,7 @@ export async function checkGoogleCalendarOverlap(
   jamCalendarId: string,
   start: string,
   end: string,
+  excludeBlockedEvents = false,
 ): Promise<{ overlapping: boolean; error?: string }> {
   const requestStart = new Date(start);
   const requestEnd = new Date(end);
@@ -367,11 +413,22 @@ export async function checkGoogleCalendarOverlap(
   ].filter((event) => {
     const typedEvent = event as GoogleApiEvent;
 
-    return (
-      !!typedEvent.id &&
-      !!getEventStart(typedEvent) &&
-      !!getEventEnd(typedEvent)
-    );
+    if (
+      !typedEvent.id ||
+      !getEventStart(typedEvent) ||
+      !getEventEnd(typedEvent)
+    ) {
+      return false;
+    }
+
+    if (
+      excludeBlockedEvents &&
+      typedEvent.extendedProperties?.private?.blockedTime === "true"
+    ) {
+      return false;
+    }
+
+    return true;
   });
 
   const overlappingEvent = existingEvents.find((event) => {

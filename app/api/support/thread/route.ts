@@ -44,11 +44,15 @@ export async function GET(request: NextRequest) {
     let baseThreadQuery = supabase
       .from("support_threads")
       .select(
-        "id, user_email, user_name, status, unread_for_user, telegram_chat_id, telegram_root_message_id, created_at, updated_at",
+        "id, user_email, user_name, status, unread_for_user, unread_for_admin, hidden_from_user, hidden_from_admin, staff_replied_from_app, telegram_chat_id, telegram_root_message_id, created_at, updated_at",
       );
 
     if (!isAdmin) {
-      baseThreadQuery = baseThreadQuery.eq("user_email", userEmail);
+      baseThreadQuery = baseThreadQuery
+        .eq("user_email", userEmail)
+        .eq("hidden_from_user", false);
+    } else {
+      baseThreadQuery = baseThreadQuery.eq("hidden_from_admin", false);
     }
 
     const threadQuery = requestedThreadId

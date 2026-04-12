@@ -4,10 +4,10 @@
  * @module SupportNavLink
  *
  * Navigation link for the Support page that displays an amber unread-message
- * badge when the authenticated user has unread staff replies.
+ * badge. End users poll `/api/support/unread` (unread staff replies); admins
+ * poll `/api/support/unread-admin` (threads needing staff attention).
  *
- * Polls `/api/support/unread` every 20 s while the user is signed in; the
- * badge disappears when the inbox is opened (server marks messages as read).
+ * Polls every 20 s while signed in; opening a thread clears the relevant flag.
  *
  * @see SiteHeader — renders this component in the main nav bar
  * @see SupportInbox — the page that clears the unread flag on open
@@ -28,7 +28,8 @@ type SupportNavLinkProps = {
  *   (controls the active/highlighted pill style).
  */
 export default function SupportNavLink({ isActive }: SupportNavLinkProps) {
-  const { status } = useSession();
+  const { data: session, status } = useSession();
+  const isAdmin = Boolean(session?.isAdmin);
   const [unread, setUnread] = useState(false);
 
   useEffect(() => {
@@ -37,10 +38,11 @@ export default function SupportNavLink({ isActive }: SupportNavLinkProps) {
     }
 
     let isMounted = true;
+    const url = isAdmin ? "/api/support/unread-admin" : "/api/support/unread";
 
     const loadUnread = async () => {
       try {
-        const response = await fetch("/api/support/unread", { cache: "no-store" });
+        const response = await fetch(url, { cache: "no-store" });
         const payload = (await response.json()) as { unread?: boolean };
         if (isMounted) {
           setUnread(Boolean(payload.unread));
@@ -59,7 +61,7 @@ export default function SupportNavLink({ isActive }: SupportNavLinkProps) {
       isMounted = false;
       window.clearInterval(interval);
     };
-  }, [status]);
+  }, [status, isAdmin]);
 
   const showUnreadDot = status === "authenticated" && unread;
 

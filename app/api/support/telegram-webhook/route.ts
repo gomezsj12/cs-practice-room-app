@@ -194,7 +194,7 @@ export async function POST(request: NextRequest) {
 
     const { data: thread, error: threadError } = await supabase
       .from("support_threads")
-      .select("id, user_email, telegram_chat_id, telegram_topic_id")
+      .select("id, user_email, telegram_chat_id, telegram_topic_id, status")
       .eq("id", threadId)
       .maybeSingle();
 
@@ -262,6 +262,10 @@ export async function POST(request: NextRequest) {
       });
 
       return NextResponse.json({ ok: true, closed: true });
+    }
+
+    if (thread.status === "closed") {
+      return NextResponse.json({ ok: true, ignored: true });
     }
 
     if (!replyBody.trim()) {

@@ -2,13 +2,16 @@ import type { CalendarEventAttendee, GoogleApiEvent } from "@/lib/types";
 
 /** User-facing label used in the calendar UI for a cancelable event type. */
 export function getCalendarEventKindLabel(
-  eventType?: "practice" | "jam" | "hold",
+  eventType?: "practice" | "jam" | "hold" | "blocked",
 ) {
   if (eventType === "practice") {
     return "practice booking";
   }
   if (eventType === "jam") {
     return "jam reservation";
+  }
+  if (eventType === "blocked") {
+    return "blocked time";
   }
   return "calendar event";
 }

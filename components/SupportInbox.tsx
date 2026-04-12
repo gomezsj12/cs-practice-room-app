@@ -212,10 +212,15 @@ export default function SupportInbox() {
     void loadThread({ showConversationLoader: true });
   }, [loadThread, selectedThreadId, status]);
 
-  // Fire-and-forget: mark the thread as read on the server whenever the
-  // user opens a thread that has unread staff replies.
+  // Fire-and-forget: clear unread for the current role when opening a thread.
   useEffect(() => {
-    if (status !== "authenticated" || !thread?.id || !thread?.unread_for_user) {
+    if (status !== "authenticated" || !thread?.id) {
+      return;
+    }
+    if (!isAdmin && !thread.unread_for_user) {
+      return;
+    }
+    if (isAdmin && !thread.unread_for_admin) {
       return;
     }
 
@@ -226,9 +231,10 @@ export default function SupportInbox() {
       },
       body: JSON.stringify({ threadId: thread.id }),
     });
-  }, [status, thread?.id, thread?.unread_for_user]);
+  }, [status, thread?.id, thread?.unread_for_user, thread?.unread_for_admin, isAdmin]);
 
   const hasThread = Boolean(thread?.id);
+  const isThreadClosed = thread?.status === "closed";
   const selectedThreadSummary = useMemo(() => {
     return threads.find((supportThread) => supportThread.id === selectedThreadId) ?? null;
   }, [threads, selectedThreadId]);
@@ -276,7 +282,7 @@ export default function SupportInbox() {
 
   async function handleReplySubmit(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault();
-    if (!thread?.id || isReplySubmitting) {
+    if (!thread?.id || isReplySubmitting || thread.status === "closed") {
       return;
     }
 
@@ -555,6 +561,12 @@ export default function SupportInbox() {
                         {supportThread.unread_for_user ? (
                           <span className="inline-flex h-2 w-2 rounded-full bg-amber-400" />
                         ) : null}
+                        {isAdmin && supportThread.unread_for_admin ? (
+                          <span
+                            className="inline-flex h-2 w-2 rounded-full bg-amber-400"
+                            title="New user activity"
+                          />
+                        ) : null}
                       </div>
                     </div>
                   </div>
@@ -703,11 +715,20 @@ export default function SupportInbox() {
           </div>
 
           <form onSubmit={handleReplySubmit} className="mt-3 space-y-2">
-            <div className="flex items-end gap-2 rounded-2xl border border-white/10 bg-neutral-950 px-3 py-2">
+            {isThreadClosed ? (
+              <p className="rounded-xl border border-white/10 bg-white/5 px-3 py-2 text-xs text-neutral-400">
+                This conversation is closed. You cannot send new messages.
+              </p>
+            ) : null}
+            <div
+              className={`flex items-end gap-2 rounded-2xl border border-white/10 bg-neutral-950 px-3 py-2 ${
+                isThreadClosed ? "opacity-50" : ""
+              }`}
+            >
               <textarea
                 ref={composerRef}
                 value={replyDraft}
-                disabled={isConversationLoading}
+                disabled={isConversationLoading || isThreadClosed}
                 onChange={(event) => {
                   const nextValue = event.target.value.slice(0, 1200);
                   setReplyDraft(nextValue);
@@ -723,7 +744,15 @@ export default function SupportInbox() {
                 }}
                 rows={1}
                 maxLength={1200}
-                placeholder={isConversationLoading ? "Loading conversation..." : isAdmin ? "Reply as Staff..." : "Write a message..."}
+                placeholder={
+                  isThreadClosed
+                    ? "Conversation closed"
+                    : isConversationLoading
+                      ? "Loading conversation..."
+                      : isAdmin
+                        ? "Reply as Staff..."
+                        : "Write a message..."
+                }
                 className="max-h-[88px] min-h-[40px] w-full resize-none bg-transparent pb-2 pt-[11px] text-sm text-white placeholder:text-neutral-500 focus:outline-none"
               />
               {isConversationLoading ? (
@@ -736,7 +765,12 @@ export default function SupportInbox() {
               ) : (
                 <button
                   type="submit"
-                  disabled={isReplySubmitting || !replyDraft.trim() || !thread?.id}
+                  disabled={
+                    isReplySubmitting ||
+                    !replyDraft.trim() ||
+                    !thread?.id ||
+                    isThreadClosed
+                  }
                   className={`-translate-y-0.5 inline-flex h-9 shrink-0 items-center rounded-full px-3 text-sm font-medium text-white transition disabled:cursor-not-allowed disabled:opacity-50 ${
                     isAdmin
                       ? "bg-violet-600 hover:bg-violet-500"

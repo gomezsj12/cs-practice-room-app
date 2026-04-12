@@ -2,15 +2,9 @@
  * @file User follow-up reply endpoint (`POST /api/support/reply`).
  *
  * Adds a new message to an existing support thread and forwards it to
- * the admin's Telegram chat. If the thread has a linked Telegram root
- * message, the forwarded message is sent as a Telegram reply-to so it
- * threads visually in the admin chat.
- *
- * After sending, the thread's `unread_for_user` is cleared and its
- * `status` is re-opened (in case it was previously closed by staff).
- *
- * @see {@link @/app/api/support/contact/route} — creates the initial thread
- * @see {@link @/app/api/support/telegram-webhook/route} — handles admin replies
+ * the admin's Telegram chat. Closed threads cannot receive new messages.
+ * User messages may set `unread_for_admin` per triage rules; staff app
+ * replies set `staff_replied_from_app` and `unread_for_user`.
  */
 
 import { NextRequest, NextResponse } from "next/server";
@@ -22,17 +16,10 @@ import { getSupabaseAdmin } from "@/lib/supabase";
 const MIN_MESSAGE_LENGTH = 1;
 const MAX_MESSAGE_LENGTH = 1200;
 
-/** Normalise CRLF → LF and strip leading/trailing whitespace. */
 function cleanMessage(value: string) {
   return value.replace(/\r\n/g, "\n").trim();
 }
 
-/**
- * Handles `POST /api/support/reply`.
- *
- * Accepts `{ threadId, message }`. Inserts the message into Supabase,
- * forwards to Telegram (threaded when possible), and resets unread state.
- */
 export async function POST(request: NextRequest) {
   try {
     const session = await auth();
@@ -77,12 +64,14 @@ export async function POST(request: NextRequest) {
     let threadQuery = supabase
       .from("support_threads")
       .select(
-        "id, user_email, telegram_chat_id, telegram_root_message_id, telegram_topic_id, unread_for_user, status",
+        "id, user_email, telegram_chat_id, telegram_root_message_id, telegram_topic_id, unread_for_user, status, staff_replied_from_app",
       )
       .eq("id", threadId);
 
     if (!isAdmin) {
-      threadQuery = threadQuery.eq("user_email", userEmail);
+      threadQuery = threadQuery.eq("user_email", userEmail).eq("hidden_from_user", false);
+    } else {
+      threadQuery = threadQuery.eq("hidden_from_admin", false);
     }
 
     const { data: thread, error: threadError } = await threadQuery.maybeSingle();
@@ -98,7 +87,29 @@ export async function POST(request: NextRequest) {
       );
     }
 
+    if (thread.status === "closed") {
+      return NextResponse.json(
+        { error: "This conversation is closed. You cannot send new messages." },
+        { status: 403 },
+      );
+    }
+
     const authorType = isAdmin ? "admin" : "user";
+
+    let adminMessageCount = 0;
+    if (!isAdmin) {
+      const { count, error: countError } = await supabase
+        .from("support_messages")
+        .select("id", { count: "exact", head: true })
+        .eq("thread_id", thread.id)
+        .eq("author_type", "admin");
+
+      if (countError) {
+        throw countError;
+      }
+      adminMessageCount = count ?? 0;
+    }
+
     const { error: userMessageError } = await supabase.from("support_messages").insert({
       thread_id: thread.id,
       author_type: authorType,
@@ -111,26 +122,6 @@ export async function POST(request: NextRequest) {
     }
 
     const chatId = thread.telegram_chat_id || defaultAdminChatId;
-
-    // If the thread was closed and has a topic, reopen it so the new
-    // message is visible in Telegram.
-    if (thread.status === "closed" && thread.telegram_topic_id) {
-      try {
-        await fetch(
-          `https://api.telegram.org/bot${botToken}/reopenForumTopic`,
-          {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({
-              chat_id: chatId,
-              message_thread_id: thread.telegram_topic_id,
-            }),
-          },
-        );
-      } catch (reopenError) {
-        console.warn("reopenForumTopic failed:", reopenError);
-      }
-    }
 
     const telegramText = [
       isAdmin ? "Staff reply (via app)" : "User follow-up message",
@@ -192,13 +183,23 @@ export async function POST(request: NextRequest) {
       );
     }
 
+    const threadPatch: Record<string, unknown> = {
+      updated_at: new Date().toISOString(),
+    };
+
+    if (isAdmin) {
+      threadPatch.unread_for_user = true;
+      threadPatch.staff_replied_from_app = true;
+    } else {
+      threadPatch.unread_for_user = false;
+      const notifyAdmin =
+        adminMessageCount === 0 || Boolean(thread.staff_replied_from_app);
+      threadPatch.unread_for_admin = notifyAdmin;
+    }
+
     const { error: threadUpdateError } = await supabase
       .from("support_threads")
-      .update({
-        unread_for_user: isAdmin ? true : false,
-        status: "open",
-        updated_at: new Date().toISOString(),
-      })
+      .update(threadPatch)
       .eq("id", thread.id);
 
     if (threadUpdateError) {

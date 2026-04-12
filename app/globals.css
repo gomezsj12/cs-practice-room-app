@@ -363,6 +363,26 @@ body {
   justify-content: flex-start;
 }
 
+/* ── Blocked Event (admin-created blocked-off periods) ── */
+
+.fc .fc-blocked-event {
+  background: rgba(239, 68, 68, 0.16) !important;
+  border: 2px dashed rgba(248, 113, 113, 0.75) !important;
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.08),
+    0 8px 24px rgba(0, 0, 0, 0.22) !important;
+  backdrop-filter: blur(6px);
+  cursor: pointer;
+}
+
+.fc .fc-blocked-event .fc-custom-event {
+  justify-content: flex-start;
+}
+
+.fc .fc-blocked-event .fc-custom-event-title {
+  color: rgba(255, 255, 255, 0.92) !important;
+}
+
 /* ── Now Indicator ── */
 /* FullCalendar still renders these for layout; custom overlay draws visible line/arrow/label. */
 

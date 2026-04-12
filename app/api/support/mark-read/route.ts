@@ -1,11 +1,8 @@
 /**
  * @file Mark-read endpoint (`POST /api/support/mark-read`).
  *
- * Clears the `unread_for_user` flag on one or all of the signed-in user's
- * support threads. When `{ threadId }` is provided, only that thread is
- * updated; otherwise every thread owned by the user is marked read.
- *
- * @see {@link @/app/api/support/unread/route} — reads the unread flag
+ * Users: clears `unread_for_user` on owned thread(s). Admins: clears
+ * `unread_for_admin` on one thread only (`threadId` required).
  */
 
 import { NextRequest, NextResponse } from "next/server";
@@ -13,11 +10,6 @@ import { auth } from "@/auth";
 import { isAdminEmail } from "@/lib/admin";
 import { getSupabaseAdmin } from "@/lib/supabase";
 
-/**
- * Handles `POST /api/support/mark-read`.
- *
- * Accepts optional `{ threadId }`. Marks one or all threads as read.
- */
 export async function POST(request: NextRequest) {
   try {
     const session = await auth();
@@ -37,21 +29,36 @@ export async function POST(request: NextRequest) {
     };
     const threadId = body.threadId?.trim() || "";
 
+    if (isAdmin) {
+      if (!threadId) {
+        return NextResponse.json(
+          { error: "threadId is required for staff mark-read." },
+          { status: 400 },
+        );
+      }
+      const { error } = await supabase
+        .from("support_threads")
+        .update({
+          unread_for_admin: false,
+          updated_at: new Date().toISOString(),
+        })
+        .eq("id", threadId)
+        .eq("hidden_from_admin", false);
+
+      if (error) {
+        throw error;
+      }
+      return NextResponse.json({ ok: true });
+    }
+
     const updateQuery = supabase.from("support_threads").update({
       unread_for_user: false,
       updated_at: new Date().toISOString(),
     });
 
-    let finalQuery;
-    if (isAdmin) {
-      finalQuery = threadId
-        ? updateQuery.eq("id", threadId)
-        : updateQuery;
-    } else {
-      finalQuery = threadId
-        ? updateQuery.eq("user_email", userEmail).eq("id", threadId)
-        : updateQuery.eq("user_email", userEmail);
-    }
+    const finalQuery = threadId
+      ? updateQuery.eq("user_email", userEmail).eq("id", threadId)
+      : updateQuery.eq("user_email", userEmail);
 
     const { error } = await finalQuery;
 

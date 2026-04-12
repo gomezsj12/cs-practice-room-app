@@ -34,13 +34,17 @@
  * 1. `mergeSelectionRange` — clamp to the nearest blocker boundaries.
  * 2. `applyMinBookableStartToRange` — shift start forward if it falls in the
  *    past.
- * 3. `isPastCalendarDay` — reject if the entire day is in the past.
- * 4. `selectionIsBookable` — reject if the range is shorter than the minimum
+ * 3. `applyFridayJamCutoffToRange` — cap end at 2:30 PM on Fridays (skipped
+ *    for admins and for Fridays in the `fridayExceptions` set).
+ * 4. `isPastCalendarDay` — reject if the entire day is in the past.
+ * 5. `selectionIsBookable` — reject if the range is shorter than the minimum
  *    booking duration (30 min).
- * 5. Auth check — only authenticated users may proceed.
+ * 6. Auth check — only authenticated users may proceed.
  *
  * If all checks pass, an optimistic hold event is injected and the booking
- * flow is kicked off via `createHoldOrFallbackRef`.
+ * flow is kicked off via `createHoldOrFallbackRef`. For admins, the
+ * drag mirror is kept visible until the block-time modal is dismissed,
+ * and `clearDragMirror` is exposed so the caller can clean up.
  *
  * @see {@link useBookingFlow} for what happens after `createHoldOrFallbackRef`
  *      is called.
@@ -119,6 +123,9 @@ function formatEventTimeRange(start: Date | null, end: Date | null) {
  * @param createHoldOrFallbackRef - Booking-flow entry point called on successful selection.
  * @param showToast            - Toast callback for validation messages.
  * @param setEvents            - State setter for injecting the optimistic hold event.
+ * @param isAdminRef           - Stable ref to admin status; admin mode skips max cap / Friday cutoff.
+ * @param onAdminBlockRef      - Admin-specific callback; called instead of booking flow when admin.
+ * @param fridayExceptionsRef  - Stable ref to the set of YYYY-MM-DD Friday exception dates.
  */
 export function useDragSelect(
   calendarRef: React.RefObject<FullCalendar | null>,
@@ -132,6 +139,11 @@ export function useDragSelect(
   >,
   showToast: (message: string, type: "success" | "error" | "info") => void,
   setEvents: React.Dispatch<React.SetStateAction<CalendarEvent[]>>,
+  isAdminRef: React.RefObject<boolean>,
+  onAdminBlockRef: React.RefObject<
+    (start: Date, end: Date) => void
+  >,
+  fridayExceptionsRef: React.RefObject<Set<string>>,
 ) {
   const [dragMirror, setDragMirror] = useState<DragMirrorState | null>(null);
   const [isDragInteracting, setIsDragInteracting] = useState(false);
@@ -203,8 +215,43 @@ export function useDragSelect(
       setIsDragInteracting(next);
     }
 
-    function buildBlockers(): { start: string; end: string }[] {
-      return eventsRef.current.map((ev) => ({ start: ev.start, end: ev.end }));
+    function buildBlockers(dayDate: Date): { start: string; end: string }[] {
+      const blockers = eventsRef.current.map((ev) => ({
+        start: ev.start,
+        end: ev.end,
+      }));
+
+      if (isFridayLocalDay(dayDate)) {
+        const dateStr = `${dayDate.getFullYear()}-${String(dayDate.getMonth() + 1).padStart(2, "0")}-${String(dayDate.getDate()).padStart(2, "0")}`;
+
+        if (!fridayExceptionsRef.current.has(dateStr)) {
+          const friStart = fridayJamLatestEndOnDay(dayDate);
+          const friEnd = minutesOnDayToDate(dayDate, slotMaxMin);
+          const friStartMs = friStart.getTime();
+          const friEndMs = friEnd.getTime();
+
+          const coveredByBlock = eventsRef.current.some((ev) => {
+            if (ev.eventType !== "blocked") return false;
+            const evStart = new Date(ev.start).getTime();
+            const evEnd = new Date(ev.end).getTime();
+            return evStart <= friStartMs && evEnd >= friEndMs;
+          });
+
+          if (!coveredByBlock) {
+            blockers.push({
+              start: friStart.toISOString(),
+              end: friEnd.toISOString(),
+            });
+          }
+        }
+      }
+
+      return blockers;
+    }
+
+    function isFridayExcepted(dayDate: Date): boolean {
+      const dateStr = `${dayDate.getFullYear()}-${String(dayDate.getMonth() + 1).padStart(2, "0")}-${String(dayDate.getDate()).padStart(2, "0")}`;
+      return fridayExceptionsRef.current.has(dateStr);
     }
 
     function cleanupTouchPending() {
@@ -258,23 +305,26 @@ export function useDragSelect(
         slotMaxMin,
       );
       const pointerDate = minutesOnDayToDate(dayDate, pm);
+      const admin = isAdminRef.current;
       const mergedRaw = mergeSelectionRange(
         source.anchor,
         pointerDate,
         source.blockers,
+        admin,
       );
 
       const now = new Date();
-      const merged = applyFridayJamCutoffToRange(
-        applyMinBookableStartToRange(
-          mergedRaw,
-          dayDate,
-          now,
-          slotMinMin,
-          source.blockers,
-        ),
+      const afterMinStart = applyMinBookableStartToRange(
+        mergedRaw,
         dayDate,
+        now,
+        slotMinMin,
+        source.blockers,
       );
+      const merged =
+        admin || isFridayExcepted(dayDate)
+          ? afterMinStart
+          : applyFridayJamCutoffToRange(afterMinStart, dayDate);
 
       if (!merged) {
         setDragMirror(null);
@@ -355,7 +405,7 @@ export function useDragSelect(
         slotMaxMin,
       );
       const anchor = minutesOnDayToDate(dayDate, am);
-      const blockersNow = buildBlockers();
+      const blockersNow = buildBlockers(dayDate);
 
       if (isInstantInsideBusy(anchor, blockersNow)) {
         showToast("That time is already booked. Try another spot.", "info");
@@ -380,7 +430,11 @@ export function useDragSelect(
         return;
       }
 
-      if (isFridayLocalDay(dayDate)) {
+      if (
+        !isAdminRef.current &&
+        isFridayLocalDay(dayDate) &&
+        !isFridayExcepted(dayDate)
+      ) {
         const friCap = fridayJamLatestEndOnDay(dayDate);
         if (anchor.getTime() >= friCap.getTime()) {
           showToast(
@@ -448,23 +502,30 @@ export function useDragSelect(
         slotMaxMin,
       );
       const pointerDate = minutesOnDayToDate(dayDate, pm);
-      const mergedRaw = mergeSelectionRange(anchor, pointerDate, blockers);
+      const admin = isAdminRef.current;
+      const mergedRaw = mergeSelectionRange(
+        anchor,
+        pointerDate,
+        blockers,
+        admin,
+      );
 
       const now = new Date();
-      const merged = applyFridayJamCutoffToRange(
-        applyMinBookableStartToRange(
-          mergedRaw,
-          dayDate,
-          now,
-          slotMinMin,
-          blockers,
-        ),
+      const afterMinStart = applyMinBookableStartToRange(
+        mergedRaw,
         dayDate,
+        now,
+        slotMinMin,
+        blockers,
       );
+      const merged =
+        admin || isFridayExcepted(dayDate)
+          ? afterMinStart
+          : applyFridayJamCutoffToRange(afterMinStart, dayDate);
 
       if (!merged) {
         showToast(
-          isFridayLocalDay(dayDate)
+          !admin && isFridayLocalDay(dayDate)
             ? "On Fridays, jam sessions must end by 2:30 PM. Try an earlier time or a shorter slot."
             : "There isn\u2019t 30 minutes of open time before the next booking here. Try another spot or time.",
           "info",
@@ -476,11 +537,16 @@ export function useDragSelect(
         return;
       }
 
-      if (!selectionIsBookable(merged.start, merged.end)) {
+      if (!selectionIsBookable(merged.start, merged.end, admin)) {
         return;
       }
 
       if (statusRef.current !== "authenticated") {
+        return;
+      }
+
+      if (admin) {
+        onAdminBlockRef.current(merged.start, merged.end);
         return;
       }
 
@@ -511,8 +577,10 @@ export function useDragSelect(
         cancelAnimationFrame(rafId);
         rafId = 0;
       }
-      setDragMirror(null);
-      lastMirrorKey = "";
+      if (!isAdminRef.current) {
+        setDragMirror(null);
+        lastMirrorKey = "";
+      }
 
       completeSelection(saved.colIdx, saved.anchor, saved.blockers, e.clientY);
     }
@@ -539,8 +607,10 @@ export function useDragSelect(
         cancelAnimationFrame(rafId);
         rafId = 0;
       }
-      setDragMirror(null);
-      lastMirrorKey = "";
+      if (!isAdminRef.current) {
+        setDragMirror(null);
+        lastMirrorKey = "";
+      }
       interactRoot.style.touchAction = "manipulation";
 
       if (!saved) {
@@ -591,7 +661,7 @@ export function useDragSelect(
         slotMaxMin,
       );
       const anchor = minutesOnDayToDate(dayDate, am);
-      const blockersNow = buildBlockers();
+      const blockersNow = buildBlockers(dayDate);
 
       const timeoutId = window.setTimeout(() => {
         if (!touchPending || touchPending.armed) {
@@ -632,7 +702,11 @@ export function useDragSelect(
           return;
         }
 
-        if (isFridayLocalDay(dayDateNow)) {
+        if (
+          !isAdminRef.current &&
+          isFridayLocalDay(dayDateNow) &&
+          !isFridayExcepted(dayDateNow)
+        ) {
           const friCapTouch = fridayJamLatestEndOnDay(dayDateNow);
           if (touchPending.anchor.getTime() >= friCapTouch.getTime()) {
             showToast(
@@ -784,7 +858,12 @@ export function useDragSelect(
     createHoldOrFallbackRef,
     showToast,
     setEvents,
+    isAdminRef,
+    onAdminBlockRef,
+    fridayExceptionsRef,
   ]);
 
-  return { dragMirror, formatEventTimeRange, isDragInteracting };
+  const clearDragMirror = () => setDragMirror(null);
+
+  return { dragMirror, formatEventTimeRange, isDragInteracting, clearDragMirror };
 }

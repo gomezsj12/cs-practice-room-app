@@ -1,14 +1,20 @@
 /**
  * @file Calendar events API route (`GET /api/events`).
  *
- * Merges three data sources into a single event array for the calendar UI:
+ * Merges data sources into a unified response for the calendar UI:
  * 1. **Practice bookings** — events from the practice Google Calendar with
  *    cleaned description text and owner-only cancellation eligibility.
  * 2. **Jam reservations** — events from the jam Google Calendar (cancellable by owner/admin).
  * 3. **Temporary holds** — pending rows from Supabase `reservation_holds`
  *    (only when `ENABLE_TEMP_HOLDS=true`).
+ * 4. **Blocked times** — admin-created blocked periods from Supabase
+ *    `blocked_times`, rendered as red overlay events.
+ * 5. **Friday exceptions** — dates from Supabase `friday_exceptions` where
+ *    the hard-coded Friday afternoon restriction is lifted.
  *
- * All three queries run in parallel via `Promise.all` to minimise latency.
+ * Returns `{ events: ApiCalendarEvent[], fridayExceptions: string[] }`.
+ *
+ * All queries run in parallel via `Promise.all` to minimise latency.
  * Google Calendar and Supabase failures are handled independently so a
  * Supabase outage doesn't block calendar display.
  *
@@ -31,6 +37,7 @@ import { getProfileByGoogleEmail } from "@/lib/profile-helpers";
 import { getSupabaseAdmin } from "@/lib/supabase";
 import type {
   ApiCalendarEvent,
+  BlockedTimeRow,
   GoogleApiEvent,
   HoldRow,
 } from "@/lib/types";
@@ -118,12 +125,30 @@ function mapHoldToApiEvent(row: HoldRow): ApiCalendarEvent {
   };
 }
 
+/** Converts a Supabase blocked-time row into a red-overlay `ApiCalendarEvent`. */
+function mapBlockedTimeToApiEvent(
+  row: BlockedTimeRow,
+  isAdmin: boolean,
+): ApiCalendarEvent {
+  return {
+    id: `blocked-${row.id}`,
+    blockedTimeId: row.id,
+    eventType: "blocked",
+    title: row.title || "Practice Room Closed",
+    start: row.start_time,
+    end: row.end_time,
+    color: "rgba(239,68,68,0.16)",
+    textColor: "#ffffff",
+    canCancel: isAdmin,
+  };
+}
+
 /**
  * Handles `GET /api/events`.
  *
- * Fetches practice events, jam events, and pending holds in parallel,
- * maps them into a unified `ApiCalendarEvent[]`, and returns the merged list.
- * The window is `now − 7 days` → `now + 30 days`.
+ * Fetches practice events, jam events, pending holds, and blocked times
+ * in parallel, maps them into a unified `ApiCalendarEvent[]`, and returns
+ * the merged list. The window is `now − 7 days` → `now + 30 days`.
  */
 export async function GET() {
   try {
@@ -181,26 +206,76 @@ export async function GET() {
         })()
       : Promise.resolve([] as ApiCalendarEvent[]);
 
-    const [currentUserProfile, practiceResponse, jamResponse, holdEvents] =
-      await Promise.all([
-        currentUserProfilePromise,
-        calendar.events.list({
-          calendarId: practiceCalendarId,
-          timeMin: timeMin.toISOString(),
-          timeMax: timeMax.toISOString(),
-          singleEvents: true,
-          orderBy: "startTime",
-        }),
-        calendar.events.list({
-          calendarId: jamCalendarId,
-          timeMin: timeMin.toISOString(),
-          timeMax: timeMax.toISOString(),
-          singleEvents: true,
-          orderBy: "startTime",
-        }),
-        holdQueryPromise,
-      ]);
+    const fridayExceptionsPromise = (async () => {
+      try {
+        const supabase = getSupabaseAdmin();
+        const { data, error } = await supabase
+          .from("friday_exceptions")
+          .select("exception_date")
+          .gte("exception_date", timeMin.toISOString().slice(0, 10))
+          .lte("exception_date", timeMax.toISOString().slice(0, 10));
+        if (error) {
+          throw error;
+        }
+        return (data ?? []).map(
+          (row: { exception_date: string }) => row.exception_date,
+        );
+      } catch (err) {
+        console.error("Supabase friday_exceptions loading failed:", err);
+        return [] as string[];
+      }
+    })();
 
+    const blockedTimesQueryPromise = (async () => {
+      try {
+        const supabase = getSupabaseAdmin();
+        const { data, error } = await supabase
+          .from("blocked_times")
+          .select(
+            "id, start_time, end_time, title, practice_cal_event_id, jam_cal_event_id, created_by, created_at",
+          )
+          .lt("start_time", timeMax.toISOString())
+          .gt("end_time", timeMin.toISOString())
+          .order("start_time", { ascending: true });
+        if (error) {
+          throw error;
+        }
+        return (data ?? []) as BlockedTimeRow[];
+      } catch (blockedError) {
+        console.error("Supabase blocked_times loading failed:", blockedError);
+        return [] as BlockedTimeRow[];
+      }
+    })();
+
+    const [
+      currentUserProfile,
+      practiceResponse,
+      jamResponse,
+      holdEvents,
+      blockedTimeRows,
+      fridayExceptions,
+    ] = await Promise.all([
+      currentUserProfilePromise,
+      calendar.events.list({
+        calendarId: practiceCalendarId,
+        timeMin: timeMin.toISOString(),
+        timeMax: timeMax.toISOString(),
+        singleEvents: true,
+        orderBy: "startTime",
+      }),
+      calendar.events.list({
+        calendarId: jamCalendarId,
+        timeMin: timeMin.toISOString(),
+        timeMax: timeMax.toISOString(),
+        singleEvents: true,
+        orderBy: "startTime",
+      }),
+      holdQueryPromise,
+      blockedTimesQueryPromise,
+      fridayExceptionsPromise,
+    ]);
+
+    const isAdmin = isAdminEmail(currentUserEmail);
     const currentUserContext = {
       currentUserEmail,
       currentUserWwuEmail: currentUserProfile?.walla_walla_email,
@@ -209,10 +284,24 @@ export async function GET() {
         currentUserName,
       ].filter((value): value is string => Boolean(value)),
       adminEmail,
-      isAdmin: isAdminEmail(currentUserEmail),
+      isAdmin,
     };
 
+    const blockedGCalIds = new Set<string>();
+    for (const row of blockedTimeRows) {
+      if (row.practice_cal_event_id) {
+        blockedGCalIds.add(row.practice_cal_event_id);
+      }
+      if (row.jam_cal_event_id) {
+        blockedGCalIds.add(row.jam_cal_event_id);
+      }
+    }
+
     const practiceEvents = (practiceResponse.data.items ?? [])
+      .filter((event) => {
+        const typed = event as GoogleApiEvent;
+        return !typed.id || !blockedGCalIds.has(typed.id);
+      })
       .map((event) =>
         mapGoogleEventToApiEvent(
           event as GoogleApiEvent,
@@ -223,6 +312,10 @@ export async function GET() {
       .filter(isNotNull);
 
     const jamEvents = (jamResponse.data.items ?? [])
+      .filter((event) => {
+        const typed = event as GoogleApiEvent;
+        return !typed.id || !blockedGCalIds.has(typed.id);
+      })
       .map((event) =>
         mapGoogleEventToApiEvent(
           event as GoogleApiEvent,
@@ -232,7 +325,19 @@ export async function GET() {
       )
       .filter(isNotNull);
 
-    return NextResponse.json([...practiceEvents, ...jamEvents, ...holdEvents]);
+    const blockedEvents = blockedTimeRows.map((row) =>
+      mapBlockedTimeToApiEvent(row, isAdmin),
+    );
+
+    return NextResponse.json({
+      events: [
+        ...practiceEvents,
+        ...jamEvents,
+        ...holdEvents,
+        ...blockedEvents,
+      ],
+      fridayExceptions,
+    });
   } catch (error) {
     console.error("Error loading calendar events:", error);
 

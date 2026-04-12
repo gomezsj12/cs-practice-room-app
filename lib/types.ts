@@ -48,12 +48,25 @@ export type HoldRow = {
   status: string;
 };
 
+/** A row from the `blocked_times` Supabase table representing an admin-created blocked period. */
+export type BlockedTimeRow = {
+  id: string;
+  start_time: string;
+  end_time: string;
+  title: string;
+  practice_cal_event_id: string | null;
+  jam_cal_event_id: string | null;
+  created_by: string;
+  created_at: string;
+};
+
 /** Server → client calendar event payload returned by the events API. */
 export type ApiCalendarEvent = {
   id: string;
   googleEventId?: string;
   holdId?: string;
-  eventType: "practice" | "jam" | "hold";
+  blockedTimeId?: string;
+  eventType: "practice" | "jam" | "hold" | "blocked";
   title: string;
   description?: string;
   attendees?: CalendarEventAttendee[];
@@ -73,7 +86,8 @@ export type CalendarEvent = {
   id: string;
   googleEventId?: string;
   holdId?: string;
-  eventType?: "practice" | "jam" | "hold";
+  blockedTimeId?: string;
+  eventType?: "practice" | "jam" | "hold" | "blocked";
   title: string;
   description?: string;
   attendees?: CalendarEventAttendee[];
@@ -144,6 +158,10 @@ export type SupportThreadRow = {
   user_name: string | null;
   status: string;
   unread_for_user: boolean;
+  unread_for_admin: boolean;
+  hidden_from_user: boolean;
+  hidden_from_admin: boolean;
+  staff_replied_from_app: boolean;
   telegram_chat_id: string | null;
   telegram_root_message_id: number | null;
   telegram_topic_id: number | null;
@@ -158,6 +176,7 @@ export type ThreadSummary = {
   user_name: string | null;
   status: string;
   unread_for_user: boolean;
+  unread_for_admin: boolean;
   created_at: string;
   updated_at: string;
   latest_message_body: string | null;

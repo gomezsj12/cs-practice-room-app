@@ -38,6 +38,7 @@ import FullCalendar from "@fullcalendar/react";
 import interactionPlugin from "@fullcalendar/interaction";
 import timeGridPlugin from "@fullcalendar/timegrid";
 import { useSession } from "next-auth/react";
+import BlockTimeModal from "@/components/BlockTimeModal";
 import ConfirmModal from "@/components/ConfirmModal";
 import EventDetailsModal from "@/components/EventDetailsModal";
 import ReserveModal from "@/components/ReserveModal";
@@ -58,14 +59,18 @@ import {
   isPastCalendarDay,
   mirrorBoundsFromMinutesToGridBottom,
   parseSlotTimeToMinutes,
+  sameLocalCalendarDay,
   SLOT_MAX_STR,
   SLOT_MIN_STR,
 } from "@/lib/timeGridDragSelect";
-import type { PendingSelection } from "@/lib/types";
+import type { CalendarEvent, PendingSelection } from "@/lib/types";
+import { formatBookingDateRange } from "@/lib/formatting";
 
 /** Positions for Friday restriction bands — same coordinate space as {@link useNowIndicatorOverlay} (wrap-relative + scroll). */
 type FridayJamOverlayRect = {
   key: string;
+  /** ISO date string (YYYY-MM-DD) of the Friday this overlay represents. */
+  dateStr: string;
   top: number;
   left: number;
   width: number;
@@ -203,6 +208,8 @@ export default function CalendarView() {
     "loading",
   );
   const { data: session, status } = useSession();
+  const isAdmin = session?.isAdmin === true;
+  const isAdminRef = useRef(false);
 
   const [isMobile, setIsMobile] = useState(false);
   const [calendarTitle, setCalendarTitle] = useState("");
@@ -215,10 +222,40 @@ export default function CalendarView() {
   /** Re-render periodically so “past” event styling updates as time passes. */
   const [nowTick, setNowTick] = useState(() => Date.now());
 
+  /** Admin: pending block-off selection awaiting confirmation. */
+  const [adminBlockSelection, setAdminBlockSelection] = useState<{
+    start: Date;
+    end: Date;
+  } | null>(null);
+  /** Admin: blocked event selected for deletion. */
+  const [blockedEventToDelete, setBlockedEventToDelete] =
+    useState<CalendarEvent | null>(null);
+  const [isBlockSubmitting, setIsBlockSubmitting] = useState(false);
+  const [isBlockDeleting, setIsBlockDeleting] = useState(false);
+
+  /** Admin: Friday overlay selected for opening (exception). */
+  const [fridayToOpen, setFridayToOpen] = useState<string | null>(null);
+  const [isFridayExceptionSubmitting, setIsFridayExceptionSubmitting] =
+    useState(false);
+
+  const onAdminBlockRef = useRef<(start: Date, end: Date) => void>(
+    () => {},
+  );
+  onAdminBlockRef.current = (start: Date, end: Date) => {
+    setAdminBlockSelection({ start, end });
+  };
+
   const { toast, showToast, closeToast } = useToast();
 
-  const { events, setEvents, isLoading, loadEvents, eventsRef } =
-    useEventPolling(showToast, status, pendingSelectionRef);
+  const {
+    events,
+    setEvents,
+    isLoading,
+    loadEvents,
+    eventsRef,
+    fridayExceptions,
+    fridayExceptionsRef,
+  } = useEventPolling(showToast, status, pendingSelectionRef);
 
   const {
     pendingSelection,
@@ -241,7 +278,7 @@ export default function CalendarView() {
     pendingSelectionRef,
   );
 
-  const { dragMirror, formatEventTimeRange, isDragInteracting } = useDragSelect(
+  const { dragMirror, formatEventTimeRange, isDragInteracting, clearDragMirror } = useDragSelect(
     calendarRef,
     calendarInteractRef,
     isLoading,
@@ -251,6 +288,9 @@ export default function CalendarView() {
     createHoldOrFallbackRef,
     showToast,
     setEvents,
+    isAdminRef,
+    onAdminBlockRef,
+    fridayExceptionsRef,
   );
 
   const nowIndicatorOverlay = useNowIndicatorOverlay({
@@ -264,6 +304,10 @@ export default function CalendarView() {
   useEffect(() => {
     statusRef.current = status;
   }, [status]);
+
+  useEffect(() => {
+    isAdminRef.current = isAdmin;
+  }, [isAdmin]);
 
   useEffect(() => {
     const checkScreenSize = () => {
@@ -357,11 +401,39 @@ export default function CalendarView() {
       );
       const next: FridayJamOverlayRect[] = [];
 
+      const blockedEvents = events.filter(
+        (ev) => ev.eventType === "blocked",
+      );
+
       cols.forEach((node, i) => {
         const dayDate = dayDateForColumn(calApi, i);
         if (!isFridayLocalDay(dayDate)) {
           return;
         }
+
+        const dateStr = `${dayDate.getFullYear()}-${String(dayDate.getMonth() + 1).padStart(2, "0")}-${String(dayDate.getDate()).padStart(2, "0")}`;
+
+        if (fridayExceptions.has(dateStr)) {
+          return;
+        }
+
+        const fridayOverlayStartMs = new Date(dayDate);
+        fridayOverlayStartMs.setHours(14, 30, 0, 0);
+
+        const coveredByBlock = blockedEvents.some((ev) => {
+          const evStart = new Date(ev.start);
+          const evEnd = new Date(ev.end);
+          return (
+            sameLocalCalendarDay(evStart, dayDate) &&
+            evStart.getTime() <= fridayOverlayStartMs.getTime() &&
+            evEnd.getTime() >= fridayOverlayStartMs.getTime() + 30 * 60 * 1000
+          );
+        });
+
+        if (coveredByBlock) {
+          return;
+        }
+
         const col = node as HTMLElement;
         const b = mirrorBoundsFromMinutesToGridBottom(
           col,
@@ -373,6 +445,7 @@ export default function CalendarView() {
         if (b) {
           next.push({
             key: `fri-jam-${dayDate.getFullYear()}-${dayDate.getMonth() + 1}-${dayDate.getDate()}`,
+            dateStr,
             top: b.top - wrapRect.top + wrapEl.scrollTop,
             left: b.left - wrapRect.left + wrapEl.scrollLeft,
             width: b.width,
@@ -395,6 +468,7 @@ export default function CalendarView() {
     calendarTitle,
     isMobile,
     events,
+    fridayExceptions,
   ]);
 
   // Re-render every 60 s (and on tab re-focus) so "past" event styling
@@ -436,6 +510,88 @@ export default function CalendarView() {
     return first || null;
   }, [session?.user?.name]);
 
+  async function handleAdminBlockSubmit(values: { title: string }) {
+    if (!adminBlockSelection) return;
+    try {
+      setIsBlockSubmitting(true);
+      const response = await fetch("/api/blocked-times", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          start: adminBlockSelection.start.toISOString(),
+          end: adminBlockSelection.end.toISOString(),
+          title: values.title,
+        }),
+      });
+      if (!response.ok) {
+        const data = await response.json().catch(() => ({}));
+        showToast(data.error || "Failed to create blocked time.", "error");
+        return;
+      }
+      showToast("Time blocked off successfully.", "success");
+      setAdminBlockSelection(null);
+      clearDragMirror();
+      await loadEvents();
+    } catch {
+      showToast("Failed to create blocked time.", "error");
+    } finally {
+      setIsBlockSubmitting(false);
+    }
+  }
+
+  async function handleDeleteBlockedTime() {
+    if (!blockedEventToDelete?.blockedTimeId) return;
+    try {
+      setIsBlockDeleting(true);
+      const response = await fetch("/api/blocked-times", {
+        method: "DELETE",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          blockedTimeId: blockedEventToDelete.blockedTimeId,
+        }),
+      });
+      if (!response.ok) {
+        const data = await response.json().catch(() => ({}));
+        showToast(data.error || "Failed to remove blocked time.", "error");
+        return;
+      }
+      showToast("Blocked time removed.", "success");
+      setBlockedEventToDelete(null);
+      await loadEvents();
+    } catch {
+      showToast("Failed to remove blocked time.", "error");
+    } finally {
+      setIsBlockDeleting(false);
+    }
+  }
+
+  async function handleOpenFriday() {
+    if (!fridayToOpen) return;
+    try {
+      setIsFridayExceptionSubmitting(true);
+      const response = await fetch("/api/friday-exceptions", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ date: fridayToOpen }),
+      });
+      if (!response.ok) {
+        const data = await response.json().catch(() => ({}));
+        showToast(
+          data.error || "Failed to open this Friday.",
+          "error",
+        );
+        return;
+      }
+      showToast("Friday restriction removed.", "success");
+      setFridayToOpen(null);
+      await loadEvents();
+    } catch {
+      showToast("Failed to open this Friday.", "error");
+    } finally {
+      setIsFridayExceptionSubmitting(false);
+    }
+  }
+
   const cancelTargetLabel = useMemo(
     () => getCalendarEventKindLabel(selectedEvent?.eventType),
     [selectedEvent?.eventType],
@@ -468,6 +624,9 @@ export default function CalendarView() {
     pendingSelection === null &&
     selectedEvent === null &&
     showCancelConfirm === false &&
+    adminBlockSelection === null &&
+    blockedEventToDelete === null &&
+    fridayToOpen === null &&
     isLoading === false &&
     isDragInteracting === false;
 
@@ -516,6 +675,28 @@ export default function CalendarView() {
         return;
       }
 
+      if (adminBlockSelection) {
+        if (isBlockSubmitting) return;
+        e.preventDefault();
+        setAdminBlockSelection(null);
+        clearDragMirror();
+        return;
+      }
+
+      if (fridayToOpen) {
+        if (isFridayExceptionSubmitting) return;
+        e.preventDefault();
+        setFridayToOpen(null);
+        return;
+      }
+
+      if (blockedEventToDelete) {
+        if (isBlockDeleting) return;
+        e.preventDefault();
+        setBlockedEventToDelete(null);
+        return;
+      }
+
       if (pendingSelection) {
         if (isSubmitting) {
           return;
@@ -541,6 +722,12 @@ export default function CalendarView() {
     return () => window.removeEventListener("keydown", onKeyDown);
   }, [
     isMobile,
+    fridayToOpen,
+    isFridayExceptionSubmitting,
+    adminBlockSelection,
+    isBlockSubmitting,
+    blockedEventToDelete,
+    isBlockDeleting,
     pendingSelection,
     isSubmitting,
     handleReserveModalClose,
@@ -722,6 +909,10 @@ export default function CalendarView() {
   }
 
   function eventClassNames(arg: EventContentArg) {
+    const evType = arg.event.extendedProps.eventType;
+    if (evType === "blocked") {
+      return ["fc-blocked-event"];
+    }
     const end = arg.event.end;
     if (!end) {
       return [];
@@ -735,12 +926,23 @@ export default function CalendarView() {
       | "practice"
       | "jam"
       | "hold"
+      | "blocked"
       | undefined;
 
     if (eventType === "hold") {
       return (
         <div className="fc-custom-event">
           <div className="fc-custom-event-time">{timeText}</div>
+        </div>
+      );
+    }
+
+    if (eventType === "blocked") {
+      return (
+        <div className="fc-custom-event flex h-full flex-col justify-start">
+          <div className="fc-custom-event-title">
+            {arg.event.title || "Practice Room Closed"}
+          </div>
         </div>
       );
     }
@@ -799,6 +1001,11 @@ export default function CalendarView() {
                 <div className="flex items-center gap-2">
                   <span className="h-3 w-3 rounded-full border border-dashed border-neutral-300 bg-white/20" />
                   <span>Temporary hold</span>
+                </div>
+
+                <div className="flex items-center gap-2">
+                  <span className="h-3 w-3 rounded-full border border-dashed border-red-400/75 bg-[rgba(239,68,68,0.16)]" />
+                  <span>Blocked</span>
                 </div>
               </div>
             </div>
@@ -891,6 +1098,7 @@ export default function CalendarView() {
                   | "practice"
                   | "jam"
                   | "hold"
+                  | "blocked"
                   | undefined;
 
                 if (eventType === "hold") {
@@ -898,6 +1106,30 @@ export default function CalendarView() {
                     "This time is temporarily being reserved by another user.",
                     "info",
                   );
+                  return;
+                }
+
+                if (eventType === "blocked") {
+                  if (isAdmin) {
+                    setBlockedEventToDelete({
+                      id: info.event.id,
+                      blockedTimeId:
+                        info.event.extendedProps.blockedTimeId,
+                      eventType,
+                      title: info.event.title,
+                      start:
+                        info.event.start?.toISOString() ||
+                        new Date().toISOString(),
+                      end:
+                        info.event.end?.toISOString() ||
+                        new Date().toISOString(),
+                    });
+                  } else {
+                    showToast(
+                      "This time is blocked off.",
+                      "info",
+                    );
+                  }
                   return;
                 }
 
@@ -932,7 +1164,24 @@ export default function CalendarView() {
                 {fridayJamOverlays.map((o) => (
                   <div
                     key={o.key}
-                    className="absolute overflow-hidden rounded-2xl border-2 border-dashed border-red-400/75 bg-[rgba(239,68,68,0.16)] shadow-[inset_0_1px_0_rgba(255,255,255,0.08),0_8px_24px_rgba(0,0,0,0.22)] backdrop-blur-[6px]"
+                    role={isAdmin ? "button" : undefined}
+                    tabIndex={isAdmin ? 0 : undefined}
+                    onClick={
+                      isAdmin
+                        ? () => setFridayToOpen(o.dateStr)
+                        : undefined
+                    }
+                    onKeyDown={
+                      isAdmin
+                        ? (e) => {
+                            if (e.key === "Enter" || e.key === " ") {
+                              e.preventDefault();
+                              setFridayToOpen(o.dateStr);
+                            }
+                          }
+                        : undefined
+                    }
+                    className={`absolute select-none overflow-hidden rounded-2xl border-2 border-dashed border-red-400/75 bg-[rgba(239,68,68,0.16)] shadow-[inset_0_1px_0_rgba(255,255,255,0.08),0_8px_24px_rgba(0,0,0,0.22)] backdrop-blur-[6px] ${isAdmin ? "pointer-events-auto cursor-pointer outline-none" : ""}`}
                     style={{
                       top: o.top,
                       left: o.left,
@@ -952,7 +1201,11 @@ export default function CalendarView() {
 
             {dragMirror ? (
               <div
-                className="pointer-events-none fixed z-[45] overflow-hidden rounded-2xl border-2 border-dashed border-[rgba(229,229,229,0.7)] bg-[rgba(255,255,255,0.14)] shadow-[inset_0_1px_0_rgba(255,255,255,0.08),0_8px_24px_rgba(0,0,0,0.22)] backdrop-blur-[6px]"
+                className={`pointer-events-none fixed z-[45] overflow-hidden rounded-2xl border-2 border-dashed shadow-[inset_0_1px_0_rgba(255,255,255,0.08),0_8px_24px_rgba(0,0,0,0.22)] backdrop-blur-[6px] ${
+                  isAdmin
+                    ? "border-red-400/75 bg-[rgba(239,68,68,0.16)]"
+                    : "border-[rgba(229,229,229,0.7)] bg-[rgba(255,255,255,0.14)]"
+                }`}
                 style={{
                   top: dragMirror.top,
                   left: dragMirror.left,
@@ -987,6 +1240,44 @@ export default function CalendarView() {
         onClose={handleReserveModalClose}
         onExpire={handleHoldExpire}
         onSubmit={handleReserve}
+        dismissOnBackdrop={isMobile}
+      />
+
+      <BlockTimeModal
+        isOpen={adminBlockSelection !== null}
+        start={adminBlockSelection?.start ?? null}
+        end={adminBlockSelection?.end ?? null}
+        isSubmitting={isBlockSubmitting}
+        onClose={() => { setAdminBlockSelection(null); clearDragMirror(); }}
+        onSubmit={handleAdminBlockSubmit}
+        dismissOnBackdrop={isMobile}
+      />
+
+      <ConfirmModal
+        isOpen={blockedEventToDelete !== null}
+        title="Remove blocked time?"
+        message={
+          blockedEventToDelete
+            ? `This will remove the "${blockedEventToDelete.title}" block (${formatBookingDateRange(new Date(blockedEventToDelete.start), new Date(blockedEventToDelete.end))}) from both calendars, allowing users to book that time.`
+            : ""
+        }
+        confirmLabel="Remove block"
+        cancelLabel="Keep blocked"
+        isLoading={isBlockDeleting}
+        onCancel={() => setBlockedEventToDelete(null)}
+        onConfirm={handleDeleteBlockedTime}
+        dismissOnBackdrop={isMobile}
+      />
+
+      <ConfirmModal
+        isOpen={fridayToOpen !== null}
+        title="Open practice room this Friday?"
+        message="This will remove the Friday afternoon restriction for this date, allowing users to book jam sessions past 2:30 PM."
+        confirmLabel="Open Friday"
+        cancelLabel="Keep closed"
+        isLoading={isFridayExceptionSubmitting}
+        onCancel={() => setFridayToOpen(null)}
+        onConfirm={handleOpenFriday}
         dismissOnBackdrop={isMobile}
       />
 

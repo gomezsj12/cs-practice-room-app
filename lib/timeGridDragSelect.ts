@@ -274,7 +274,7 @@ function clipSelectionStart(
 
 /**
  * Pull `end` back so the selection [start, end) never:
- *  1. Exceeds the 6-hour maximum duration.
+ *  1. Exceeds the 6-hour maximum duration (skipped when `skipMaxCap` is true).
  *  2. Overlaps any busy block on the same calendar day.
  *
  * Two overlap scenarios are handled:
@@ -286,11 +286,13 @@ function clipSelectionEnd(
   start: Date,
   end: Date,
   blockers: BlockingInterval[],
+  skipMaxCap = false,
 ): Date {
   let endMs = end.getTime();
   const startMs = start.getTime();
-  // Hard wall: never exceed MAX_BOOKING_MS from start.
-  endMs = Math.min(endMs, startMs + MAX_BOOKING_MS);
+  if (!skipMaxCap) {
+    endMs = Math.min(endMs, startMs + MAX_BOOKING_MS);
+  }
 
   for (const ev of blockers) {
     const es = new Date(ev.start).getTime();
@@ -321,20 +323,25 @@ function clipSelectionEnd(
  * Pipeline:
  *  1. Order anchor/pointer into [start, end).
  *  2. If the span is smaller than one snap interval, inflate to MIN_BOOKING_MS.
- *  3. Clip start forward past any blockers it sits inside.
- *  4. Clip end backward before any blockers or the 6-hour wall.
- *  5. If the remaining gap is below MIN_BOOKING_MS, try inflating end once more.
- *  6. Clamp end to the grid day boundary (last snap before slotMax).
- *  7. Final MIN_BOOKING_MS check — return null if still too short.
+ *  3. (Non-admin) Clamp upward drags that exceed MAX_BOOKING_MS.
+ *  4. (Upward drags) Push start past any blocker that sits between
+ *     start and end so the selection never jumps through a blocker.
+ *  5. Clip start forward past any blockers it sits inside.
+ *  6. Clip end backward before any blockers or the 6-hour wall.
+ *  7. If the remaining gap is below MIN_BOOKING_MS, try inflating end once more.
+ *  8. Clamp end to the grid day boundary (last snap before slotMax).
+ *  9. Final MIN_BOOKING_MS check — return null if still too short.
  *
  * @param anchor   - The time the user first pressed down.
  * @param pointer  - The time the pointer is currently over (or released at).
  * @param blockers - Busy intervals on the same day to avoid.
+ * @param skipMaxCap - When true (admin mode), the 6-hour maximum is not enforced.
  */
 export function mergeSelectionRange(
   anchor: Date,
   pointer: Date,
   blockers: BlockingInterval[],
+  skipMaxCap = false,
 ): { start: Date; end: Date } | null {
   let start = new Date(Math.min(anchor.getTime(), pointer.getTime()));
   let end = new Date(Math.max(anchor.getTime(), pointer.getTime()));
@@ -344,6 +351,40 @@ export function mergeSelectionRange(
     end = new Date(start.getTime() + MIN_BOOKING_MS);
   }
 
+  // When dragging upward, clamp start so the range never exceeds MAX_BOOKING_MS
+  // while keeping the anchor (bottom) fixed. Without this, clipSelectionEnd would
+  // cap end relative to the moving start, causing the whole block to slide up.
+  if (!skipMaxCap) {
+    const duration = end.getTime() - start.getTime();
+    if (duration > MAX_BOOKING_MS && pointer.getTime() < anchor.getTime()) {
+      start = new Date(end.getTime() - MAX_BOOKING_MS);
+    }
+  }
+
+  // Upward drag: prevent the selection from spanning across blockers.
+  // When the pointer is above the anchor and a blocker sits between them,
+  // push start past the blocker so the range stays anchored at end (the
+  // original click point) and never jumps through to the other side.
+  // For downward drags, clipSelectionEnd handles the equivalent case.
+  if (pointer.getTime() < anchor.getTime()) {
+    let bridgeChanged = true;
+    while (bridgeChanged) {
+      bridgeChanged = false;
+      const startMs = start.getTime();
+      const endMs = end.getTime();
+      for (const ev of blockers) {
+        const es = new Date(ev.start).getTime();
+        const ee = new Date(ev.end).getTime();
+        if (!sameLocalCalendarDay(start, new Date(ev.start))) continue;
+        if (es >= endMs || ee <= startMs) continue;
+        if (ee > startMs && ee < endMs) {
+          start = new Date(ee);
+          bridgeChanged = true;
+        }
+      }
+    }
+  }
+
   // --- Wall-clip pass 1: push start past blockers ---
   start = clipSelectionStart(start, end, blockers);
 
@@ -351,8 +392,8 @@ export function mergeSelectionRange(
     return null;
   }
 
-  // --- Wall-clip pass 2: pull end before blockers / 6h cap ---
-  end = clipSelectionEnd(start, end, blockers);
+  // --- Wall-clip pass 2: pull end before blockers / max cap ---
+  end = clipSelectionEnd(start, end, blockers, skipMaxCap);
 
   if (start.getTime() >= end.getTime()) {
     return null;
@@ -361,7 +402,7 @@ export function mergeSelectionRange(
   // Range might now be shorter than MIN_BOOKING_MS after clipping;
   // try re-expanding end (still respecting blockers).
   if (end.getTime() - start.getTime() < MIN_BOOKING_MS) {
-    end = clipSelectionEnd(start, new Date(start.getTime() + MIN_BOOKING_MS), blockers);
+    end = clipSelectionEnd(start, new Date(start.getTime() + MIN_BOOKING_MS), blockers, skipMaxCap);
   }
 
   if (end.getTime() - start.getTime() < MIN_BOOKING_MS) {
@@ -593,8 +634,18 @@ export function findBodyColumnIndex(
   return null;
 }
 
-/** True when the selection duration falls within the [30 min, 6 h] bookable range. */
-export function selectionIsBookable(start: Date, end: Date): boolean {
+/**
+ * True when the selection duration falls within the bookable range.
+ * Regular users: [30 min, 6 h]. Admins (`skipMaxCap`): 30 min minimum only.
+ */
+export function selectionIsBookable(
+  start: Date,
+  end: Date,
+  skipMaxCap = false,
+): boolean {
   const ms = end.getTime() - start.getTime();
+  if (skipMaxCap) {
+    return ms >= MIN_BOOKING_MS;
+  }
   return ms >= MIN_BOOKING_MS && ms <= MAX_BOOKING_MS;
 }

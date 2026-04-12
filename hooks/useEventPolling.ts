@@ -32,8 +32,11 @@ const REFETCH_COOLDOWN_MS = 5000;
  * @param pendingSelectionRef - When non-null, background refetches are suppressed
  *                              to protect the in-progress booking flow's optimistic UI.
  * @returns `events` state, `setEvents` setter (for optimistic updates),
- *          `isLoading`, `loadEvents` imperative refetch, and a stable
- *          `eventsRef` for read-without-rerender access.
+ *          `isLoading`, `loadEvents` imperative refetch, a stable
+ *          `eventsRef` for read-without-rerender access, and
+ *          `fridayExceptions` / `fridayExceptionsRef` — the set of
+ *          YYYY-MM-DD date strings for Fridays whose afternoon
+ *          restriction has been lifted by an admin.
  */
 export function useEventPolling(
   showToast: (message: string, type: "success" | "error" | "info") => void,
@@ -41,13 +44,18 @@ export function useEventPolling(
   pendingSelectionRef: React.RefObject<PendingSelection | null>,
 ) {
   const [events, setEvents] = useState<CalendarEvent[]>([]);
+  const [fridayExceptions, setFridayExceptions] = useState<Set<string>>(
+    new Set(),
+  );
   const [isLoading, setIsLoading] = useState(true);
   /** Stable ref mirrored from `events` state — lets drag-select read the
    *  latest events inside imperative event handlers without re-subscribing. */
   const eventsRef = useRef<CalendarEvent[]>([]);
+  const fridayExceptionsRef = useRef<Set<string>>(new Set());
   const lastFetchAtRef = useRef(0);
 
   eventsRef.current = events;
+  fridayExceptionsRef.current = fridayExceptions;
 
   const loadEvents = useCallback(
     async (silent = false) => {
@@ -65,7 +73,14 @@ export function useEventPolling(
           throw new Error(data.error || "Failed to load events.");
         }
 
-        setEvents(data);
+        if (Array.isArray(data)) {
+          setEvents(data);
+        } else {
+          setEvents(data.events ?? []);
+          setFridayExceptions(
+            new Set<string>(data.fridayExceptions ?? []),
+          );
+        }
         lastFetchAtRef.current = Date.now();
       } catch (error) {
         console.error(error);
@@ -138,5 +153,13 @@ export function useEventPolling(
     };
   }, [loadEvents, pendingSelectionRef]);
 
-  return { events, setEvents, isLoading, loadEvents, eventsRef };
+  return {
+    events,
+    setEvents,
+    isLoading,
+    loadEvents,
+    eventsRef,
+    fridayExceptions,
+    fridayExceptionsRef,
+  };
 }

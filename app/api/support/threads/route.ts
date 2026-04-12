@@ -42,12 +42,14 @@ export async function GET() {
     let threadQuery = supabase
       .from("support_threads")
       .select(
-        "id, user_email, user_name, status, unread_for_user, created_at, updated_at",
+        "id, user_email, user_name, status, unread_for_user, unread_for_admin, created_at, updated_at",
       )
       .order("updated_at", { ascending: false });
 
     if (!isAdmin) {
-      threadQuery = threadQuery.eq("user_email", userEmail);
+      threadQuery = threadQuery.eq("user_email", userEmail).eq("hidden_from_user", false);
+    } else {
+      threadQuery = threadQuery.eq("hidden_from_admin", false);
     }
 
     const { data: threads, error: threadError } = await threadQuery;

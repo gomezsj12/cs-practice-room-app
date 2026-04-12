@@ -125,6 +125,7 @@ export async function POST(request: NextRequest) {
           user_name: userName,
           status: "open",
           unread_for_user: false,
+          unread_for_admin: true,
         })
         .select("id, created_at")
         .single();

@@ -34,6 +34,7 @@ export async function GET() {
       .from("support_threads")
       .select("unread_for_user")
       .eq("user_email", userEmail)
+      .eq("hidden_from_user", false)
       .eq("unread_for_user", true)
       .limit(1);
 
