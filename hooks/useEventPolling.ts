@@ -31,6 +31,8 @@ const REFETCH_COOLDOWN_MS = 5000;
  * @param status      - NextAuth session status; triggers an initial fetch on change.
  * @param pendingSelectionRef - When non-null, background refetches are suppressed
  *                              to protect the in-progress booking flow's optimistic UI.
+ * @param profileRefreshKey   - When this value changes (e.g. session `profileUpdatedAt`),
+ *                              events are refetched so admin-only affordances stay correct.
  * @returns `events` state, `setEvents` setter (for optimistic updates),
  *          `isLoading`, `loadEvents` imperative refetch, a stable
  *          `eventsRef` for read-without-rerender access, and
@@ -42,6 +44,7 @@ export function useEventPolling(
   showToast: (message: string, type: "success" | "error" | "info") => void,
   status: "loading" | "authenticated" | "unauthenticated",
   pendingSelectionRef: React.RefObject<PendingSelection | null>,
+  profileRefreshKey?: string | null,
 ) {
   const [events, setEvents] = useState<CalendarEvent[]>([]);
   const [fridayExceptions, setFridayExceptions] = useState<Set<string>>(
@@ -99,7 +102,7 @@ export function useEventPolling(
 
   useEffect(() => {
     loadEvents();
-  }, [status, loadEvents]);
+  }, [status, loadEvents, profileRefreshKey]);
 
   // Background polling — 30 s cadence, skipped when tab is hidden or a
   // booking flow is active to avoid clobbering optimistic hold events.

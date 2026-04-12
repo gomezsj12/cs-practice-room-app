@@ -4,9 +4,8 @@
  * Manages the lifecycle of profile syncing:
  * - **Manual sync** via `triggerManualSync()` with a 30 s rate limit.
  * - **Auto-sync** on mount and every 60 s in the background (updates Supabase
- *   only; skips `session.update()` unless `bookingAccess` or `isAdmin`
- *   would change (per `/api/profile/sync` hints), so the app does not re-render
- *   on every tick).
+ *   only; skips `session.update()` unless booking/admin flags change or
+ *   `profiles.updated_at` changed, so the app does not re-render on every tick).
  * - **Rotation state** for the refresh icon animation (minimum 2 full
  *   rotations at 1.5 s each = 3 s spin floor).
  * - **Cooldown timer** for the rate-limit countdown display — only
@@ -87,7 +86,11 @@ export function useProfileSync(enabled: boolean): UseProfileSyncReturn {
       const body: unknown = await res.json();
       if (!body || typeof body !== "object") return;
       const o = body as {
-        profile?: { notion_page_id?: string | null; type?: string | null };
+        profile?: {
+          notion_page_id?: string | null;
+          type?: string | null;
+          updated_at?: string;
+        };
         sessionBookingAccess?: boolean;
         sessionIsAdmin?: boolean;
       };
@@ -104,7 +107,16 @@ export function useProfileSync(enabled: boolean): UseProfileSyncReturn {
           : (sessionRef.current?.isAdmin ?? false);
       const prevBookingAccess = !!sessionRef.current?.bookingAccess;
       const prevIsAdmin = !!sessionRef.current?.isAdmin;
-      if (nextBookingAccess !== prevBookingAccess || nextIsAdmin !== prevIsAdmin) {
+      const nextStamp =
+        typeof profile?.updated_at === "string" ? profile.updated_at : null;
+      const prevStamp = sessionRef.current?.profileUpdatedAt ?? null;
+      const profileRowChanged =
+        nextStamp != null && nextStamp !== prevStamp;
+      if (
+        nextBookingAccess !== prevBookingAccess ||
+        nextIsAdmin !== prevIsAdmin ||
+        profileRowChanged
+      ) {
         await updateRef.current();
       }
     } catch {

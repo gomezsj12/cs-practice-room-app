@@ -255,7 +255,12 @@ export default function CalendarView() {
     eventsRef,
     fridayExceptions,
     fridayExceptionsRef,
-  } = useEventPolling(showToast, status, pendingSelectionRef);
+  } = useEventPolling(
+    showToast,
+    status,
+    pendingSelectionRef,
+    session?.profileUpdatedAt,
+  );
 
   const {
     pendingSelection,

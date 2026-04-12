@@ -4,8 +4,9 @@
  * @module BookingContent
  *
  * Reactive client component for the `/booking` page. Uses `useSession()` to
- * immediately reflect session changes (e.g. after profile creation) without
- * needing a full page refresh.
+ * immediately reflect session changes (e.g. after profile creation, email edit,
+ * or Notion sync) via `session.bookingAccess` / `session.profileUpdatedAt`
+ * without a full page refresh.
  *
  * Three states:
  * 1. **Not ready** — user isn't signed in or profile isn't complete → sign-in prompt.
@@ -79,6 +80,9 @@ function BookingFormIframe({ formUrl }: { formUrl: string }) {
 
 export default function BookingContent({ filloutBaseUrl }: Props) {
   const { data: session, status: sessionStatus } = useSession();
+  const sessionBookingAccess = session?.bookingAccess;
+  const sessionIsAdmin = session?.isAdmin;
+  const profileUpdatedAt = session?.profileUpdatedAt;
   const [state, setState] = useState<State>({ status: "loading" });
 
   const isReady =
@@ -125,7 +129,14 @@ export default function BookingContent({ filloutBaseUrl }: Props) {
     return () => {
       cancelled = true;
     };
-  }, [sessionStatus, isReady, filloutBaseUrl]);
+  }, [
+    sessionStatus,
+    isReady,
+    filloutBaseUrl,
+    sessionBookingAccess,
+    sessionIsAdmin,
+    profileUpdatedAt,
+  ]);
 
   if (state.status === "loading") {
     return (

@@ -8,8 +8,9 @@
  * Supabase on every sign-in and session update. Booking access follows
  * Notion page id plus Type allowlist; admin is `ADMIN_EMAILS` or Notion
  * Type Leadership (see {@link profileHasBookingAccess}, {@link isEffectiveAppAdmin}).
- * The `session` callback exposes `profileComplete`, `bookingAccess`, and
- * `isAdmin` for client gating.
+ * The `session` callback exposes `profileComplete`, `bookingAccess`,
+ * `isAdmin`, and `profileUpdatedAt` (Supabase `profiles.updated_at`) so
+ * clients can refetch UI when the profile row changes without signing out.
  *
  * Exports:
  * - `handlers` — `GET` / `POST` route handlers re-exported in
@@ -42,13 +43,14 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
         trigger === "update" ||
         token.profileComplete === undefined ||
         token.bookingAccess === undefined ||
-        token.isAdmin === undefined
+        token.isAdmin === undefined ||
+        token.profileUpdatedAt === undefined
       ) {
         try {
           const supabase = getSupabaseAdmin();
           const { data } = await supabase
             .from("profiles")
-            .select("id, notion_page_id, type")
+            .select("id, notion_page_id, type, updated_at")
             .ilike("google_email", token.email!.trim())
             .single();
           token.profileComplete = !!data;
@@ -57,10 +59,13 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
             data?.type ?? null,
           );
           token.isAdmin = isEffectiveAppAdmin(token.email, data?.type ?? null);
+          token.profileUpdatedAt =
+            typeof data?.updated_at === "string" ? data.updated_at : undefined;
         } catch {
           token.profileComplete = false;
           token.bookingAccess = false;
           token.isAdmin = false;
+          token.profileUpdatedAt = undefined;
         }
       }
       return token;
@@ -69,6 +74,7 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
       session.profileComplete = token.profileComplete;
       session.bookingAccess = token.bookingAccess;
       session.isAdmin = token.isAdmin;
+      session.profileUpdatedAt = token.profileUpdatedAt;
       return session;
     },
   },

@@ -9,8 +9,9 @@
  *
  * - The WWU email field is **required** (cannot be cleared).
  * - Closing the modal does NOT sign the user out; it simply dismisses.
- * - After a successful update the NextAuth session is refreshed so
- *   booking-access flags stay current.
+ * - After a successful update the NextAuth session is refreshed immediately
+ *   (and again on Done) so header card, booking, calendar, and support UIs
+ *   pick up new access without signing out.
  *
  * Three-phase UI flow:
  * 1. **form** — edit the autofilled WWU email with format validation.
@@ -122,15 +123,16 @@ export default function EditProfileModal({
       setHasBookingAccess(!!newBookingAccess);
       setPreviousBookingAccess(!!prevAccess);
       apiFinished.current = true;
+      await update();
     } catch {
       setServerError("Network error — please try again");
       setPhase("form");
     }
   }
 
-  function handleDismiss() {
+  async function handleDismiss() {
     if (phase === "done") {
-      void update();
+      await update();
     }
     onClose();
   }

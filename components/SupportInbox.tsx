@@ -198,7 +198,7 @@ export default function SupportInbox() {
     return () => {
       window.clearInterval(interval);
     };
-  }, [loadThread, loadThreads, status]);
+  }, [loadThread, loadThreads, status, isAdmin]);
 
   useEffect(() => {
     if (status !== "authenticated") {
@@ -210,7 +210,7 @@ export default function SupportInbox() {
     setThread(null);
     setMessages([]);
     void loadThread({ showConversationLoader: true });
-  }, [loadThread, selectedThreadId, status]);
+  }, [loadThread, selectedThreadId, status, isAdmin]);
 
   // Fire-and-forget: clear unread for the current role when opening a thread.
   useEffect(() => {

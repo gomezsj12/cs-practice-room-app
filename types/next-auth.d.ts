@@ -6,6 +6,8 @@ declare module "next-auth" {
     profileComplete?: boolean;
     bookingAccess?: boolean;
     isAdmin?: boolean;
+    /** ISO timestamp from `profiles.updated_at`; bumps on sync / profile edits. */
+    profileUpdatedAt?: string;
   }
 }
 
@@ -14,5 +16,6 @@ declare module "next-auth/jwt" {
     profileComplete?: boolean;
     bookingAccess?: boolean;
     isAdmin?: boolean;
+    profileUpdatedAt?: string;
   }
 }
