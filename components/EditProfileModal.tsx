@@ -141,7 +141,10 @@ export default function EditProfileModal({
   const user = session?.user;
 
   return createPortal(
-    <div className="fixed inset-0 z-[9999] flex items-center justify-center bg-black/80 backdrop-blur-xl">
+    <div
+      data-blocking-app-modal
+      className="fixed inset-0 z-[9999] flex items-center justify-center bg-black/80 backdrop-blur-xl"
+    >
       <div className="relative mx-4 w-full max-w-md rounded-3xl border border-white/10 bg-[#0e0e0e] p-8 shadow-2xl shadow-black/40">
         {/* Close button */}
         <button

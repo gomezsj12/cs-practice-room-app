@@ -35,6 +35,22 @@ The header appears on every page via `app/layout.tsx` → `components/SiteHeader
 - Desktop (1440×900): [desktop-homepage-top.png](screenshots/desktop-homepage-top.png) — header, nav pills inline, auth card right-aligned
 - Mobile (390×844): [mobile-homepage-top.png](screenshots/mobile-homepage-top.png) — nav pills wrap, auth card stacks below heading
 
+### Desktop keyboard shortcuts (wide layout only)
+
+On viewports **≥ 1152px** (same **`hd`** breakpoint as the three-column header), single-letter shortcuts mirror main nav and the auth card. They do **not** run on smaller windows, while typing in inputs or embedded iframes, or when a blocking modal overlay is open (full-screen dialogs such as reserve, confirm, account setup, edit profile, event details, block time). **Escape** is unchanged. The **PWA install** banner and **toast** notifications do **not** block shortcuts.
+
+| Key | Action |
+| --- | --- |
+| **H** | Go to Home (`/`) |
+| **B** | Go to Booking |
+| **C** | Go to Calendar |
+| **S** | Go to Support |
+| **R** | Same as the auth card “sync profile with Notion” control (respects cooldown) |
+| **I** (hold ~0.5s) | Sign in with Google (when signed out) |
+| **O** (hold ~0.5s) | Sign out (when signed in) |
+
+Optional: wrap a subtree in **`data-disable-nav-shortcuts`** to opt out (e.g. custom widgets).
+
 ### Auth card (per-page context)
 
 The auth card below the header changes its helper text depending on the current page:

@@ -355,13 +355,15 @@ cs-practice-room-app/
 │   ├── AuthButton.tsx             # Sign in/out button with loading/signed-in/signed-out states
 │   ├── AuthProvider.tsx           # NextAuth SessionProvider wrapper + AccountSetupModal mount
 │   ├── CalendarView.tsx           # Calendar orchestration: FullCalendar + hooks + modals + overlays
-│   ├── ConfirmModal.tsx           # Generic confirm/cancel dialog
+│   ├── ConfirmModal.tsx           # Generic confirm/cancel dialog (`data-blocking-app-modal` on overlay)
+│   ├── auth-card-shortcut-actions-context.tsx # React context: sign-in/out + profile reload for desktop shortcuts
 │   ├── ContactSupportForm.tsx     # Homepage contact form (creates support thread)
+│   ├── DesktopNavShortcuts.tsx    # Desktop (≥1152px) letter shortcuts: nav + auth; skips inputs/iframes/modals
 │   ├── EventDetailsModal.tsx      # Event detail popup: practice vs jam info, cancel button
 │   ├── InstallPrompt.tsx          # PWA install prompt (Chromium beforeinstallprompt + iOS hint)
 │   ├── ReserveModal.tsx           # Booking form: name + instrument, hold countdown, mode states
 │   ├── ServiceWorkerRegistration.tsx # Registers /sw.js in production
-│   ├── SiteHeader.tsx             # Global header: brand, navigation links, auth button
+│   ├── SiteHeader.tsx             # Global header: brand, nav links, auth button, shortcut-actions provider + DesktopNavShortcuts
 │   ├── SupportInbox.tsx           # Support thread list + conversation view + message composer
 │   ├── SupportNavLink.tsx         # Nav link with unread badge indicator
 │   └── Toast.tsx                  # Fixed bottom-right toast notification
@@ -449,6 +451,19 @@ Path alias: `@/*` → project root (`tsconfig.json`).
 
 - Client wrapper: **`SessionProvider`** from `next-auth/react`.
 - Mounts **`AccountSetupModal`** globally so it appears over any page when profile setup is incomplete.
+
+### `components/SiteHeader.tsx`
+
+- Renders the global header grid (brand, nav pills, auth card).
+- Wraps the header and **`DesktopNavShortcuts`** in **`AuthCardShortcutActionsContext`**, with state updated by **`AuthButton`** via **`onShortcutActionsChange`**, so keyboard shortcuts call the same handlers as the visible buttons (including profile sync cooldown).
+
+### Desktop keyboard shortcuts (`components/DesktopNavShortcuts.tsx`)
+
+- **Active only** when the viewport is at least **1152px** wide (matches the custom **`hd`** Tailwind breakpoint / `72rem` in `globals.css`).
+- **Not active** while focus is in a text-like control, **`contenteditable`**, an **`iframe`**, an element inside **`data-disable-nav-shortcuts`**, or while any **`[data-blocking-app-modal]`** element exists in the document (so **Escape** and in-modal typing behave normally). The PWA **install** card and **`Toast`** are **not** blocking overlays.
+- **Navigation (single key, no modifiers):** **H** Home (`/`), **B** Booking, **C** Calendar, **S** Support.
+- **Auth card:** **R** triggers the same manual profile sync as the refresh icon (**`useProfileSync.triggerManualSync`**, including cooldown). **I** and **O** require a **~500ms hold** and match **Sign in** / **Sign out** when those actions apply.
+- **Modal convention:** Full-screen modal roots (`ConfirmModal`, `AccountSetupModal`, `EditProfileModal`, `ReserveModal`, `BlockTimeModal`, `EventDetailsModal`) set **`data-blocking-app-modal`** on their fixed overlay root. Add the same attribute to any new blocking dialog.
 
 ### `components/AuthButton.tsx`
 

@@ -15,10 +15,12 @@
  * @see useProfileSync — powers the refresh icon and auto-sync
  */
 
-import { useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { signIn, signOut, useSession } from "next-auth/react";
 import { usePathname } from "next/navigation";
 import EditProfileModal from "@/components/EditProfileModal";
+import type { AuthCardShortcutActions } from "@/components/auth-card-shortcut-actions-context";
+import { DEFAULT_AUTH_CARD_SHORTCUT_ACTIONS } from "@/components/auth-card-shortcut-actions-context";
 import { useProfileSync } from "@/hooks/useProfileSync";
 
 const authCardShell =
@@ -132,7 +134,13 @@ function headerSignedInBody(
  *   (via {@link useProfileSync}). The icon rotates while syncing, and shows
  *   a red cooldown counter when rate-limited (1 manual sync per 30 s).
  */
-export default function AuthButton() {
+type AuthButtonProps = {
+  onShortcutActionsChange?: (actions: AuthCardShortcutActions) => void;
+};
+
+export default function AuthButton({
+  onShortcutActionsChange,
+}: AuthButtonProps) {
   const { data: session, status } = useSession();
   const pathname = usePathname() || "/";
 
@@ -156,6 +164,44 @@ export default function AuthButton() {
   const handleSignOut = () => {
     void signOut({ callbackUrl: "/" });
   };
+
+  const shortcutActions = useMemo<AuthCardShortcutActions>(
+    () => ({
+      reloadProfile: () => {
+        if (session?.user?.email && profileComplete) {
+          triggerManualSync();
+        }
+      },
+      signIn: () => {
+        if (!session?.user?.email && status !== "loading") {
+          void signIn("google", { callbackUrl: pathname || "/" });
+        }
+      },
+      signOut: () => {
+        if (session?.user?.email) {
+          void signOut({ callbackUrl: "/" });
+        }
+      },
+    }),
+    [
+      session?.user?.email,
+      status,
+      profileComplete,
+      triggerManualSync,
+      pathname,
+    ],
+  );
+
+  useEffect(() => {
+    if (onShortcutActionsChange) {
+      onShortcutActionsChange(shortcutActions);
+    }
+  }, [shortcutActions, onShortcutActionsChange]);
+
+  useEffect(() => {
+    if (!onShortcutActionsChange) return;
+    return () => onShortcutActionsChange(DEFAULT_AUTH_CARD_SHORTCUT_ACTIONS);
+  }, [onShortcutActionsChange]);
 
   async function handleOpenEdit() {
     setLoadingProfile(true);

@@ -175,6 +175,7 @@ export default function ReserveModal({
 
   return (
     <div
+      data-blocking-app-modal
       className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 p-4"
       onMouseDown={(e) => {
         if (!dismissOnBackdrop || isSubmitting) {
