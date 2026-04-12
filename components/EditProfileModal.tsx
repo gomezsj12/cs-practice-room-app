@@ -25,6 +25,7 @@
 import { useEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import { useSession } from "next-auth/react";
+import { SESSION_JWT_REFRESH_PAYLOAD } from "@/lib/session-refresh";
 
 const WWU_EMAIL_RE = /^[A-Za-z]+\.[A-Za-z]+@wallawalla\.edu$/;
 
@@ -123,7 +124,7 @@ export default function EditProfileModal({
       setHasBookingAccess(!!newBookingAccess);
       setPreviousBookingAccess(!!prevAccess);
       apiFinished.current = true;
-      await update();
+      await update(SESSION_JWT_REFRESH_PAYLOAD);
     } catch {
       setServerError("Network error — please try again");
       setPhase("form");
@@ -132,7 +133,7 @@ export default function EditProfileModal({
 
   async function handleDismiss() {
     if (phase === "done") {
-      await update();
+      await update(SESSION_JWT_REFRESH_PAYLOAD);
     }
     onClose();
   }

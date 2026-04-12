@@ -12,6 +12,12 @@
  * `isAdmin`, and `profileUpdatedAt` (Supabase `profiles.updated_at`) so
  * clients can refetch UI when the profile row changes without signing out.
  *
+ * **Client `session.update()`:** In Auth.js, `update()` with **no argument**
+ * only GETs the session and does **not** re-run the JWT callback with
+ * `trigger: "update"`. Pass a payload (e.g. `{}` via `SESSION_JWT_REFRESH_PAYLOAD`
+ * in `lib/session-refresh.ts`) so the client POSTs and Supabase profile fields
+ * are re-read into the token.
+ *
  * Exports:
  * - `handlers` — `GET` / `POST` route handlers re-exported in
  *   `app/api/auth/[...nextauth]/route.ts`.

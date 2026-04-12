@@ -4,7 +4,7 @@
  * Manages the lifecycle of profile syncing:
  * - **Manual sync** via `triggerManualSync()` with a 30 s rate limit.
  * - **Auto-sync** on mount and every 60 s in the background (updates Supabase
- *   only; skips `session.update()` unless booking/admin flags change or
+ *   only; skips `session.update({})` unless booking/admin flags change or
  *   `profiles.updated_at` changed, so the app does not re-render on every tick).
  * - **Rotation state** for the refresh icon animation (minimum 2 full
  *   rotations at 1.5 s each = 3 s spin floor).
@@ -20,6 +20,7 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { useSession } from "next-auth/react";
 import { profileHasBookingAccess } from "@/lib/profile-access";
+import { SESSION_JWT_REFRESH_PAYLOAD } from "@/lib/session-refresh";
 
 const MANUAL_COOLDOWN_MS = 30_000;
 const AUTO_SYNC_INTERVAL_MS = 60_000;
@@ -117,7 +118,7 @@ export function useProfileSync(enabled: boolean): UseProfileSyncReturn {
         nextIsAdmin !== prevIsAdmin ||
         profileRowChanged
       ) {
-        await updateRef.current();
+        await updateRef.current(SESSION_JWT_REFRESH_PAYLOAD);
       }
     } catch {
       /* silent */
@@ -206,7 +207,7 @@ export function useProfileSync(enabled: boolean): UseProfileSyncReturn {
       syncInProgressRef.current = true;
       try {
         const res = await fetch("/api/profile/sync", { method: "POST" });
-        if (res.ok) await updateRef.current();
+        if (res.ok) await updateRef.current(SESSION_JWT_REFRESH_PAYLOAD);
       } catch {
         /* error state handled after spin */
       } finally {
