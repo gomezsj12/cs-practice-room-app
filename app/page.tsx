@@ -5,7 +5,8 @@
  * 1. **Hero banner** (desktop-only) — introduces the app's purpose.
  * 2. **Contact card** — embeds `ContactSupportForm` for quick support.
  * 3. **Resources card** — optional Telegram group chat (shown when
- *    `NEXT_PUBLIC_TELEGRAM_GROUP_URL` is set).
+ *    `NEXT_PUBLIC_TELEGRAM_GROUP_URL` is set), user guide, Terms & Conditions,
+ *    and Meet with us links.
  *
  * This is a server component; dynamic client behaviour comes from
  * `ContactSupportForm` (client component imported within).
@@ -32,6 +33,18 @@ function TelegramIcon() {
     >
       <path d="M21.2 4.8a1.3 1.3 0 0 0-1.6-.2L3.8 10.9a1.3 1.3 0 0 0 .1 2.4l3.6 1.4 1.4 4.5a1.3 1.3 0 0 0 2.2.5l2.1-2.2 3.6 2.7a1.3 1.3 0 0 0 2.1-.8l2.5-13a1.3 1.3 0 0 0-.4-1.3ZM9.8 16.3l-.8-2.7 7.4-5.8-6.6 6.8v1.7Zm7.4 1-3.1-2.3c-.2-.1-.4-.2-.7-.2l4.9-5.1-1.1 7.6Z" />
     </svg>
+  );
+}
+
+/** Question mark — user guide link. */
+function HelpQuestionIcon() {
+  return (
+    <span
+      aria-hidden="true"
+      className="shrink-0 text-2xl font-bold leading-none text-red-200"
+    >
+      ?
+    </span>
   );
 }
 
@@ -214,6 +227,15 @@ export default function Home() {
                   `NEXT_PUBLIC_TELEGRAM_GROUP_URL`.
                 </div>
               )}
+              <a
+                href="https://cspracticeroom.notion.site/CS-Practice-Room-App-User-Guide-340ded29cbc680cbbd42dcb834cce589"
+                target="_blank"
+                rel="noreferrer"
+                className="inline-flex items-center gap-2 rounded-2xl border border-red-500/50 bg-red-600/20 px-4 py-4 text-sm font-medium text-red-100 transition hover:border-red-400/70 hover:bg-red-600/30 hover:text-white"
+              >
+                <HelpQuestionIcon />
+                <span>How to use this app</span>
+              </a>
               <a
                 href="https://cspracticeroom.fillout.com/terms_and_conditions"
                 target="_blank"
