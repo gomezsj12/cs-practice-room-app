@@ -4,8 +4,9 @@
  * Manages the lifecycle of profile syncing:
  * - **Manual sync** via `triggerManualSync()` with a 30 s rate limit.
  * - **Auto-sync** on mount and every 60 s in the background (updates Supabase
- *   only; skips `session.update()` unless `bookingAccess` would change, so the
- *   app does not re-render on every tick).
+ *   only; skips `session.update()` unless `bookingAccess` or `isAdmin`
+ *   would change (per `/api/profile/sync` hints), so the app does not re-render
+ *   on every tick).
  * - **Rotation state** for the refresh icon animation (minimum 2 full
  *   rotations at 1.5 s each = 3 s spin floor).
  * - **Cooldown timer** for the rate-limit countdown display — only
@@ -19,6 +20,7 @@
 
 import { useCallback, useEffect, useRef, useState } from "react";
 import { useSession } from "next-auth/react";
+import { profileHasBookingAccess } from "@/lib/profile-access";
 
 const MANUAL_COOLDOWN_MS = 30_000;
 const AUTO_SYNC_INTERVAL_MS = 60_000;
@@ -73,9 +75,8 @@ export function useProfileSync(enabled: boolean): UseProfileSyncReturn {
 
   /**
    * Fire-and-forget background sync (no animation, no cooldown).
-   * Does not call `session.update()` unless Notion sync changed whether the user
-   * has booking access (`notion_page_id`), avoiding a full session refetch and
-   * tree re-render every interval.
+   * Calls `session.update()` only when sync response indicates `bookingAccess`
+   * or `isAdmin` would change.
    */
   const performBackgroundSync = useCallback(async () => {
     if (syncInProgressRef.current) return;
@@ -84,17 +85,26 @@ export function useProfileSync(enabled: boolean): UseProfileSyncReturn {
       const res = await fetch("/api/profile/sync", { method: "POST" });
       if (!res.ok) return;
       const body: unknown = await res.json();
-      const profile =
-        body &&
-        typeof body === "object" &&
-        "profile" in body &&
-        body.profile &&
-        typeof body.profile === "object"
-          ? (body.profile as { notion_page_id?: string | null })
-          : null;
-      const nextBookingAccess = !!profile?.notion_page_id;
+      if (!body || typeof body !== "object") return;
+      const o = body as {
+        profile?: { notion_page_id?: string | null; type?: string | null };
+        sessionBookingAccess?: boolean;
+        sessionIsAdmin?: boolean;
+      };
+      const profile = o.profile;
+      const nextBookingAccess =
+        typeof o.sessionBookingAccess === "boolean"
+          ? o.sessionBookingAccess
+          : profile
+            ? profileHasBookingAccess(profile.notion_page_id, profile.type)
+            : false;
+      const nextIsAdmin =
+        typeof o.sessionIsAdmin === "boolean"
+          ? o.sessionIsAdmin
+          : (sessionRef.current?.isAdmin ?? false);
       const prevBookingAccess = !!sessionRef.current?.bookingAccess;
-      if (nextBookingAccess !== prevBookingAccess) {
+      const prevIsAdmin = !!sessionRef.current?.isAdmin;
+      if (nextBookingAccess !== prevBookingAccess || nextIsAdmin !== prevIsAdmin) {
         await updateRef.current();
       }
     } catch {

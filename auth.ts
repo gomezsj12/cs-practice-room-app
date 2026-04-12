@@ -5,10 +5,11 @@
  * sessions (no database adapter needed).
  *
  * The `jwt` callback checks whether the user has a completed profile in
- * Supabase on every sign-in and session update, and determines admin status
- * from the `ADMIN_EMAILS` env var. The `session` callback exposes
- * `profileComplete`, booking access, and `isAdmin` so client components can
- * gate the account-setup modal, booking messaging, and admin features.
+ * Supabase on every sign-in and session update. Booking access follows
+ * Notion page id plus Type allowlist; admin is `ADMIN_EMAILS` or Notion
+ * Type Leadership (see {@link profileHasBookingAccess}, {@link isEffectiveAppAdmin}).
+ * The `session` callback exposes `profileComplete`, `bookingAccess`, and
+ * `isAdmin` for client gating.
  *
  * Exports:
  * - `handlers` — `GET` / `POST` route handlers re-exported in
@@ -24,7 +25,8 @@
 
 import NextAuth from "next-auth";
 import Google from "next-auth/providers/google";
-import { isAdminEmail } from "@/lib/admin";
+import { isEffectiveAppAdmin } from "@/lib/admin";
+import { profileHasBookingAccess } from "@/lib/profile-access";
 import { getSupabaseAdmin } from "@/lib/supabase";
 
 export const { handlers, auth, signIn, signOut } = NextAuth({
@@ -39,18 +41,22 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
         account ||
         trigger === "update" ||
         token.profileComplete === undefined ||
-        token.bookingAccess === undefined
+        token.bookingAccess === undefined ||
+        token.isAdmin === undefined
       ) {
         try {
           const supabase = getSupabaseAdmin();
           const { data } = await supabase
             .from("profiles")
-            .select("id, notion_page_id")
-            .eq("google_email", token.email!)
+            .select("id, notion_page_id, type")
+            .ilike("google_email", token.email!.trim())
             .single();
           token.profileComplete = !!data;
-          token.bookingAccess = !!data?.notion_page_id;
-          token.isAdmin = isAdminEmail(token.email);
+          token.bookingAccess = profileHasBookingAccess(
+            data?.notion_page_id ?? null,
+            data?.type ?? null,
+          );
+          token.isAdmin = isEffectiveAppAdmin(token.email, data?.type ?? null);
         } catch {
           token.profileComplete = false;
           token.bookingAccess = false;

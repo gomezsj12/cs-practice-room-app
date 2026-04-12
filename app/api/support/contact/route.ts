@@ -25,6 +25,7 @@ import {
   toSupportThreadKey,
   truncateForTelegramForumTopic,
 } from "@/lib/support";
+import { isMissingSupportSoftDeleteColumnsError } from "@/lib/support-schema";
 import { getSupabaseAdmin } from "@/lib/supabase";
 
 const MIN_MESSAGE_LENGTH = 10;
@@ -118,17 +119,37 @@ export async function POST(request: NextRequest) {
 
     try {
       const supabase = getSupabaseAdmin();
-      const { data: newThread, error: newThreadError } = await supabase
+      const insertPayload = {
+        user_email: normalizedUserEmail,
+        user_name: userName,
+        status: "open",
+        unread_for_user: false,
+        unread_for_admin: true,
+      };
+
+      let { data: newThread, error: newThreadError } = await supabase
         .from("support_threads")
-        .insert({
-          user_email: normalizedUserEmail,
-          user_name: userName,
-          status: "open",
-          unread_for_user: false,
-          unread_for_admin: true,
-        })
+        .insert(insertPayload)
         .select("id, created_at")
         .single();
+
+      if (
+        newThreadError &&
+        isMissingSupportSoftDeleteColumnsError(newThreadError)
+      ) {
+        const legacy = await supabase
+          .from("support_threads")
+          .insert({
+            user_email: normalizedUserEmail,
+            user_name: userName,
+            status: "open",
+            unread_for_user: false,
+          })
+          .select("id, created_at")
+          .single();
+        newThread = legacy.data;
+        newThreadError = legacy.error;
+      }
 
       if (newThreadError || !newThread?.id || !newThread.created_at) {
         throw newThreadError || new Error("Could not create support thread.");

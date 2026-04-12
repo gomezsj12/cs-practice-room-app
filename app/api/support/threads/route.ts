@@ -1,29 +1,50 @@
 /**
  * @file List support threads endpoint (`GET /api/support/threads`).
  *
- * Returns all support threads owned by the signed-in user, each enriched with
- * a message summary (latest message body/author, user & admin message counts).
- *
- * Two Supabase queries run sequentially:
- * 1. Fetch threads for the user, ordered by `updated_at DESC`.
- * 2. Fetch all messages for those thread IDs in a single `IN` query, then
- *    aggregate per-thread counts and latest-message metadata in-memory.
- *
- * @see {@link @/lib/types} — `ThreadSummary`
- * @see {@link @/app/api/support/thread/route} — fetch a single thread with full messages
+ * Returns support threads with message summaries. Uses soft-delete filters when
+ * the DB migration is present; falls back to a legacy query otherwise.
  */
 
 import { NextResponse } from "next/server";
 import { auth } from "@/auth";
-import { isAdminEmail } from "@/lib/admin";
+import { isAppAdmin } from "@/lib/admin";
+import { isMissingSupportSoftDeleteColumnsError } from "@/lib/support-schema";
 import { getSupabaseAdmin } from "@/lib/supabase";
 import type { ThreadSummary } from "@/lib/types";
 
-/**
- * Handles `GET /api/support/threads`.
- *
- * Returns `{ threads: ThreadSummary[] }` for the authenticated user.
- */
+type ThreadRow = Record<string, unknown> & {
+  id: string;
+  user_email: string;
+  user_name: string | null;
+  status: string;
+  unread_for_user: boolean;
+  created_at: string;
+  updated_at: string;
+};
+
+function toSummary(
+  thread: ThreadRow,
+  latest: { body: string; author_type: string; created_at: string } | undefined,
+  counts: { userMessageCount: number; adminMessageCount: number },
+): ThreadSummary {
+  return {
+    id: thread.id,
+    user_email: thread.user_email,
+    user_name: thread.user_name,
+    status: thread.status,
+    unread_for_user: thread.unread_for_user,
+    unread_for_admin: Boolean(thread.unread_for_admin),
+    created_at: thread.created_at,
+    updated_at: thread.updated_at,
+    latest_message_body: latest?.body ?? null,
+    latest_message_author_type:
+      (latest?.author_type as "user" | "admin" | undefined) ?? null,
+    latest_message_created_at: latest?.created_at ?? null,
+    user_message_count: counts.userMessageCount,
+    admin_message_count: counts.adminMessageCount,
+  };
+}
+
 export async function GET() {
   try {
     const session = await auth();
@@ -36,7 +57,7 @@ export async function GET() {
       );
     }
 
-    const isAdmin = isAdminEmail(userEmail);
+    const isAdmin = await isAppAdmin(userEmail);
     const supabase = getSupabaseAdmin();
 
     let threadQuery = supabase
@@ -52,13 +73,31 @@ export async function GET() {
       threadQuery = threadQuery.eq("hidden_from_admin", false);
     }
 
-    const { data: threads, error: threadError } = await threadQuery;
+    let { data: threads, error: threadError } = await threadQuery;
+
+    if (threadError && isMissingSupportSoftDeleteColumnsError(threadError)) {
+      console.warn(
+        "support_threads: soft-delete columns missing; using legacy list query. Apply supabase/migrations/20260412120000_support_soft_delete_and_admin_unread.sql",
+      );
+      let legacyQuery = supabase
+        .from("support_threads")
+        .select(
+          "id, user_email, user_name, status, unread_for_user, created_at, updated_at",
+        )
+        .order("updated_at", { ascending: false });
+      if (!isAdmin) {
+        legacyQuery = legacyQuery.eq("user_email", userEmail);
+      }
+      const legacy = await legacyQuery;
+      threads = legacy.data as typeof threads;
+      threadError = legacy.error;
+    }
 
     if (threadError) {
       throw threadError;
     }
 
-    const threadRows = threads ?? [];
+    const threadRows = (threads ?? []) as ThreadRow[];
     if (!threadRows.length) {
       return NextResponse.json({ threads: [] });
     }
@@ -102,14 +141,7 @@ export async function GET() {
         userMessageCount: 0,
         adminMessageCount: 0,
       };
-      return {
-        ...thread,
-        latest_message_body: latest?.body ?? null,
-        latest_message_author_type: latest?.author_type ?? null,
-        latest_message_created_at: latest?.created_at ?? null,
-        user_message_count: counts.userMessageCount,
-        admin_message_count: counts.adminMessageCount,
-      };
+      return toSummary(thread, latest, counts);
     });
 
     return NextResponse.json({ threads: summaries });

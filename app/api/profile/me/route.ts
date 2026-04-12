@@ -4,7 +4,7 @@
  * - `GET  /api/profile/me` — returns the full profile row.
  * - `PATCH /api/profile/me` — updates the WWU email, re-runs the Notion
  *   people-DB lookup, and patches the profile with fresh Notion-derived
- *   fields (departments, sj_band, type, notion_page_id).
+ *   fields (departments, sj_band, type, notion_page_id, is_admin mirror).
  *
  * Returns 401 if unauthenticated, 404 if no profile row exists.
  *
@@ -13,7 +13,9 @@
 
 import { NextResponse } from "next/server";
 import { auth } from "@/auth";
+import { isEffectiveAppAdmin } from "@/lib/admin";
 import { getProfileByGoogleEmail } from "@/lib/profile-helpers";
+import { profileHasBookingAccess } from "@/lib/profile-access";
 import { getSupabaseAdmin } from "@/lib/supabase";
 import {
   findNotionPersonByWWUEmail,
@@ -73,7 +75,7 @@ export async function PATCH(req: Request) {
 
   const { data: existing } = await supabase
     .from("profiles")
-    .select("id, notion_page_id")
+    .select("id, notion_page_id, type")
     .eq("google_email", session.user.email)
     .single();
 
@@ -81,7 +83,10 @@ export async function PATCH(req: Request) {
     return NextResponse.json({ error: "Profile not found" }, { status: 404 });
   }
 
-  const previousBookingAccess = !!existing.notion_page_id;
+  const previousBookingAccess = profileHasBookingAccess(
+    existing.notion_page_id,
+    existing.type,
+  );
 
   let notionPageId: string | null = null;
   let departments: DepartmentFlags = emptyDepartments();
@@ -107,6 +112,7 @@ export async function PATCH(req: Request) {
       notion_page_id: notionPageId,
       sj_band: sjBand,
       type,
+      is_admin: isEffectiveAppAdmin(session.user.email, type),
       ...departments,
     })
     .eq("google_email", session.user.email)
@@ -124,6 +130,6 @@ export async function PATCH(req: Request) {
   return NextResponse.json({
     profile,
     previousBookingAccess,
-    newBookingAccess: !!notionPageId,
+    newBookingAccess: profileHasBookingAccess(notionPageId, type),
   });
 }

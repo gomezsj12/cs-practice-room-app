@@ -3,8 +3,8 @@
  *
  * Looks up the user's current WWU email in the Notion people database and
  * patches the Supabase profile with fresh department flags, sj_band, type,
- * and notion_page_id. Used by the manual refresh button, auto-sync interval,
- * and page-load sync in the client.
+ * notion_page_id, and is_admin mirror. Returns `sessionBookingAccess` and
+ * `sessionIsAdmin` so the client can refresh the session when they change.
  *
  * Returns the updated profile row. If no profile exists, returns 404.
  *
@@ -14,7 +14,9 @@
 
 import { NextResponse } from "next/server";
 import { auth } from "@/auth";
+import { isEffectiveAppAdmin } from "@/lib/admin";
 import { getProfileByGoogleEmail } from "@/lib/profile-helpers";
+import { profileHasBookingAccess } from "@/lib/profile-access";
 import { getSupabaseAdmin } from "@/lib/supabase";
 import {
   findNotionPersonByWWUEmail,
@@ -60,6 +62,7 @@ export async function POST() {
       notion_page_id: notionPageId,
       sj_band: sjBand,
       type,
+      is_admin: isEffectiveAppAdmin(session.user.email, type),
       ...departments,
     })
     .eq("google_email", session.user.email)
@@ -74,5 +77,12 @@ export async function POST() {
     );
   }
 
-  return NextResponse.json({ profile });
+  return NextResponse.json({
+    profile,
+    sessionBookingAccess: profileHasBookingAccess(
+      profile.notion_page_id,
+      profile.type,
+    ),
+    sessionIsAdmin: isEffectiveAppAdmin(session.user.email, profile.type),
+  });
 }

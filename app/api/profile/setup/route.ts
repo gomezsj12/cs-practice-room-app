@@ -12,7 +12,7 @@
 
 import { NextResponse } from "next/server";
 import { auth } from "@/auth";
-import { isAdminEmail } from "@/lib/admin";
+import { isEffectiveAppAdmin } from "@/lib/admin";
 import {
   findNotionPersonByWWUEmail,
   logProfileCreationToNotion,
@@ -71,8 +71,6 @@ export async function POST(req: Request) {
     console.error("[profile/setup] Notion people lookup failed:", err);
   }
 
-  const isAdmin = isAdminEmail(session.user.email);
-
   const { data: profile, error: insertError } = await supabase
     .from("profiles")
     .insert({
@@ -83,7 +81,7 @@ export async function POST(req: Request) {
       notion_page_id: notionPageId,
       sj_band: sjBand,
       type,
-      is_admin: isAdmin,
+      is_admin: isEffectiveAppAdmin(session.user.email, type),
       ...departments,
     })
     .select()

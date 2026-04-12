@@ -19,7 +19,7 @@
 
 import { NextRequest, NextResponse } from "next/server";
 import { auth } from "@/auth";
-import { isAdminEmail } from "@/lib/admin";
+import { isAppAdmin } from "@/lib/admin";
 import {
   checkGoogleCalendarOverlap,
   validateBlockedTimes,
@@ -31,9 +31,9 @@ import type { BlockedTimeRow } from "@/lib/types";
 export async function POST(request: NextRequest) {
   try {
     const session = await auth();
-    const email = session?.user?.email?.toLowerCase();
+    const email = session?.user?.email;
 
-    if (!email || !isAdminEmail(email)) {
+    if (!email || !(await isAppAdmin(email))) {
       return NextResponse.json(
         { error: "Admin access required." },
         { status: 403 },
@@ -168,9 +168,9 @@ export async function POST(request: NextRequest) {
 export async function DELETE(request: NextRequest) {
   try {
     const session = await auth();
-    const email = session?.user?.email?.toLowerCase();
+    const email = session?.user?.email;
 
-    if (!email || !isAdminEmail(email)) {
+    if (!email || !(await isAppAdmin(email))) {
       return NextResponse.json(
         { error: "Admin access required." },
         { status: 403 },

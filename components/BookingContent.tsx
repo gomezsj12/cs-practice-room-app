@@ -9,8 +9,8 @@
  *
  * Three states:
  * 1. **Not ready** — user isn't signed in or profile isn't complete → sign-in prompt.
- * 2. **No booking access** — profile exists but no Notion page → "no access" message.
- * 3. **Ready** — profile with Notion page → embedded Fillout form with pre-filled params.
+ * 2. **No booking access** — profile exists but no eligible Notion Type / page → "no access" message.
+ * 3. **Ready** — profile with booking-eligible Type and people page → embedded Fillout form.
  * Until the iframe `load` event, `pointer-events: none` keeps parent-page scrolling
  *    responsive on mobile; after load, the embed behaves normally.
  *
@@ -20,6 +20,7 @@
 
 import { useEffect, useState } from "react";
 import { useSession } from "next-auth/react";
+import { profileHasBookingAccess } from "@/lib/profile-access";
 import type { ProfileRow } from "@/lib/types";
 
 type State =
@@ -107,7 +108,7 @@ export default function BookingContent({ filloutBaseUrl }: Props) {
         const { profile } = (await res.json()) as { profile: ProfileRow };
         if (cancelled) return;
 
-        if (!profile.notion_page_id) {
+        if (!profileHasBookingAccess(profile.notion_page_id, profile.type)) {
           setState({ status: "no-access" });
         } else {
           setState({
@@ -184,9 +185,9 @@ export default function BookingContent({ filloutBaseUrl }: Props) {
                   Booking access not available
                 </h2>
                 <p className="mt-3 max-w-2xl text-sm leading-6 text-neutral-300">
-                  Your WWU email wasn&apos;t found in our system, so you
-                  don&apos;t have access to the booking form yet. To get access,
-                  please send us a{" "}
+                  Your account doesn&apos;t have booking form access yet (for
+                  example, your role in our directory may not include booking).
+                  To get access, please send us a{" "}
                   <a href="/" className="text-red-300 underline hover:text-red-200">
                     support request
                   </a>

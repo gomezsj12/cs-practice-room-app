@@ -13,6 +13,7 @@
 
 import { NextResponse } from "next/server";
 import { auth } from "@/auth";
+import { isMissingSupportSoftDeleteColumnsError } from "@/lib/support-schema";
 import { getSupabaseAdmin } from "@/lib/supabase";
 
 /**
@@ -30,13 +31,26 @@ export async function GET() {
     }
 
     const supabase = getSupabaseAdmin();
-    const { data, error } = await supabase
+    let query = supabase
       .from("support_threads")
       .select("unread_for_user")
       .eq("user_email", userEmail)
       .eq("hidden_from_user", false)
       .eq("unread_for_user", true)
       .limit(1);
+
+    let { data, error } = await query;
+
+    if (error && isMissingSupportSoftDeleteColumnsError(error)) {
+      const legacy = await supabase
+        .from("support_threads")
+        .select("unread_for_user")
+        .eq("user_email", userEmail)
+        .eq("unread_for_user", true)
+        .limit(1);
+      data = legacy.data;
+      error = legacy.error;
+    }
 
     if (error) {
       throw error;

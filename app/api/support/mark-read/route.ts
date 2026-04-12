@@ -7,7 +7,8 @@
 
 import { NextRequest, NextResponse } from "next/server";
 import { auth } from "@/auth";
-import { isAdminEmail } from "@/lib/admin";
+import { isAppAdmin } from "@/lib/admin";
+import { isMissingSupportSoftDeleteColumnsError } from "@/lib/support-schema";
 import { getSupabaseAdmin } from "@/lib/supabase";
 
 export async function POST(request: NextRequest) {
@@ -22,7 +23,7 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    const isAdmin = isAdminEmail(userEmail);
+    const isAdmin = await isAppAdmin(userEmail);
     const supabase = getSupabaseAdmin();
     const body = (await request.json().catch(() => ({}))) as {
       threadId?: string;
@@ -45,6 +46,9 @@ export async function POST(request: NextRequest) {
         .eq("id", threadId)
         .eq("hidden_from_admin", false);
 
+      if (error && isMissingSupportSoftDeleteColumnsError(error)) {
+        return NextResponse.json({ ok: true });
+      }
       if (error) {
         throw error;
       }

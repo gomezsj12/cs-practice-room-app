@@ -21,6 +21,8 @@
 
 import { useEffect, useRef, useState } from "react";
 import { signOut, useSession } from "next-auth/react";
+import { profileHasBookingAccess } from "@/lib/profile-access";
+import type { ProfileRow } from "@/lib/types";
 
 const WWU_EMAIL_RE = /^[A-Za-z]+\.[A-Za-z]+@wallawalla\.edu$/;
 
@@ -112,8 +114,10 @@ export default function AccountSetupModal() {
         return;
       }
 
-      const { profile } = await res.json();
-      setHasBookingAccess(!!profile?.notion_page_id);
+      const { profile } = (await res.json()) as { profile: ProfileRow };
+      setHasBookingAccess(
+        profileHasBookingAccess(profile?.notion_page_id, profile?.type),
+      );
       setIsProfileAdmin(!!profile?.is_admin);
       apiFinished.current = true;
     } catch {

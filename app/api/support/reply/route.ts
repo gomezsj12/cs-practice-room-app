@@ -3,13 +3,13 @@
  *
  * Adds a new message to an existing support thread and forwards it to
  * the admin's Telegram chat. Closed threads cannot receive new messages.
- * User messages may set `unread_for_admin` per triage rules; staff app
- * replies set `staff_replied_from_app` and `unread_for_user`.
+ * Falls back to legacy thread fetch/update when soft-delete columns are absent.
  */
 
 import { NextRequest, NextResponse } from "next/server";
 import { auth } from "@/auth";
-import { isAdminEmail } from "@/lib/admin";
+import { isAppAdmin } from "@/lib/admin";
+import { isMissingSupportSoftDeleteColumnsError } from "@/lib/support-schema";
 import { toSupportThreadKey } from "@/lib/support";
 import { getSupabaseAdmin } from "@/lib/supabase";
 
@@ -19,6 +19,15 @@ const MAX_MESSAGE_LENGTH = 1200;
 function cleanMessage(value: string) {
   return value.replace(/\r\n/g, "\n").trim();
 }
+
+type ThreadForReply = {
+  id: string;
+  telegram_chat_id: string | null;
+  telegram_root_message_id: number | null;
+  telegram_topic_id: number | null;
+  status: string;
+  staff_replied_from_app: boolean;
+};
 
 export async function POST(request: NextRequest) {
   try {
@@ -58,7 +67,7 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    const isAdmin = isAdminEmail(userEmail);
+    const isAdmin = await isAppAdmin(userEmail);
     const supabase = getSupabaseAdmin();
 
     let threadQuery = supabase
@@ -74,18 +83,43 @@ export async function POST(request: NextRequest) {
       threadQuery = threadQuery.eq("hidden_from_admin", false);
     }
 
-    const { data: thread, error: threadError } = await threadQuery.maybeSingle();
+    let { data: threadRaw, error: threadError } = await threadQuery.maybeSingle();
+
+    if (threadError && isMissingSupportSoftDeleteColumnsError(threadError)) {
+      let legacyQuery = supabase
+        .from("support_threads")
+        .select(
+          "id, user_email, telegram_chat_id, telegram_root_message_id, telegram_topic_id, unread_for_user, status",
+        )
+        .eq("id", threadId);
+      if (!isAdmin) {
+        legacyQuery = legacyQuery.eq("user_email", userEmail);
+      }
+      const legacy = await legacyQuery.maybeSingle();
+      threadRaw = legacy.data as typeof threadRaw;
+      threadError = legacy.error;
+    }
 
     if (threadError) {
       throw threadError;
     }
 
-    if (!thread?.id) {
+    const row = threadRaw as Record<string, unknown> | null;
+    if (!row?.id) {
       return NextResponse.json(
         { error: "Could not find this support conversation." },
         { status: 404 },
       );
     }
+
+    const thread: ThreadForReply = {
+      id: String(row.id),
+      telegram_chat_id: (row.telegram_chat_id as string | null) ?? null,
+      telegram_root_message_id: (row.telegram_root_message_id as number | null) ?? null,
+      telegram_topic_id: (row.telegram_topic_id as number | null) ?? null,
+      status: String(row.status),
+      staff_replied_from_app: Boolean(row.staff_replied_from_app),
+    };
 
     if (thread.status === "closed") {
       return NextResponse.json(
@@ -197,10 +231,22 @@ export async function POST(request: NextRequest) {
       threadPatch.unread_for_admin = notifyAdmin;
     }
 
-    const { error: threadUpdateError } = await supabase
+    let { error: threadUpdateError } = await supabase
       .from("support_threads")
       .update(threadPatch)
       .eq("id", thread.id);
+
+    if (threadUpdateError && isMissingSupportSoftDeleteColumnsError(threadUpdateError)) {
+      const legacyPatch: Record<string, unknown> = {
+        updated_at: threadPatch.updated_at,
+        unread_for_user: threadPatch.unread_for_user,
+      };
+      const leg = await supabase
+        .from("support_threads")
+        .update(legacyPatch)
+        .eq("id", thread.id);
+      threadUpdateError = leg.error;
+    }
 
     if (threadUpdateError) {
       throw threadUpdateError;

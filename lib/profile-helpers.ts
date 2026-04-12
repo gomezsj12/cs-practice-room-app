@@ -11,10 +11,11 @@ export async function getProfileByGoogleEmail(
   googleEmail: string,
 ): Promise<ProfileRow | null> {
   const supabase = getSupabaseAdmin();
+  const trimmed = googleEmail.trim();
   const { data, error } = await supabase
     .from("profiles")
     .select("*")
-    .eq("google_email", googleEmail)
+    .ilike("google_email", trimmed)
     .maybeSingle();
 
   if (error) {

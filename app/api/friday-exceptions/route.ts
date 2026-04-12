@@ -12,15 +12,15 @@
 
 import { NextRequest, NextResponse } from "next/server";
 import { auth } from "@/auth";
-import { isAdminEmail } from "@/lib/admin";
+import { isAppAdmin } from "@/lib/admin";
 import { getSupabaseAdmin } from "@/lib/supabase";
 
 export async function POST(request: NextRequest) {
   try {
     const session = await auth();
-    const email = session?.user?.email?.toLowerCase();
+    const email = session?.user?.email;
 
-    if (!email || !isAdminEmail(email)) {
+    if (!email || !(await isAppAdmin(email))) {
       return NextResponse.json(
         { error: "Admin access required." },
         { status: 403 },
@@ -41,7 +41,7 @@ export async function POST(request: NextRequest) {
     const { error } = await supabase
       .from("friday_exceptions")
       .upsert(
-        { exception_date: date, created_by: email },
+        { exception_date: date, created_by: email.toLowerCase() },
         { onConflict: "exception_date" },
       );
 
@@ -66,9 +66,9 @@ export async function POST(request: NextRequest) {
 export async function DELETE(request: NextRequest) {
   try {
     const session = await auth();
-    const email = session?.user?.email?.toLowerCase();
+    const email = session?.user?.email;
 
-    if (!email || !isAdminEmail(email)) {
+    if (!email || !(await isAppAdmin(email))) {
       return NextResponse.json(
         { error: "Admin access required." },
         { status: 403 },

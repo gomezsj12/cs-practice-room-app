@@ -20,6 +20,7 @@
  */
 
 import { NextResponse } from "next/server";
+import { isEffectiveAppAdmin } from "@/lib/admin";
 import { getSupabaseAdmin } from "@/lib/supabase";
 import { verifyNotionWebhookSignature } from "@/lib/notion-webhook";
 import { processNotionCalendarCancellationFromPage } from "@/lib/notion-calendar-webhook";
@@ -130,7 +131,23 @@ export async function POST(req: Request) {
 
   if (resolved.action === "sync_profile") {
     const supabase = getSupabaseAdmin();
-    const patch = buildSupabasePatchFromNotionPerson(resolved.fields);
+    const { data: matchRows } = await supabase
+      .from("profiles")
+      .select("google_email")
+      .eq("notion_page_id", resolved.fields.pageId)
+      .limit(1);
+    const googleEmail = matchRows?.[0]?.google_email ?? null;
+    const patch = {
+      ...buildSupabasePatchFromNotionPerson(resolved.fields),
+      ...(googleEmail
+        ? {
+            is_admin: isEffectiveAppAdmin(
+              googleEmail,
+              resolved.fields.type,
+            ),
+          }
+        : {}),
+    };
     const { data, error } = await supabase
       .from("profiles")
       .update(patch)
