@@ -455,6 +455,8 @@ Path alias: `@/*` → project root (`tsconfig.json`).
 - Loading / signed-out / signed-in states.
 - **`signIn("google")`** and **`signOut({ callbackUrl: "/" })`**.
 - Shows the signed-in user's email.
+- When the profile is complete: **edit** (WWU email) and **refresh** (re-sync from Notion), powered by **`hooks/useProfileSync.ts`**.
+- **Profile sync behavior**: `POST /api/profile/sync` runs on mount and every 60 seconds while signed in with a complete profile, updating Supabase from the Notion people database. **Background** sync does **not** call NextAuth **`session.update()`** unless **`bookingAccess`** would change (same rule as `auth.ts`: linked Notion page ↔ `notion_page_id` on the profile). That avoids a session refetch and broad `useSession()` re-renders on every tick, which previously caused visible full-page flicker. **Manual** refresh still calls **`session.update()`** after a successful sync so JWT-backed UI (e.g. booking access) updates immediately.
 
 ---
 

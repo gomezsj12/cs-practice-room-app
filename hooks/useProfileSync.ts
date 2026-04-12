@@ -3,7 +3,9 @@
  *
  * Manages the lifecycle of profile syncing:
  * - **Manual sync** via `triggerManualSync()` with a 30 s rate limit.
- * - **Auto-sync** on mount and every 60 s in the background.
+ * - **Auto-sync** on mount and every 60 s in the background (updates Supabase
+ *   only; skips `session.update()` unless `bookingAccess` would change, so the
+ *   app does not re-render on every tick).
  * - **Rotation state** for the refresh icon animation (minimum 2 full
  *   rotations at 1.5 s each = 3 s spin floor).
  * - **Cooldown timer** for the rate-limit countdown display — only
@@ -46,7 +48,7 @@ export type UseProfileSyncReturn = {
  *                  has no profile yet or is signed out).
  */
 export function useProfileSync(enabled: boolean): UseProfileSyncReturn {
-  const { update } = useSession();
+  const { data: session, update } = useSession();
 
   const [syncStatus, setSyncStatus] = useState<SyncStatus>("idle");
   const [isManualSyncing, setIsManualSyncing] = useState(false);
@@ -59,6 +61,8 @@ export function useProfileSync(enabled: boolean): UseProfileSyncReturn {
   const mountedRef = useRef(true);
   const updateRef = useRef(update);
   updateRef.current = update;
+  const sessionRef = useRef(session);
+  sessionRef.current = session;
 
   useEffect(() => {
     mountedRef.current = true;
@@ -67,13 +71,32 @@ export function useProfileSync(enabled: boolean): UseProfileSyncReturn {
     };
   }, []);
 
-  /** Fire-and-forget background sync (no animation, no cooldown). */
+  /**
+   * Fire-and-forget background sync (no animation, no cooldown).
+   * Does not call `session.update()` unless Notion sync changed whether the user
+   * has booking access (`notion_page_id`), avoiding a full session refetch and
+   * tree re-render every interval.
+   */
   const performBackgroundSync = useCallback(async () => {
     if (syncInProgressRef.current) return;
     syncInProgressRef.current = true;
     try {
       const res = await fetch("/api/profile/sync", { method: "POST" });
-      if (res.ok) await updateRef.current();
+      if (!res.ok) return;
+      const body: unknown = await res.json();
+      const profile =
+        body &&
+        typeof body === "object" &&
+        "profile" in body &&
+        body.profile &&
+        typeof body.profile === "object"
+          ? (body.profile as { notion_page_id?: string | null })
+          : null;
+      const nextBookingAccess = !!profile?.notion_page_id;
+      const prevBookingAccess = !!sessionRef.current?.bookingAccess;
+      if (nextBookingAccess !== prevBookingAccess) {
+        await updateRef.current();
+      }
     } catch {
       /* silent */
     } finally {
