@@ -5,13 +5,17 @@ This project is a new portal app for the CS Practice Room. It keeps the existing
 ## Getting Started
 
 1. Copy environment variables into `.env.local`.
-2. Add environment variables in `.env.local`:
+2. Add environment variables in `.env.local` (see `docs/ARCHITECTURE.md` for the full list). Commonly needed:
    - `NEXT_PUBLIC_FILLOUT_URL`
    - `NEXT_PUBLIC_TELEGRAM_CONTACT_URL`
    - `NEXT_PUBLIC_TELEGRAM_GROUP_URL`
    - `TELEGRAM_BOT_TOKEN`
    - `TELEGRAM_SUPPORT_ADMIN_CHAT_ID`
    - `TELEGRAM_WEBHOOK_SECRET`
+   - **`NOTION_WWU_QUARTERS_DATA_SOURCE_ID`** — Notion **WWU Quarters** data source id (so the calendar can resolve term bounds; optional locally if you rely on the rolling fallback).
+   - **`CRON_SECRET`** — shared secret for `Authorization: Bearer …` on **`/api/cron/sync-quarters`** (Vercel Cron and manual sync); required in production if you use the sync route.
+
+**Quarter sync:** Notion quarters are mirrored into Supabase table **`wwu_quarters`** by the cron route. Apply the migration in `supabase/migrations/`. On **Vercel Hobby**, `vercel.json` uses **one daily** cron (09:00 UTC); run a manual sync after Notion edits if you need immediate updates, or upgrade to Pro for more frequent schedules.
 3. Run the development server:
 
 ```bash

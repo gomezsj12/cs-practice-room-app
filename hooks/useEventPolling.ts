@@ -18,7 +18,11 @@
  * @see {@link useBookingFlow} which calls `loadEvents` after reserve/cancel.
  */
 import { useCallback, useEffect, useRef, useState } from "react";
-import type { CalendarEvent, PendingSelection } from "@/lib/types";
+import type {
+  ApiQuarterInfo,
+  CalendarEvent,
+  PendingSelection,
+} from "@/lib/types";
 
 /** Minimum ms between consecutive silent refetches triggered by focus/visibility. */
 const REFETCH_COOLDOWN_MS = 5000;
@@ -39,6 +43,8 @@ const REFETCH_COOLDOWN_MS = 5000;
  *          `fridayExceptions` / `fridayExceptionsRef` — the set of
  *          YYYY-MM-DD date strings for Fridays whose afternoon
  *          restriction has been lifted by an admin.
+ *          `quarter` — active WWU quarter for header + FullCalendar
+ *          `validRange`, or `null` when using the rolling fallback window.
  */
 export function useEventPolling(
   showToast: (message: string, type: "success" | "error" | "info") => void,
@@ -50,6 +56,7 @@ export function useEventPolling(
   const [fridayExceptions, setFridayExceptions] = useState<Set<string>>(
     new Set(),
   );
+  const [quarter, setQuarter] = useState<ApiQuarterInfo | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   /** Stable ref mirrored from `events` state — lets drag-select read the
    *  latest events inside imperative event handlers without re-subscribing. */
@@ -78,11 +85,13 @@ export function useEventPolling(
 
         if (Array.isArray(data)) {
           setEvents(data);
+          setQuarter(null);
         } else {
           setEvents(data.events ?? []);
           setFridayExceptions(
             new Set<string>(data.fridayExceptions ?? []),
           );
+          setQuarter(data.quarter ?? null);
         }
         lastFetchAtRef.current = Date.now();
       } catch (error) {
@@ -164,5 +173,6 @@ export function useEventPolling(
     eventsRef,
     fridayExceptions,
     fridayExceptionsRef,
+    quarter,
   };
 }

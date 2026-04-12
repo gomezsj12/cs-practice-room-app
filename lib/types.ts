@@ -48,6 +48,23 @@ export type HoldRow = {
   status: string;
 };
 
+/** Row in `wwu_quarters` (synced from Notion). */
+export type WwuQuarterRow = {
+  id: string;
+  notion_page_id: string;
+  name: string;
+  start_date: string;
+  end_date: string;
+  updated_at: string;
+};
+
+/** Active quarter surfaced to the calendar client for labels and `validRange`. */
+export type ApiQuarterInfo = {
+  name: string;
+  startDate: string;
+  endDate: string;
+};
+
 /** A row from the `blocked_times` Supabase table representing an admin-created blocked period. */
 export type BlockedTimeRow = {
   id: string;

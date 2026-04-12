@@ -34,6 +34,7 @@
 import type { CSSProperties } from "react";
 import { useEffect, useMemo, useRef, useState } from "react";
 import type { DatesSetArg, EventContentArg } from "@fullcalendar/core";
+import { addDays, format, parseISO } from "date-fns";
 import FullCalendar from "@fullcalendar/react";
 import interactionPlugin from "@fullcalendar/interaction";
 import timeGridPlugin from "@fullcalendar/timegrid";
@@ -85,6 +86,11 @@ type FridayJamOverlayRect = {
  * suppressed while the user is interacting with form fields or editable
  * regions.
  */
+/** FullCalendar `validRange.end` is exclusive; quarter `endDate` is inclusive. */
+function exclusiveEndAfterInclusiveYmd(endInclusive: string): string {
+  return format(addDays(parseISO(endInclusive), 1), "yyyy-MM-dd");
+}
+
 function isTypingTarget(target: EventTarget | null) {
   if (!(target instanceof HTMLElement)) {
     return false;
@@ -255,12 +261,30 @@ export default function CalendarView() {
     eventsRef,
     fridayExceptions,
     fridayExceptionsRef,
+    quarter,
   } = useEventPolling(
     showToast,
     status,
     pendingSelectionRef,
     session?.profileUpdatedAt,
   );
+
+  const quarterValidRange = useMemo(() => {
+    if (!quarter) {
+      return undefined;
+    }
+    return {
+      start: quarter.startDate,
+      end: exclusiveEndAfterInclusiveYmd(quarter.endDate),
+    };
+  }, [quarter]);
+
+  const calendarInstanceKey = useMemo(() => {
+    const suffix = quarter
+      ? `${quarter.startDate}-${quarter.endDate}`
+      : "rolling";
+    return isMobile ? `mobile-${suffix}` : `desktop-${suffix}`;
+  }, [isMobile, quarter]);
 
   const {
     pendingSelection,
@@ -1044,7 +1068,9 @@ export default function CalendarView() {
             </div>
 
             <div className="hidden md:block md:text-right">
-              <p className="text-sm text-neutral-500">Room availability</p>
+              <p className="text-sm text-neutral-500">
+                {quarter?.name ?? "Room availability"}
+              </p>
               <h2 className="text-2xl font-semibold text-white">
                 {calendarTitle}
               </h2>
@@ -1063,9 +1089,10 @@ export default function CalendarView() {
           >
             <FullCalendar
               ref={calendarRef}
-              key={isMobile ? "mobile" : "desktop"}
+              key={calendarInstanceKey}
               plugins={[timeGridPlugin, interactionPlugin]}
               initialView={isMobile ? "timeGridDay" : "timeGridWeek"}
+              validRange={quarterValidRange}
               headerToolbar={false}
               stickyHeaderDates={false}
               height="auto"

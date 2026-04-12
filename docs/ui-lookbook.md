@@ -169,7 +169,7 @@ Booking and calendar navigation live in the **header nav** (**Booking**, **Calen
    - Note (`text-xs` / `sm:text-sm`, neutral-500): starts with `Note:` (same grey as the rest of the note), then semibold neutral-300 phrase **"Jam Sessions are different than normal practices"**, then `...` and CSPR drumset/keyboard clarification
    - Legend: Practice (gray dot), Jam (blue dot), Temporary hold (dashed circle)
    - Navigation: **Prev** / **Today** (blue) / **Next** buttons
-   - "Room availability" label with current date range (desktop only)
+   - Desktop subtitle: **quarter name** from `GET /api/events` `quarter.name` when a WWU quarter row contains today; otherwise **"Room availability"** — with FullCalendar’s visible range title below (week/day span)
 3. **Calendar grid**: FullCalendar time grid
 
 ### Calendar grid

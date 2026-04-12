@@ -484,7 +484,7 @@ flowchart TD
 Manages toast notification state (open/close, message, type) with 3.5s auto-dismiss timer.
 
 ### `useEventPolling`
-Fetches events from `GET /api/events`. Re-fetches on auth status change, every 30 seconds when tab is visible and no pending selection, and on window focus/visibility change (with a 5-second cooldown).
+Fetches events from `GET /api/events`. Parses `quarter` when present (active WWU quarter name + inclusive `startDate`/`endDate` for FullCalendar `validRange`). Re-fetches on auth status change, every 30 seconds when tab is visible and no pending selection, and on window focus/visibility change (with a 5-second cooldown).
 
 ### `useBookingFlow`
 Manages the full booking lifecycle:
@@ -640,8 +640,8 @@ The CSS file serves as both the Tailwind v4 entry point and a comprehensive Full
 Central orchestration:
 
 - **`useSession`** for auth status.
-- **Mobile vs desktop**: `window.innerWidth < 768` toggles FullCalendar **`timeGridDay`** vs **`timeGridWeek`** (component remounts via `key`).
-- **Loads events** from **`GET /api/events`** (no cache); reloads when auth status changes, every 30s when the tab is visible (and no pending selection), and on window focus / visibility change (same guard).
+- **Mobile vs desktop**: `window.innerWidth < 768` toggles FullCalendar **`timeGridDay`** vs **`timeGridWeek`** (component remounts via `key` that also includes active quarter bounds when set).
+- **Loads events** from **`GET /api/events`** (no cache); reloads when auth status changes, every 30s when the tab is visible (and no pending selection), and on window focus / visibility change (same guard). When `quarter` is returned, **`validRange`** locks navigation to that quarter; the desktop subtitle shows the quarter **Name** instead of “Room availability”.
 - **Selection rules**: Custom drag-select replaces FullCalendar's built-in selection; max drag duration capped; **`clampSelectionRange`** enforces 30 minutes–6 hours.
 - **Signed-in only** for selecting a slot; otherwise a toast asks to sign in.
 - After select: **`createHoldOrFallback`** → `POST /api/holds/create`. On success, enters hold mode with `holdId` and server-normalized times; on 409 or failure, falls back to fallback mode.
@@ -673,12 +673,20 @@ Central orchestration:
 ### `GET app/api/events/route.ts`
 
 - Optional session: reads `session.user.email` for permission hints.
-- Loads **practice** and **jam** calendars via `getCalendarClient()` for a window: 7 days ago → 30 days ahead.
+- Resolves the fetch window with `lib/quarter-window.ts`: if a row in Supabase `wwu_quarters` contains **today** (calendar date in `ROOM_TIME_ZONE`, default `America/Los_Angeles`), Google list queries and related Supabase filters use that quarter’s inclusive start/end (as UTC instants via `date-fns-tz`). Otherwise falls back to the rolling window **7 days ago → 30 days ahead** and returns `quarter: null`.
+- Response includes `quarter: { name, startDate, endDate } | null` for the calendar header label and `validRange`.
+- Loads **practice** and **jam** calendars via `getCalendarClient()` for the resolved window.
 - Loads the current user's Supabase profile when available so practice ownership can be evaluated against linked WWU email and display name.
 - Maps Google events to a unified JSON shape: `eventType` `practice` | `jam`, colors, cleaned `description`, normalized `attendees`, and `canCancel`.
 - Jam `canCancel`: owner email from `extendedProperties.private.ownerEmail` vs current user vs `ADMIN_EMAIL`, or `isAdmin` (from `ADMIN_EMAILS` env var).
 - Practice `canCancel`: linked WWU email must appear in attendees and the booker name in the title (after the hyphen) must match the current user, or `isAdmin`.
 - If `ENABLE_TEMP_HOLDS === "true"`, merges pending Supabase holds as `eventType: "hold"` with dashed styling class. Supabase errors are logged; events still return without holds.
+
+### `GET` / `POST` `app/api/cron/sync-quarters/route.ts`
+
+- **Vercel Cron** (see repo `vercel.json`) calls **GET** `/api/cron/sync-quarters` once daily (`0 9 * * *` — 09:00 UTC) with `Authorization: Bearer ${CRON_SECRET}` when `CRON_SECRET` is set. (Vercel **Hobby** allows at most one cron invocation per day; use a higher-frequency schedule on Pro if needed.)
+- **POST** with the same header is supported for manual sync.
+- Runs `syncWwuQuartersFromNotion()` (`lib/notion-quarters-sync.ts`): paginated `dataSources.query` on `NOTION_WWU_QUARTERS_DATA_SOURCE_ID`, upserts into `wwu_quarters`, deletes Supabase rows removed from Notion.
 
 ### `POST app/api/reserve/route.ts`
 
@@ -742,7 +750,13 @@ Admin-role helpers. `getAdminEmails()` parses the `ADMIN_EMAILS` env var into a 
 Centralized app metadata: name, description, public URLs for Fillout, Telegram contact, and Telegram group. Reads from `NEXT_PUBLIC_*` env vars with fallback defaults.
 
 ### `lib/types.ts`
-Shared TypeScript types: `GoogleApiEvent`, `CalendarEventAttendee`, `HoldRow`, `ApiCalendarEvent`, `CalendarEvent`, `PendingSelection`, `ToastState`, `DragMirrorState`, `ProfileRow` (includes `is_admin`), `SupportThreadRow`, `SupportMessageRow`.
+Shared TypeScript types: `GoogleApiEvent`, `CalendarEventAttendee`, `HoldRow`, `WwuQuarterRow`, `ApiQuarterInfo`, `ApiCalendarEvent`, `CalendarEvent`, `PendingSelection`, `ToastState`, `DragMirrorState`, `ProfileRow` (includes `is_admin`), `SupportThreadRow`, `SupportMessageRow`.
+
+### `lib/quarter-window.ts`
+`getRoomTimeZone`, `calendarDateInZone`, `getActiveQuarterWindow` (Supabase quarter containing today), `rollingFallbackWindow` (legacy −7/+30), and `ymdBoundsToUtcDates` for Google `timeMin`/`timeMax`.
+
+### `lib/notion-quarters-sync.ts`
+Server-only full sync from the Notion WWU Quarters data source into `wwu_quarters` (upsert by `notion_page_id`, delete orphans).
 
 ### `lib/calendar-helpers.ts`
 Date clamping, busy-block overlap detection, time range formatting, ISO timestamp utilities.

@@ -15,6 +15,8 @@
  */
 
 import type { Metadata, Viewport } from "next";
+import { Analytics } from "@vercel/analytics/next";
+import { SpeedInsights } from "@vercel/speed-insights/next";
 import { auth } from "@/auth";
 import AuthProvider from "@/components/AuthProvider";
 import InstallPrompt from "@/components/InstallPrompt";
@@ -57,6 +59,8 @@ export default async function RootLayout({
           <div className="flex min-h-0 flex-1 flex-col">{children}</div>
           <ServiceWorkerRegistration />
           <InstallPrompt />
+          <Analytics />
+          <SpeedInsights />
         </AuthProvider>
       </body>
     </html>

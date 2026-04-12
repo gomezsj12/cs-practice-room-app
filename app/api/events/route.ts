@@ -12,7 +12,10 @@
  * 5. **Friday exceptions** — dates from Supabase `friday_exceptions` where
  *    the hard-coded Friday afternoon restriction is lifted.
  *
- * Returns `{ events: ApiCalendarEvent[], fridayExceptions: string[] }`.
+ * Returns `{ events, fridayExceptions, quarter? }`. When a Supabase quarter
+ * contains “today” (room timezone), `quarter` carries its name and bounds and
+ * Google/Supabase queries use that window; otherwise the rolling −7/+30 day
+ * fallback is used and `quarter` is `null`.
  *
  * All queries run in parallel via `Promise.all` to minimise latency.
  * Google Calendar and Supabase failures are handled independently so a
@@ -34,9 +37,14 @@ import {
 } from "@/lib/calendar-events";
 import { getCalendarClient } from "@/lib/google";
 import { getProfileByGoogleEmail } from "@/lib/profile-helpers";
+import {
+  getActiveQuarterWindow,
+  rollingFallbackWindow,
+} from "@/lib/quarter-window";
 import { getSupabaseAdmin } from "@/lib/supabase";
 import type {
   ApiCalendarEvent,
+  ApiQuarterInfo,
   BlockedTimeRow,
   GoogleApiEvent,
   HoldRow,
@@ -148,7 +156,8 @@ function mapBlockedTimeToApiEvent(
  *
  * Fetches practice events, jam events, pending holds, and blocked times
  * in parallel, maps them into a unified `ApiCalendarEvent[]`, and returns
- * the merged list. The window is `now − 7 days` → `now + 30 days`.
+ * the merged list. The window is the active WWU quarter when configured,
+ * else `now − 7 days` → `now + 30 days`.
  */
 export async function GET() {
   try {
@@ -175,11 +184,20 @@ export async function GET() {
         })
       : Promise.resolve(null);
 
-    const timeMin = new Date();
-    timeMin.setDate(timeMin.getDate() - 7);
+    const activeQuarter = await getActiveQuarterWindow();
+    let quarter: ApiQuarterInfo | null = null;
+    let timeMin: Date;
+    let timeMax: Date;
 
-    const timeMax = new Date();
-    timeMax.setDate(timeMax.getDate() + 30);
+    if (activeQuarter) {
+      quarter = activeQuarter.quarter;
+      timeMin = activeQuarter.timeMin;
+      timeMax = activeQuarter.timeMax;
+    } else {
+      const fb = rollingFallbackWindow();
+      timeMin = fb.timeMin;
+      timeMax = fb.timeMax;
+    }
 
     const holdsEnabled = process.env.ENABLE_TEMP_HOLDS === "true";
     const holdQueryPromise = holdsEnabled
@@ -337,6 +355,7 @@ export async function GET() {
         ...blockedEvents,
       ],
       fridayExceptions,
+      quarter,
     });
   } catch (error) {
     console.error("Error loading calendar events:", error);
