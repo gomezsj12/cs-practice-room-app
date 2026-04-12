@@ -60,7 +60,7 @@ function compareZonedCalendarDays(a: ZonedYmdhm, b: ZonedYmdhm): number {
 }
 
 /** `weekday: "short"` in `timeZone` (e.g. "Fri") for overlap with the drag-select Friday rule. */
-function shortWeekdayInZone(date: Date, timeZone: string): string {
+export function shortWeekdayInZone(date: Date, timeZone: string): string {
   const parts = new Intl.DateTimeFormat("en-US", {
     timeZone,
     weekday: "short",
@@ -216,9 +216,15 @@ function hasOverlap(
 }
 
 /** Discriminated union returned by {@link validateBookingTimes}. */
-type BookingTimeValidation =
+export type BookingTimeValidation =
   | { valid: true; requestStart: Date; requestEnd: Date }
   | { valid: false; error: string; status: number };
+
+/** Options for {@link validateBookingTimes}. */
+export type ValidateBookingTimesOptions = {
+  /** When true, skip the Friday 2:30 PM jam end cutoff (room has a `friday_exceptions` row). */
+  skipFridayJamCutoff?: boolean;
+};
 
 /**
  * Validate a proposed booking's start/end strings on the server.
@@ -229,10 +235,12 @@ type BookingTimeValidation =
  *
  * @param start - ISO-8601 start string from the client.
  * @param end   - ISO-8601 end string from the client.
+ * @param options - Optional; set `skipFridayJamCutoff` when that Friday is opened in Supabase.
  */
 export function validateBookingTimes(
   start: string,
   end: string,
+  options?: ValidateBookingTimesOptions,
 ): BookingTimeValidation {
   const requestStart = new Date(start);
   const requestEnd = new Date(end);
@@ -301,7 +309,10 @@ export function validateBookingTimes(
     };
   }
 
-  if (shortWeekdayInZone(requestStart, roomTimeZone) === "Fri") {
+  if (
+    !options?.skipFridayJamCutoff &&
+    shortWeekdayInZone(requestStart, roomTimeZone) === "Fri"
+  ) {
     const z = getZonedCalendarParts(requestStart, roomTimeZone);
     const fridayCutoffUtc = roomWallClockToUtc(
       roomTimeZone,

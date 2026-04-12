@@ -26,6 +26,7 @@ import {
   validateBookingTimes,
 } from "@/lib/calendar-helpers";
 import { getCalendarClient } from "@/lib/google";
+import { roomLocalFridayHasException } from "@/lib/friday-exceptions-query";
 import {
   bookingIntervalWithinDataWindow,
   getResolvedCalendarDataWindow,
@@ -62,7 +63,10 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    const validation = validateBookingTimes(start, end);
+    const skipFridayJamCutoff = await roomLocalFridayHasException(start);
+    const validation = validateBookingTimes(start, end, {
+      skipFridayJamCutoff,
+    });
 
     if (!validation.valid) {
       return NextResponse.json(
