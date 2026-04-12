@@ -105,3 +105,39 @@ export function parseCloseCommand(text: string) {
   const reason = (match[2] || "").trim();
   return { threadId, reason };
 }
+
+/**
+ * Calls Telegram `closeForumTopic` for a support thread’s forum topic.
+ * No-op when ids are missing, `TELEGRAM_BOT_TOKEN` is unset, or (when
+ * `threadStatus` is passed) the thread is already `"closed"` in the DB.
+ * Webhook `/close` should omit `threadStatus` so the topic is always closed
+ * when the command runs.
+ */
+export async function closeTelegramSupportForumTopic(params: {
+  telegram_chat_id: string | null;
+  telegram_topic_id: number | null;
+  threadStatus?: string;
+}): Promise<void> {
+  if (params.threadStatus === "closed") {
+    return;
+  }
+  if (!params.telegram_chat_id || params.telegram_topic_id == null) {
+    return;
+  }
+  const botToken = process.env.TELEGRAM_BOT_TOKEN;
+  if (!botToken) {
+    return;
+  }
+  try {
+    await fetch(`https://api.telegram.org/bot${botToken}/closeForumTopic`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        chat_id: params.telegram_chat_id,
+        message_thread_id: params.telegram_topic_id,
+      }),
+    });
+  } catch (closeTopicError) {
+    console.warn("closeForumTopic failed:", closeTopicError);
+  }
+}

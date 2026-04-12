@@ -2,21 +2,26 @@
  * @file Delete support thread endpoint (`POST /api/support/delete`).
  *
  * Permanently removes a support thread and its messages (via Supabase
- * cascade). Only the thread owner can delete; the query filters by both
- * `id` and `user_email` so no cross-user deletion is possible.
+ * cascade). The thread owner can delete their own thread; admins
+ * (`ADMIN_EMAILS`) can delete any thread by id. Before deletion, if the
+ * thread has a Telegram forum topic and is not already marked closed, the
+ * bot calls `closeForumTopic` (failures are logged; delete still proceeds).
  *
- * Returns 404 if the thread doesn't exist or doesn't belong to the caller.
+ * Returns 404 if the thread doesn't exist or doesn't belong to the caller
+ * (non-admin).
  */
 
 import { NextRequest, NextResponse } from "next/server";
 import { auth } from "@/auth";
+import { isAdminEmail } from "@/lib/admin";
+import { closeTelegramSupportForumTopic } from "@/lib/support";
 import { getSupabaseAdmin } from "@/lib/supabase";
 
 /**
  * Handles `POST /api/support/delete`.
  *
  * Accepts `{ threadId }` and deletes the matching thread after verifying
- * the caller owns it.
+ * access (owner or admin).
  */
 export async function POST(request: NextRequest) {
   try {
@@ -38,12 +43,18 @@ export async function POST(request: NextRequest) {
     }
 
     const supabase = getSupabaseAdmin();
-    const { data: thread, error: fetchError } = await supabase
+    const isAdmin = isAdminEmail(userEmail);
+
+    let threadQuery = supabase
       .from("support_threads")
-      .select("id, user_email")
-      .eq("id", threadId)
-      .eq("user_email", userEmail)
-      .maybeSingle();
+      .select("id, user_email, status, telegram_chat_id, telegram_topic_id")
+      .eq("id", threadId);
+
+    if (!isAdmin) {
+      threadQuery = threadQuery.eq("user_email", userEmail);
+    }
+
+    const { data: thread, error: fetchError } = await threadQuery.maybeSingle();
 
     if (fetchError) {
       throw fetchError;
@@ -56,11 +67,18 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    const { error: deleteError } = await supabase
-      .from("support_threads")
-      .delete()
-      .eq("id", thread.id)
-      .eq("user_email", userEmail);
+    await closeTelegramSupportForumTopic({
+      telegram_chat_id: thread.telegram_chat_id,
+      telegram_topic_id: thread.telegram_topic_id,
+      threadStatus: thread.status,
+    });
+
+    let deleteQuery = supabase.from("support_threads").delete().eq("id", thread.id);
+    if (!isAdmin) {
+      deleteQuery = deleteQuery.eq("user_email", userEmail);
+    }
+
+    const { error: deleteError } = await deleteQuery;
 
     if (deleteError) {
       throw deleteError;

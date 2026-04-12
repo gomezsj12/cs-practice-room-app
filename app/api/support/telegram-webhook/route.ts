@@ -29,6 +29,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getSupabaseAdmin } from "@/lib/supabase";
 import {
+  closeTelegramSupportForumTopic,
   extractSupportThreadIdFromText,
   parseCloseCommand,
   parseReplyCommand,
@@ -255,26 +256,10 @@ export async function POST(request: NextRequest) {
         throw closeUpdateError;
       }
 
-      if (thread.telegram_topic_id && thread.telegram_chat_id) {
-        const botToken = process.env.TELEGRAM_BOT_TOKEN;
-        if (botToken) {
-          try {
-            await fetch(
-              `https://api.telegram.org/bot${botToken}/closeForumTopic`,
-              {
-                method: "POST",
-                headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({
-                  chat_id: thread.telegram_chat_id,
-                  message_thread_id: thread.telegram_topic_id,
-                }),
-              },
-            );
-          } catch (closeTopicError) {
-            console.warn("closeForumTopic failed:", closeTopicError);
-          }
-        }
-      }
+      await closeTelegramSupportForumTopic({
+        telegram_chat_id: thread.telegram_chat_id,
+        telegram_topic_id: thread.telegram_topic_id,
+      });
 
       return NextResponse.json({ ok: true, closed: true });
     }
