@@ -20,6 +20,7 @@ import {
 } from "@/lib/notion";
 import type { DepartmentFlags } from "@/lib/notion";
 import { getSupabaseAdmin } from "@/lib/supabase";
+import { resolveProfileDisplayName } from "@/lib/profile-helpers";
 
 /** Enforces `First.Last@wallawalla.edu` format. */
 const WWU_EMAIL_RE = /^[A-Za-z]+\.[A-Za-z]+@wallawalla\.edu$/;
@@ -59,10 +60,12 @@ export async function POST(req: Request) {
   let departments: DepartmentFlags = emptyDepartments();
   let sjBand: string | null = null;
   let type: string | null = null;
+  let notionDisplayName: string | null = null;
   try {
     const result = await findNotionPersonByWWUEmail(wwuEmail);
     if (result) {
       notionPageId = result.pageId;
+      notionDisplayName = result.displayName;
       departments = result.departments;
       sjBand = result.sjBand;
       type = result.type;
@@ -71,11 +74,16 @@ export async function POST(req: Request) {
     console.error("[profile/setup] Notion people lookup failed:", err);
   }
 
+  const displayName = resolveProfileDisplayName(
+    notionDisplayName,
+    session.user.name,
+  );
+
   const { data: profile, error: insertError } = await supabase
     .from("profiles")
     .insert({
       google_email: session.user.email,
-      display_name: session.user.name ?? "Unknown",
+      display_name: displayName,
       walla_walla_email: wwuEmail,
       google_image: session.user.image ?? null,
       notion_page_id: notionPageId,
@@ -97,7 +105,7 @@ export async function POST(req: Request) {
 
   // Fire-and-forget: log to Notion audit DB
   logProfileCreationToNotion({
-    displayName: session.user.name ?? "Unknown",
+    displayName,
     googleEmail: session.user.email,
     wwuEmail,
     foundInNotion: !!notionPageId,

@@ -3,7 +3,9 @@
  *
  * Looks up the user's current WWU email in the Notion people database and
  * patches the Supabase profile with fresh department flags, sj_band, type,
- * notion_page_id, and is_admin mirror. Returns `sessionBookingAccess` and
+ * notion_page_id, display_name (Notion **Name** if set, else Google name,
+ * else `"Unknown"`), and
+ * is_admin mirror. Returns `sessionBookingAccess` and
  * `sessionIsAdmin` so the client can refresh the session when they change.
  *
  * Returns the updated profile row. If no profile exists, returns 404.
@@ -15,7 +17,10 @@
 import { NextResponse } from "next/server";
 import { auth } from "@/auth";
 import { isEffectiveAppAdmin } from "@/lib/admin";
-import { getProfileByGoogleEmail } from "@/lib/profile-helpers";
+import {
+  getProfileByGoogleEmail,
+  resolveProfileDisplayName,
+} from "@/lib/profile-helpers";
 import { profileHasBookingAccess } from "@/lib/profile-access";
 import { getSupabaseAdmin } from "@/lib/supabase";
 import {
@@ -39,6 +44,7 @@ export async function POST() {
   let departments: DepartmentFlags = emptyDepartments();
   let sjBand: string | null = null;
   let type: string | null = null;
+  let notionDisplayName: string | null = null;
 
   try {
     const result = await findNotionPersonByWWUEmail(
@@ -46,6 +52,7 @@ export async function POST() {
     );
     if (result) {
       notionPageId = result.pageId;
+      notionDisplayName = result.displayName;
       departments = result.departments;
       sjBand = result.sjBand;
       type = result.type;
@@ -56,6 +63,10 @@ export async function POST() {
 
   const supabase = getSupabaseAdmin();
 
+  const displayName = resolveProfileDisplayName(
+    notionDisplayName,
+    session.user.name,
+  );
   const { data: profile, error: updateError } = await supabase
     .from("profiles")
     .update({
@@ -63,6 +74,7 @@ export async function POST() {
       sj_band: sjBand,
       type,
       is_admin: isEffectiveAppAdmin(session.user.email, type),
+      display_name: displayName,
       ...departments,
     })
     .eq("google_email", session.user.email)

@@ -284,9 +284,11 @@ export type DepartmentFlags = {
   dept_other: boolean;
 };
 
-/** Result of a Notion people-DB lookup: page ID + department flags. */
+/** Result of a Notion people-DB lookup: page ID, directory name, + department flags. */
 export type NotionPersonResult = {
   pageId: string;
+  /** Title property "Name" when present; otherwise `null`. */
+  displayName: string | null;
   departments: DepartmentFlags;
   sjBand: string | null;
   type: string | null;
@@ -447,9 +449,9 @@ function parsePeopleDataSourceProperties(
 
 /**
  * Search the Notion people data source for a user by their Walla Walla
- * University email. Returns the page ID and department flags extracted
- * from the "Service Type" multi-select property, or `null` if no entry
- * is found.
+ * University email. Returns the page ID, display name (title "Name"),
+ * and department flags from the "Service Type" multi-select, or `null`
+ * if no entry is found.
  *
  * Requires `NOTION_PEOPLE_DB_ID` env var (the data source ID).
  */
@@ -482,6 +484,7 @@ export async function findNotionPersonByWWUEmail(
 
   return {
     pageId: parsed.pageId,
+    displayName: parsed.displayName,
     departments: parsed.departments,
     sjBand: parsed.sjBand,
     type: parsed.type,

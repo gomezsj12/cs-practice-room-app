@@ -4,7 +4,8 @@
  * - `GET  /api/profile/me` — returns the full profile row.
  * - `PATCH /api/profile/me` — updates the WWU email, re-runs the Notion
  *   people-DB lookup, and patches the profile with fresh Notion-derived
- *   fields (departments, sj_band, type, notion_page_id, is_admin mirror).
+ *   fields (departments, sj_band, type, notion_page_id, display_name from
+ *   Notion **Name** or Google name, is_admin mirror).
  *
  * Returns 401 if unauthenticated, 404 if no profile row exists.
  *
@@ -14,7 +15,10 @@
 import { NextResponse } from "next/server";
 import { auth } from "@/auth";
 import { isEffectiveAppAdmin } from "@/lib/admin";
-import { getProfileByGoogleEmail } from "@/lib/profile-helpers";
+import {
+  getProfileByGoogleEmail,
+  resolveProfileDisplayName,
+} from "@/lib/profile-helpers";
 import { profileHasBookingAccess } from "@/lib/profile-access";
 import { getSupabaseAdmin } from "@/lib/supabase";
 import {
@@ -92,11 +96,13 @@ export async function PATCH(req: Request) {
   let departments: DepartmentFlags = emptyDepartments();
   let sjBand: string | null = null;
   let type: string | null = null;
+  let notionDisplayName: string | null = null;
 
   try {
     const result = await findNotionPersonByWWUEmail(wwuEmail);
     if (result) {
       notionPageId = result.pageId;
+      notionDisplayName = result.displayName;
       departments = result.departments;
       sjBand = result.sjBand;
       type = result.type;
@@ -105,6 +111,10 @@ export async function PATCH(req: Request) {
     console.error("[profile/me PATCH] Notion people lookup failed:", err);
   }
 
+  const displayName = resolveProfileDisplayName(
+    notionDisplayName,
+    session.user.name,
+  );
   const { data: profile, error: updateError } = await supabase
     .from("profiles")
     .update({
@@ -113,6 +123,7 @@ export async function PATCH(req: Request) {
       sj_band: sjBand,
       type,
       is_admin: isEffectiveAppAdmin(session.user.email, type),
+      display_name: displayName,
       ...departments,
     })
     .eq("google_email", session.user.email)
