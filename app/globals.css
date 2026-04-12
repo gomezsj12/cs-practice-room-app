@@ -16,6 +16,9 @@
 
 html {
   color-scheme: dark;
+  /* Reserve space for the vertical scrollbar so width doesn't oscillate when
+     overflow toggles during layout (common source of horizontal "jitter" on resize). */
+  scrollbar-gutter: stable;
 }
 
 body {

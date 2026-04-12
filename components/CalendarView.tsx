@@ -339,16 +339,11 @@ export default function CalendarView() {
   }, [isAdmin]);
 
   useEffect(() => {
-    const checkScreenSize = () => {
-      setIsMobile(window.innerWidth < 768);
-    };
-
-    checkScreenSize();
-    window.addEventListener("resize", checkScreenSize);
-
-    return () => {
-      window.removeEventListener("resize", checkScreenSize);
-    };
+    const mq = window.matchMedia("(max-width: 767px)");
+    const apply = () => setIsMobile(mq.matches);
+    apply();
+    mq.addEventListener("change", apply);
+    return () => mq.removeEventListener("change", apply);
   }, []);
 
   // After events finish loading, bump the layout epoch so the now-indicator
@@ -362,37 +357,68 @@ export default function CalendarView() {
   }, [isLoading]);
 
   // Keep Friday grey bands aligned when the time grid scrolls or the window resizes.
+  // Scroll uses one rAF-coalesced bump per frame. Viewport/calendar width changes are
+  // throttled so resizing the window does not re-run overlay layout every frame.
   useEffect(() => {
     const wrap = calendarInteractRef.current;
     if (!wrap || isLoading) {
       return;
     }
 
-    let scheduled = 0;
-    const scheduleLayoutBump = () => {
-      if (scheduled) {
+    let scrollScheduled = 0;
+    const scheduleLayoutBumpFromScroll = () => {
+      if (scrollScheduled) {
         return;
       }
-      scheduled = requestAnimationFrame(() => {
-        scheduled = 0;
+      scrollScheduled = requestAnimationFrame(() => {
+        scrollScheduled = 0;
         setCalendarLayoutEpoch((n) => n + 1);
       });
     };
 
-    wrap.addEventListener("scroll", scheduleLayoutBump, true);
-    window.addEventListener("scroll", scheduleLayoutBump, true);
-    window.addEventListener("resize", scheduleLayoutBump);
+    let resizeTimeout: ReturnType<typeof setTimeout> | null = null;
+    let lastResizeBump = 0;
+    const RESIZE_LAYOUT_MIN_MS = 48;
 
-    const ro = new ResizeObserver(scheduleLayoutBump);
+    const scheduleLayoutBumpFromResize = () => {
+      const now = performance.now();
+      if (now - lastResizeBump >= RESIZE_LAYOUT_MIN_MS) {
+        lastResizeBump = now;
+        if (resizeTimeout !== null) {
+          clearTimeout(resizeTimeout);
+          resizeTimeout = null;
+        }
+        setCalendarLayoutEpoch((n) => n + 1);
+        return;
+      }
+      if (resizeTimeout !== null) {
+        return;
+      }
+      const wait = RESIZE_LAYOUT_MIN_MS - (now - lastResizeBump);
+      resizeTimeout = setTimeout(() => {
+        resizeTimeout = null;
+        lastResizeBump = performance.now();
+        setCalendarLayoutEpoch((n) => n + 1);
+      }, wait);
+    };
+
+    wrap.addEventListener("scroll", scheduleLayoutBumpFromScroll, true);
+    window.addEventListener("scroll", scheduleLayoutBumpFromScroll, true);
+    window.addEventListener("resize", scheduleLayoutBumpFromResize);
+
+    const ro = new ResizeObserver(scheduleLayoutBumpFromResize);
     ro.observe(wrap);
 
     return () => {
       ro.disconnect();
-      wrap.removeEventListener("scroll", scheduleLayoutBump, true);
-      window.removeEventListener("scroll", scheduleLayoutBump, true);
-      window.removeEventListener("resize", scheduleLayoutBump);
-      if (scheduled) {
-        cancelAnimationFrame(scheduled);
+      wrap.removeEventListener("scroll", scheduleLayoutBumpFromScroll, true);
+      window.removeEventListener("scroll", scheduleLayoutBumpFromScroll, true);
+      window.removeEventListener("resize", scheduleLayoutBumpFromResize);
+      if (scrollScheduled) {
+        cancelAnimationFrame(scrollScheduled);
+      }
+      if (resizeTimeout !== null) {
+        clearTimeout(resizeTimeout);
       }
     };
   }, [isLoading]);
@@ -475,10 +501,10 @@ export default function CalendarView() {
           next.push({
             key: `fri-jam-${dayDate.getFullYear()}-${dayDate.getMonth() + 1}-${dayDate.getDate()}`,
             dateStr,
-            top: b.top - wrapRect.top + wrapEl.scrollTop,
-            left: b.left - wrapRect.left + wrapEl.scrollLeft,
-            width: b.width,
-            height: b.height,
+            top: Math.round(b.top - wrapRect.top + wrapEl.scrollTop),
+            left: Math.round(b.left - wrapRect.left + wrapEl.scrollLeft),
+            width: Math.round(b.width),
+            height: Math.round(b.height),
           });
         }
       });

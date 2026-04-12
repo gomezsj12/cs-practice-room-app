@@ -14,7 +14,7 @@
  * |---------|-----|
  * | `layoutEpoch` change | Parent bumps this after FullCalendar finishes rendering a new date range or view switch. |
  * | `visibilitychange` → `"visible"` | The native indicator may have moved while the tab was hidden. |
- * | `ResizeObserver` on wrap / `window.resize` | Column widths change on viewport resize. |
+ * | `ResizeObserver` on wrap / `window.resize` | Column widths change on viewport resize (measure coalesced to one rAF per frame). |
  * | 30 s interval | Keeps the overlay in sync as time advances (FullCalendar moves its own line). |
  *
  * ## Measurement strategy
@@ -26,7 +26,8 @@
  * line are shown; on mobile only the today-column line is shown.
  *
  * State updates are wrapped in `startTransition` to avoid blocking user
- * interactions (drag-select) during re-measurement.
+ * interactions (drag-select) during re-measurement. Pixel fields are rounded
+ * so subpixel layout noise does not flip overlay positions frame-to-frame.
  *
  * @see The `NowIndicatorOverlay` component that consumes this state.
  */
@@ -40,6 +41,7 @@ import {
   useCallback,
   useEffect,
   useLayoutEffect,
+  useRef,
   useState,
 } from "react";
 import { dayDateForColumn, sameLocalCalendarDay } from "@/lib/timeGridDragSelect";
@@ -82,6 +84,7 @@ export function useNowIndicatorOverlay({
   layoutEpoch,
 }: Args): NowIndicatorOverlayState | null {
   const [state, setState] = useState<NowIndicatorOverlayState | null>(null);
+  const deferredMeasureRaf = useRef(0);
 
   /**
    * Read the native now-indicator line's position and the day-column
@@ -153,15 +156,25 @@ export function useNowIndicatorOverlay({
 
     startTransition(() =>
       setState({
-        centerY,
-        thinLeft,
-        thinWidth,
+        centerY: Math.round(centerY),
+        thinLeft: Math.round(thinLeft),
+        thinWidth: Math.round(thinWidth),
         showThin,
-        todayLeft,
-        todayWidth,
+        todayLeft: Math.round(todayLeft),
+        todayWidth: Math.round(todayWidth),
       }),
     );
   }, [enabled, isMobile, wrapRef, calendarRef]);
+
+  const scheduleMeasure = useCallback(() => {
+    if (deferredMeasureRaf.current) {
+      return;
+    }
+    deferredMeasureRaf.current = requestAnimationFrame(() => {
+      deferredMeasureRaf.current = 0;
+      measure();
+    });
+  }, [measure]);
 
   // Synchronous measurement after calendar layout completes (layoutEpoch)
   // to avoid a single frame of stale overlay position.
@@ -192,15 +205,19 @@ export function useNowIndicatorOverlay({
     }
 
     const ro = new ResizeObserver(() => {
-      measure();
+      scheduleMeasure();
     });
     ro.observe(wrap);
-    window.addEventListener("resize", measure);
+    window.addEventListener("resize", scheduleMeasure);
     return () => {
       ro.disconnect();
-      window.removeEventListener("resize", measure);
+      window.removeEventListener("resize", scheduleMeasure);
+      if (deferredMeasureRaf.current) {
+        cancelAnimationFrame(deferredMeasureRaf.current);
+        deferredMeasureRaf.current = 0;
+      }
     };
-  }, [enabled, measure, wrapRef]);
+  }, [enabled, scheduleMeasure, wrapRef]);
 
   // Periodic re-measurement so the overlay tracks FC's native line as it
   // advances with real time. 30 s strikes a balance between visual accuracy
