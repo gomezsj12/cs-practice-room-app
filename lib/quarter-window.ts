@@ -54,6 +54,57 @@ export type ActiveQuarterResult = {
  * Returns the quarter where `start_date ≤ today ≤ end_date` (date-only, room TZ),
  * preferring the latest `start_date` if multiple rows match.
  */
+/** Same resolution as `GET /api/events` for Google list bounds and booking validation. */
+export type ResolvedCalendarDataWindow = {
+  timeMin: Date;
+  timeMax: Date;
+  quarter: ApiQuarterInfo | null;
+};
+
+export async function getResolvedCalendarDataWindow(): Promise<ResolvedCalendarDataWindow> {
+  const active = await getActiveQuarterWindow();
+  if (active) {
+    return {
+      timeMin: active.timeMin,
+      timeMax: active.timeMax,
+      quarter: active.quarter,
+    };
+  }
+  const fb = rollingFallbackWindow();
+  return { timeMin: fb.timeMin, timeMax: fb.timeMax, quarter: null };
+}
+
+/**
+ * Rejects when the requested interval is not fully inside the data window
+ * (matches what the calendar loads). `timeMin`/`timeMax` are inclusive
+ * instants from {@link ymdBoundsToUtcDates} or {@link rollingFallbackWindow}.
+ */
+export function bookingIntervalWithinDataWindow(
+  startIso: string,
+  endIso: string,
+  timeMin: Date,
+  timeMax: Date,
+): { ok: true } | { ok: false; error: string } {
+  const startMs = new Date(startIso).getTime();
+  const endMs = new Date(endIso).getTime();
+  if (Number.isNaN(startMs) || Number.isNaN(endMs)) {
+    return { ok: false, error: "Invalid start or end time." };
+  }
+  if (startMs < timeMin.getTime()) {
+    return {
+      ok: false,
+      error: "That time is before the bookable date range.",
+    };
+  }
+  if (endMs > timeMax.getTime()) {
+    return {
+      ok: false,
+      error: "That time is after the bookable date range.",
+    };
+  }
+  return { ok: true };
+}
+
 export async function getActiveQuarterWindow(): Promise<ActiveQuarterResult | null> {
   const tz = getRoomTimeZone();
   const todayStr = calendarDateInZone(new Date(), tz);

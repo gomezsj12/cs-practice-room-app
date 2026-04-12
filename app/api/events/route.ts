@@ -37,14 +37,10 @@ import {
 } from "@/lib/calendar-events";
 import { getCalendarClient } from "@/lib/google";
 import { getProfileByGoogleEmail } from "@/lib/profile-helpers";
-import {
-  getActiveQuarterWindow,
-  rollingFallbackWindow,
-} from "@/lib/quarter-window";
+import { getResolvedCalendarDataWindow } from "@/lib/quarter-window";
 import { getSupabaseAdmin } from "@/lib/supabase";
 import type {
   ApiCalendarEvent,
-  ApiQuarterInfo,
   BlockedTimeRow,
   GoogleApiEvent,
   HoldRow,
@@ -184,20 +180,7 @@ export async function GET() {
         })
       : Promise.resolve(null);
 
-    const activeQuarter = await getActiveQuarterWindow();
-    let quarter: ApiQuarterInfo | null = null;
-    let timeMin: Date;
-    let timeMax: Date;
-
-    if (activeQuarter) {
-      quarter = activeQuarter.quarter;
-      timeMin = activeQuarter.timeMin;
-      timeMax = activeQuarter.timeMax;
-    } else {
-      const fb = rollingFallbackWindow();
-      timeMin = fb.timeMin;
-      timeMax = fb.timeMax;
-    }
+    const { timeMin, timeMax, quarter } = await getResolvedCalendarDataWindow();
 
     const holdsEnabled = process.env.ENABLE_TEMP_HOLDS === "true";
     const holdQueryPromise = holdsEnabled

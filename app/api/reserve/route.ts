@@ -27,6 +27,10 @@ import {
 } from "@/lib/calendar-helpers";
 import { getCalendarClient } from "@/lib/google";
 import { createJamReservationInNotion } from "@/lib/notion";
+import {
+  bookingIntervalWithinDataWindow,
+  getResolvedCalendarDataWindow,
+} from "@/lib/quarter-window";
 import { getSupabaseAdmin } from "@/lib/supabase";
 import type { HoldRow } from "@/lib/types";
 
@@ -84,6 +88,17 @@ export async function POST(request: NextRequest) {
         { error: validation.error },
         { status: validation.status },
       );
+    }
+
+    const dataWindow = await getResolvedCalendarDataWindow();
+    const windowCheck = bookingIntervalWithinDataWindow(
+      start,
+      end,
+      dataWindow.timeMin,
+      dataWindow.timeMax,
+    );
+    if (!windowCheck.ok) {
+      return NextResponse.json({ error: windowCheck.error }, { status: 400 });
     }
 
     // Tracks whether the booking was backed by a verified hold; returned to

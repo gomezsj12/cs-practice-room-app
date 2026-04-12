@@ -25,6 +25,10 @@ import {
   validateBlockedTimes,
 } from "@/lib/calendar-helpers";
 import { getCalendarClient } from "@/lib/google";
+import {
+  bookingIntervalWithinDataWindow,
+  getResolvedCalendarDataWindow,
+} from "@/lib/quarter-window";
 import { getSupabaseAdmin } from "@/lib/supabase";
 import type { BlockedTimeRow } from "@/lib/types";
 
@@ -56,6 +60,17 @@ export async function POST(request: NextRequest) {
         { error: validation.error },
         { status: validation.status },
       );
+    }
+
+    const dataWindow = await getResolvedCalendarDataWindow();
+    const windowCheck = bookingIntervalWithinDataWindow(
+      start,
+      end,
+      dataWindow.timeMin,
+      dataWindow.timeMax,
+    );
+    if (!windowCheck.ok) {
+      return NextResponse.json({ error: windowCheck.error }, { status: 400 });
     }
 
     const practiceCalendarId = process.env.PRACTICE_CALENDAR_ID;

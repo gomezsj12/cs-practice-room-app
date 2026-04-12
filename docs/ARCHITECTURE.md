@@ -692,6 +692,7 @@ Central orchestration:
 
 - **Requires** signed-in user; uses `ownerEmail` / `ownerName` from session.
 - Validates body: `name`, `instrument`, `start`, `end`, optional `holdId`.
+- **Bookable window:** `getResolvedCalendarDataWindow` + `bookingIntervalWithinDataWindow` — rejects if `start`/`end` fall outside the active WWU quarter (or rolling −7/+30 fallback), matching `GET /api/events`.
 - Duration 30 min–6 h; parses ISO datetimes.
 - If holds enabled and `holdId` present: loads hold from Supabase, checks owner, status `pending`, not expired, and times match (±1s). On verification failure, logs and continues (overlap check still runs).
 - Lists overlapping window on **both** calendars; `hasOverlap` rejects if any event overlaps.
@@ -710,6 +711,7 @@ Central orchestration:
 ### `POST app/api/holds/create/route.ts`
 
 - Requires sign-in; validates slot duration.
+- **Bookable window:** same quarter / fallback bounds as `/api/events` (`getResolvedCalendarDataWindow`).
 - Checks Google Calendar overlap on both calendars.
 - If `ENABLE_TEMP_HOLDS !== "true"` → 503.
 - Queries Supabase for overlapping pending holds; if any → 409.
@@ -753,7 +755,7 @@ Centralized app metadata: name, description, public URLs for Fillout, Telegram c
 Shared TypeScript types: `GoogleApiEvent`, `CalendarEventAttendee`, `HoldRow`, `WwuQuarterRow`, `ApiQuarterInfo`, `ApiCalendarEvent`, `CalendarEvent`, `PendingSelection`, `ToastState`, `DragMirrorState`, `ProfileRow` (includes `is_admin`), `SupportThreadRow`, `SupportMessageRow`.
 
 ### `lib/quarter-window.ts`
-`getRoomTimeZone`, `calendarDateInZone`, `getActiveQuarterWindow` (Supabase quarter containing today), `rollingFallbackWindow` (legacy −7/+30), and `ymdBoundsToUtcDates` for Google `timeMin`/`timeMax`.
+`getRoomTimeZone`, `calendarDateInZone`, `getActiveQuarterWindow` (Supabase quarter containing today), `getResolvedCalendarDataWindow` (quarter or fallback — shared by `/api/events` and booking routes), `bookingIntervalWithinDataWindow` (server-side parity for reserve / holds / blocked times), `rollingFallbackWindow` (legacy −7/+30), and `ymdBoundsToUtcDates` for Google `timeMin`/`timeMax`.
 
 ### `lib/notion-quarters-sync.ts`
 Server-only full sync from the Notion WWU Quarters data source into `wwu_quarters` (upsert by `notion_page_id`, delete orphans).
