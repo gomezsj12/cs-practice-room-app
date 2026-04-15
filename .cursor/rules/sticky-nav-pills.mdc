@@ -1,0 +1,78 @@
+---
+description: Sticky glass navigation pills — architecture and invariants
+globs: components/StickyNavPills.tsx, components/SiteHeader.tsx, components/SupportNavLink.tsx, app/globals.css, app/layout.tsx
+alwaysApply: false
+---
+
+# Sticky Nav Pills
+
+The page-navigation pills (Home, Booking, Calendar, Support) are rendered by
+**one component** — `StickyNavPills`. The header's own `nav[aria-label="Main"]`
+is always hidden after hydration; it exists only as an invisible anchor for
+positioning.
+
+## Architecture
+
+```
+SiteHeader (never modified)
+  └─ nav[aria-label="Main"]   ← hidden via JS, used as position reference
+StickyNavPills
+  └─ div (containerRef)        ← absolute/fixed positioning
+       └─ responsive grid wrapper (mirrors SiteHeader grid)
+            └─ nav[aria-label="Sticky"]  ← visible pills
+```
+
+### Two-mode positioning (no per-frame transforms)
+
+| Mode | `position` | `top` | When |
+|------|-----------|-------|------|
+| Not stuck | `absolute` | `navDocTop - NAV_PADDING_TOP_PX` | `scrollY < stickPoint` |
+| Stuck | `fixed` | `0px` | `scrollY >= stickPoint` |
+
+The browser compositor handles scrolling in absolute mode (zero lag).
+JS only fires on the `scroll` event to detect the switch point and update
+the `--glass-blur` CSS variable — it never sets `transform`.
+
+### Hydration strategy (no load-in delay)
+
+1. CSS does **not** hide `nav[aria-label="Main"]` — it is visible in the
+   server-rendered HTML so pills appear from the first paint.
+2. `StickyNavPills` starts with `opacity-0` (SSR) and `position: fixed` (out
+   of document flow, no layout shift).
+3. `useLayoutEffect` (synchronous, before first client paint):
+   - Hides the header nav via `headerNav.style.visibility = "hidden"`
+   - Positions the sticky container at the header nav's document offset
+   - Sets `opacity: 1`
+4. Result: the user always sees pills; the swap is invisible.
+
+## Invariants — do not break these
+
+1. **Single pill set.** Only `StickyNavPills` renders visible pills. The
+   header nav is hidden. Never show both simultaneously.
+2. **Vertical alignment.** The container's absolute top is
+   `navDocTop - NAV_PADDING_TOP_PX` so inner pills (with `py-2.5` padding)
+   align exactly with the header nav's position. If you change the inner
+   nav's vertical padding, update `NAV_PADDING_TOP_PX` to match.
+3. **Responsive grid.** The inner wrapper mirrors SiteHeader's grid
+   (`hd:grid-cols-[minmax(0,1fr)_auto_minmax(0,1fr)]`, `hd:col-start-2`).
+   Changes to the header grid must be reflected here.
+4. **Pointer events.** The outer container and inner nav are
+   `pointer-events-none`; individual pills are `pointer-events-auto` (via the
+   `.sticky-nav-pill` class in `globals.css`). This prevents the transparent
+   overlay from blocking clicks on content beneath.
+5. **Border consistency.** All pill borders (StickyNavPills, SiteHeader,
+   SupportNavLink) use identical classes: `border-white/20` (inactive),
+   `hover:border-white/35`, `border-blue-400` (active). Keep them in sync.
+6. **Glass blur.** Applied only to `<a>` elements via `a.sticky-nav-pill` and
+   `.sticky-nav-pill > a` selectors (not wrapper `<span>`s) to avoid square
+   clipping on non-rectangular containers (e.g. the Support pill wrapper).
+7. **No CSS `visibility: hidden` rule on the header nav.** The header nav
+   must be visible in the SSR HTML. It is hidden by JS in `useLayoutEffect`
+   so there is no delay before pills appear.
+
+## Testing
+
+E2E tests live in `e2e/sticky-nav.spec.ts` and cover visibility, navigation,
+active states, pointer events, keyboard shortcuts, and header-nav hiding
+across four viewports × three browser engines (Chromium, Firefox, WebKit).
+See `.cursor/rules/playwright-multi-browser.mdc` for runner details.

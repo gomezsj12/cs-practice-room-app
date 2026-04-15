@@ -14,6 +14,19 @@
   --color-foreground: var(--foreground);
 }
 
+/* ── Sticky Nav Glass Pills ── */
+
+.sticky-nav-pill {
+  pointer-events: auto;
+}
+
+a.sticky-nav-pill,
+.sticky-nav-pill > a {
+  backdrop-filter: blur(var(--glass-blur, 0px));
+  -webkit-backdrop-filter: blur(var(--glass-blur, 0px));
+}
+
+
 html {
   color-scheme: dark;
   /* Reserve space for the vertical scrollbar so width doesn't oscillate when

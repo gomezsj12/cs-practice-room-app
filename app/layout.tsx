@@ -22,6 +22,7 @@ import AuthProvider from "@/components/AuthProvider";
 import InstallPrompt from "@/components/InstallPrompt";
 import ServiceWorkerRegistration from "@/components/ServiceWorkerRegistration";
 import SiteHeader from "@/components/SiteHeader";
+import StickyNavPills from "@/components/StickyNavPills";
 import { siteConfig } from "@/lib/siteConfig";
 import "./globals.css";
 
@@ -56,6 +57,7 @@ export default async function RootLayout({
       <body className="flex min-h-dvh flex-col bg-[#030303] text-white">
         <AuthProvider session={session}>
           <SiteHeader />
+          <StickyNavPills />
           <div className="flex min-h-0 flex-1 flex-col">{children}</div>
           <ServiceWorkerRegistration />
           <InstallPrompt />

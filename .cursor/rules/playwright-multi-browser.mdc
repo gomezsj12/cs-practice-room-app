@@ -1,0 +1,39 @@
+---
+description: Playwright multi-browser testing instructions
+globs: e2e/**/*.spec.ts, playwright.config.ts
+alwaysApply: false
+---
+
+# Playwright Multi-Browser Testing
+
+Always run Playwright tests locally across **three engines**: Chromium, Firefox, and WebKit. All three are configured as projects in `playwright.config.ts`.
+
+## Running tests
+
+```bash
+# All engines (default)
+npx playwright test
+
+# Specific engine
+npx playwright test --project=chromium
+npx playwright test --project=firefox
+npx playwright test --project=webkit
+```
+
+## Firefox timing
+
+Firefox is significantly slower than Chromium/WebKit in Playwright. The config sets a 60 s per-test timeout for the `firefox` project. When writing new tests:
+
+- Use generous `toHaveURL` timeouts (10-15 s) for navigation assertions
+- Prefer `expect(page).toHaveURL(pattern, { timeout })` over `waitForTimeout` + assertion
+- Use `{ force: true }` on clicks targeting `fixed`-position or animated elements
+
+## Installing browsers
+
+```bash
+npx playwright install chromium firefox webkit
+```
+
+## BrowserStack
+
+BrowserStack is **not allowed** for this project. All cross-browser testing must use local Playwright engines.
