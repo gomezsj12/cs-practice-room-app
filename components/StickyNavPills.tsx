@@ -65,9 +65,7 @@ export default function StickyNavPills() {
     el.style.top = `${containerAbsTop}px`;
     el.style.opacity = "1";
 
-    const pillLinks = el.querySelectorAll<HTMLElement>(
-      "a.sticky-nav-pill, .sticky-nav-pill > a",
-    );
+    const pillLinks = el.querySelectorAll<HTMLElement>("a.sticky-nav-pill");
 
     const setBlur = (value: string) => {
       pillLinks.forEach((a) => {
@@ -144,9 +142,11 @@ export default function StickyNavPills() {
 
             if (item.href === "/support") {
               return (
-                <span key={item.href} className="sticky-nav-pill shrink-0">
-                  <SupportNavLink isActive={isActive} />
-                </span>
+                <SupportNavLink
+                  key={item.href}
+                  isActive={isActive}
+                  className="sticky-nav-pill"
+                />
               );
             }
 

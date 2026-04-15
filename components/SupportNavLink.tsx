@@ -19,6 +19,7 @@ import { useSession } from "next-auth/react";
 
 type SupportNavLinkProps = {
   isActive: boolean;
+  className?: string;
 };
 
 /**
@@ -27,7 +28,7 @@ type SupportNavLinkProps = {
  * @param props.isActive - Whether the Support route is the current page
  *   (controls the active/highlighted pill style).
  */
-export default function SupportNavLink({ isActive }: SupportNavLinkProps) {
+export default function SupportNavLink({ isActive, className }: SupportNavLinkProps) {
   const { data: session, status } = useSession();
   const isAdmin = Boolean(session?.isAdmin);
   const [unread, setUnread] = useState(false);
@@ -72,7 +73,7 @@ export default function SupportNavLink({ isActive }: SupportNavLinkProps) {
         isActive
           ? "border-blue-400 bg-blue-500/15 text-blue-200"
           : "border-white/20 bg-white/5 text-neutral-300 hover:border-white/35 hover:bg-white/10 hover:text-white"
-      }`}
+      }${className ? ` ${className}` : ""}`}
     >
       Support
       {showUnreadDot ? (
