@@ -30,8 +30,8 @@ StickyNavPills
 | Stuck | `fixed` | `0px` | `scrollY >= stickPoint` |
 
 The browser compositor handles scrolling in absolute mode (zero lag).
-JS only fires on the `scroll` event to detect the switch point and update
-the `--glass-blur` CSS variable — it never sets `transform`.
+JS only fires on the `scroll` event to detect the switch point and set
+`backdrop-filter` inline on each pill `<a>` — it never sets `transform`.
 
 ### Hydration strategy (no load-in delay)
 
@@ -63,14 +63,13 @@ the `--glass-blur` CSS variable — it never sets `transform`.
 5. **Border consistency.** All pill borders (StickyNavPills, SiteHeader,
    SupportNavLink) use identical classes: `border-white/20` (inactive),
    `hover:border-white/35`, `border-blue-400` (active). Keep them in sync.
-6. **Glass blur + background fallback.** Applied only to `<a>` elements via
-   `a.sticky-nav-pill` and `.sticky-nav-pill > a` selectors (not wrapper
-   `<span>`s) to avoid square clipping on non-rectangular containers (e.g. the
-   Support pill wrapper). An inset `box-shadow` driven by `--glass-bg-alpha`
-   provides a dark tinted background that ramps in alongside the blur. This
-   is the primary readability mechanism on Android Chrome/Firefox where
-   `backdrop-filter` often has no visible effect; on iOS/Safari it layers
-   underneath the blur for a frosted glass look.
+6. **Glass blur.** Applied as **inline styles** (`backdropFilter` +
+   `webkitBackdropFilter`) directly on each pill `<a>` element from the JS
+   scroll handler. Do NOT use CSS custom properties or stylesheet rules for
+   `backdrop-filter` — Chrome/Firefox skip the compositing layer at
+   `blur(0px)` and never re-create it when the value changes via inherited
+   custom properties. The pill `<a>` elements are cached on mount via
+   `el.querySelectorAll('a.sticky-nav-pill, .sticky-nav-pill > a')`.
 7. **No CSS `visibility: hidden` rule on the header nav.** The header nav
    must be visible in the SSR HTML. It is hidden by JS in `useLayoutEffect`
    so there is no delay before pills appear.

@@ -40,8 +40,6 @@ const NAV_PADDING_TOP_PX = 10;
 /** Pixels of scrolling past the stick point to reach full glass blur. */
 const FADE_DISTANCE_PX = 80;
 const MAX_BLUR_PX = 12;
-/** Max background opacity when fully stuck (fallback for Android). */
-const MAX_BG_ALPHA = 0.65;
 
 export default function StickyNavPills() {
   const pathname = usePathname();
@@ -67,6 +65,18 @@ export default function StickyNavPills() {
     el.style.top = `${containerAbsTop}px`;
     el.style.opacity = "1";
 
+    const pillLinks = el.querySelectorAll<HTMLElement>(
+      "a.sticky-nav-pill, .sticky-nav-pill > a",
+    );
+
+    const setBlur = (value: string) => {
+      pillLinks.forEach((a) => {
+        a.style.backdropFilter = value;
+        (a.style as unknown as Record<string, string>).webkitBackdropFilter =
+          value;
+      });
+    };
+
     const update = () => {
       const scrollY = window.scrollY;
       const shouldFix = scrollY >= stickPoint;
@@ -88,17 +98,9 @@ export default function StickyNavPills() {
           1,
           Math.max(0, scrollPast / FADE_DISTANCE_PX),
         );
-        el.style.setProperty(
-          "--glass-blur",
-          `${Math.round(progress * MAX_BLUR_PX)}px`,
-        );
-        el.style.setProperty(
-          "--glass-bg-alpha",
-          `${(progress * MAX_BG_ALPHA).toFixed(3)}`,
-        );
+        setBlur(`blur(${Math.round(progress * MAX_BLUR_PX)}px)`);
       } else {
-        el.style.setProperty("--glass-blur", "0px");
-        el.style.setProperty("--glass-bg-alpha", "0");
+        setBlur("none");
       }
     };
 
