@@ -28,7 +28,7 @@
 
 import { NextResponse } from "next/server";
 import { auth } from "@/auth";
-import { isAppAdmin } from "@/lib/admin";
+import { isEffectiveAppAdmin } from "@/lib/admin";
 import {
   canUserCancelJamEvent,
   canUserCancelPracticeEvent,
@@ -276,7 +276,10 @@ export async function GET() {
       fridayExceptionsPromise,
     ]);
 
-    const isAdmin = await isAppAdmin(currentUserEmail);
+    const isAdmin = isEffectiveAppAdmin(
+      currentUserEmail,
+      currentUserProfile?.type,
+    );
     const currentUserContext = {
       currentUserEmail,
       currentUserWwuEmail: currentUserProfile?.walla_walla_email,

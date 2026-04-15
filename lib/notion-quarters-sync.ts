@@ -49,7 +49,7 @@ function readDateColumn(
   return p.date.start.slice(0, 10);
 }
 
-export type SyncWwuQuartersResult = {
+type SyncWwuQuartersResult = {
   upserted: number;
   deleted: number;
   skipped: number;

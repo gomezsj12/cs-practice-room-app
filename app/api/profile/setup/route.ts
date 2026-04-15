@@ -21,9 +21,7 @@ import {
 import type { DepartmentFlags } from "@/lib/notion";
 import { getSupabaseAdmin } from "@/lib/supabase";
 import { resolveProfileDisplayName } from "@/lib/profile-helpers";
-
-/** Enforces `First.Last@wallawalla.edu` format. */
-const WWU_EMAIL_RE = /^[A-Za-z]+\.[A-Za-z]+@wallawalla\.edu$/;
+import { WWU_EMAIL_RE } from "@/lib/validation";
 
 export async function POST(req: Request) {
   const session = await auth();

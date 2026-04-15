@@ -7,9 +7,11 @@
 | [ARCHITECTURE.md](./ARCHITECTURE.md) | Tech stack, file map, data flow, environment variables, system design, and notes for working on the project. |
 | [change-log.md](./change-log.md) | Full project history: pre-Cursor jam reservation app commits + CS Practice Room commits, with attribution and anti-regression table. |
 | [error-log.md](./error-log.md) | Error history with root causes, fixes applied, and prevention notes. Add new entries when bugs are fixed. |
-| [ui-lookbook.md](./ui-lookbook.md) | Visual documentation of every UI page, state, and interaction. Desktop + mobile screenshots with full-page scrolling. |
+| [ui-lookbook.md](./ui-lookbook.md) | Visual documentation of every UI page, state, and interaction. Desktop + mobile screenshots in `screenshots/`. |
 | [code-audit.md](./code-audit.md) | Code redundancy and efficiency findings with risk levels and implementation status. |
 | [CODE_REVIEW.md](./CODE_REVIEW.md) | Code review process, checklists, anti-patterns, and session records. Start here if you are a code reviewer. |
+| [user-guide.md](./user-guide.md) | End-user guide covering all four app pages with annotated screenshots in `guide-screenshots/`. |
+| [admin-guide.md](./admin-guide.md) | Staff/admin guide covering admin-only features and Telegram integration. |
 | [BUILD_PHASES.md](./BUILD_PHASES.md) | Original build plan for forking the jam scheduler into the portal app (historical reference). |
 | [BROWSER_VERIFICATION.md](./BROWSER_VERIFICATION.md) | Browser testing procedures using Playwright and Cursor MCP tools. |
 

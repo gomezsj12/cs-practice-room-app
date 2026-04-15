@@ -49,8 +49,7 @@ export async function GET() {
   }
 }
 
-/** Enforces `First.Last@wallawalla.edu` format. */
-const WWU_EMAIL_RE = /^[A-Za-z]+\.[A-Za-z]+@wallawalla\.edu$/;
+import { WWU_EMAIL_RE } from "@/lib/validation";
 
 /**
  * Update the authenticated user's WWU email and re-sync Notion-derived fields.

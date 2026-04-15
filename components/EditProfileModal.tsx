@@ -26,8 +26,7 @@ import { useEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import { useSession } from "next-auth/react";
 import { SESSION_JWT_REFRESH_PAYLOAD } from "@/lib/session-refresh";
-
-const WWU_EMAIL_RE = /^[A-Za-z]+\.[A-Za-z]+@wallawalla\.edu$/;
+import { WWU_EMAIL_RE } from "@/lib/validation";
 
 type Phase = "form" | "updating" | "done";
 

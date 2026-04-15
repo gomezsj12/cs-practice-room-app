@@ -27,19 +27,15 @@ import {
 } from "@/lib/support";
 import { isMissingSupportSoftDeleteColumnsError } from "@/lib/support-schema";
 import { getSupabaseAdmin } from "@/lib/supabase";
+import {
+  MAX_SUPPORT_MESSAGE_LENGTH,
+  normalizeMessageText,
+} from "@/lib/validation";
 
 const MIN_MESSAGE_LENGTH = 10;
-const MAX_MESSAGE_LENGTH = 1200;
 const RATE_LIMIT_WINDOW_MS = 20_000;
 
-// In-memory map — resets on serverless cold start, which is acceptable
-// because the window is short (20 s) and the worst case is one extra message.
 const lastContactRequestByEmail = new Map<string, number>();
-
-/** Normalise CRLF → LF and trim whitespace for Telegram delivery. */
-function cleanForTelegram(value: string) {
-  return value.replace(/\r\n/g, "\n").trim();
-}
 
 /**
  * Returns the number of seconds the caller must wait before sending again,
@@ -95,7 +91,7 @@ export async function POST(request: NextRequest) {
     }
 
     const body = (await request.json()) as { message?: string };
-    const message = cleanForTelegram(body.message || "");
+    const message = normalizeMessageText(body.message || "");
 
     if (message.length < MIN_MESSAGE_LENGTH) {
       return NextResponse.json(
@@ -104,9 +100,9 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    if (message.length > MAX_MESSAGE_LENGTH) {
+    if (message.length > MAX_SUPPORT_MESSAGE_LENGTH) {
       return NextResponse.json(
-        { error: `Message must be at most ${MAX_MESSAGE_LENGTH} characters.` },
+        { error: `Message must be at most ${MAX_SUPPORT_MESSAGE_LENGTH} characters.` },
         { status: 400 },
       );
     }

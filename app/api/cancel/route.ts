@@ -20,7 +20,7 @@
 
 import { NextRequest, NextResponse } from "next/server";
 import { auth } from "@/auth";
-import { isAppAdmin } from "@/lib/admin";
+import { isEffectiveAppAdmin } from "@/lib/admin";
 import {
   canUserCancelJamEvent,
   canUserCancelPracticeEvent,
@@ -105,10 +105,9 @@ export async function POST(request: NextRequest) {
     const event = eventResponse.data as GoogleApiEvent;
     const endStr = getEventEnd(event);
     const endDate = new Date(endStr);
-    const currentUserProfile =
-      eventType === "practice" && sessionUserEmail
-        ? await getProfileByGoogleEmail(sessionUserEmail)
-        : null;
+    const currentUserProfile = sessionUserEmail
+      ? await getProfileByGoogleEmail(sessionUserEmail)
+      : null;
 
     if (!endStr || Number.isNaN(endDate.getTime())) {
       return NextResponse.json(
@@ -127,7 +126,10 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    const isAdmin = await isAppAdmin(currentUserEmail);
+    const isAdmin = isEffectiveAppAdmin(
+      currentUserEmail,
+      currentUserProfile?.type,
+    );
     const canCancel =
       eventType === "jam"
         ? canUserCancelJamEvent(event, currentUserEmail, adminEmail, isAdmin)

@@ -129,14 +129,24 @@ export async function closeTelegramSupportForumTopic(params: {
     return;
   }
   try {
-    await fetch(`https://api.telegram.org/bot${botToken}/closeForumTopic`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        chat_id: params.telegram_chat_id,
-        message_thread_id: params.telegram_topic_id,
-      }),
-    });
+    const res = await fetch(
+      `https://api.telegram.org/bot${botToken}/closeForumTopic`,
+      {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          chat_id: params.telegram_chat_id,
+          message_thread_id: params.telegram_topic_id,
+        }),
+      },
+    );
+    if (!res.ok) {
+      const body = await res.text().catch(() => "(unreadable)");
+      console.warn(
+        `closeForumTopic returned ${res.status}:`,
+        body,
+      );
+    }
   } catch (closeTopicError) {
     console.warn("closeForumTopic failed:", closeTopicError);
   }

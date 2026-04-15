@@ -28,7 +28,7 @@ const AUTO_SYNC_INTERVAL_MS = 60_000;
 /** 2 full rotations at 1.5 s each. */
 const MIN_SPIN_MS = 3_000;
 
-export type SyncStatus = "idle" | "syncing" | "cooldown" | "error";
+type SyncStatus = "idle" | "syncing" | "cooldown" | "error";
 
 /**
  * Hook return value for the refresh-button UI in {@link AuthButton}.
@@ -36,7 +36,7 @@ export type SyncStatus = "idle" | "syncing" | "cooldown" | "error";
  * `cooldownRemaining` is seconds left (0 when not in cooldown).
  * `isManualSyncing` is true while the icon should be spinning.
  */
-export type UseProfileSyncReturn = {
+type UseProfileSyncReturn = {
   syncStatus: SyncStatus;
   isManualSyncing: boolean;
   cooldownRemaining: number;
@@ -127,38 +127,6 @@ export function useProfileSync(enabled: boolean): UseProfileSyncReturn {
     }
   }, []);
 
-  const startCooldown = useCallback(() => {
-    lastManualTimestampRef.current = Date.now();
-
-    if (cooldownIntervalRef.current) {
-      clearInterval(cooldownIntervalRef.current);
-    }
-
-    setCooldownRemaining(Math.ceil(MANUAL_COOLDOWN_MS / 1000));
-    setSyncStatus("cooldown");
-
-    cooldownIntervalRef.current = setInterval(() => {
-      const elapsed = Date.now() - lastManualTimestampRef.current;
-      const remaining = Math.ceil(
-        (MANUAL_COOLDOWN_MS - elapsed) / 1000,
-      );
-
-      if (remaining <= 0) {
-        if (cooldownIntervalRef.current) {
-          clearInterval(cooldownIntervalRef.current);
-          cooldownIntervalRef.current = null;
-        }
-        if (mountedRef.current) {
-          setCooldownRemaining(0);
-          setSyncStatus("idle");
-        }
-        return;
-      }
-
-      if (mountedRef.current) setCooldownRemaining(remaining);
-    }, 1000);
-  }, []);
-
   /**
    * Manual sync: ignored if the icon is already spinning/syncing or in
    * cooldown. Guarantees at least {@link MIN_SPIN_MS} of visible rotation
@@ -202,32 +170,34 @@ export function useProfileSync(enabled: boolean): UseProfileSyncReturn {
 
     const spinStart = Date.now();
 
-    const syncPromise = (async () => {
-      if (syncInProgressRef.current) return;
+    const syncPromise = (async (): Promise<boolean> => {
+      if (syncInProgressRef.current) return true;
       syncInProgressRef.current = true;
       try {
         const res = await fetch("/api/profile/sync", { method: "POST" });
-        if (res.ok) await updateRef.current(SESSION_JWT_REFRESH_PAYLOAD);
+        if (!res.ok) return false;
+        const updated = await updateRef.current(SESSION_JWT_REFRESH_PAYLOAD);
+        return updated != null;
       } catch {
-        /* error state handled after spin */
+        return false;
       } finally {
         syncInProgressRef.current = false;
       }
     })();
 
-    void syncPromise.then(() => {
+    void syncPromise.then((ok) => {
       const spinElapsed = Date.now() - spinStart;
       const remainingSpin = Math.max(0, MIN_SPIN_MS - spinElapsed);
 
       setTimeout(() => {
         if (!mountedRef.current) return;
         setIsManualSyncing(false);
-        setSyncStatus("idle");
+        setSyncStatus(ok ? "idle" : "error");
         manualBusyRef.current = false;
         lastManualTimestampRef.current = Date.now();
       }, remainingSpin);
     });
-  }, [startCooldown]);
+  }, []);
 
   // Auto-sync on mount + interval
   useEffect(() => {

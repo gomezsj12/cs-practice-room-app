@@ -45,9 +45,9 @@ This document records findings from a full code audit. Each finding includes a r
 
 - **Files:** `app/api/support/contact/route.ts`, `app/api/support/reply/route.ts`
 - **Issue:** Nearly identical `\r\n` → `\n` + trim logic.
-- **Proposed:** `normalizeMultilineMessage()` in `lib/support.ts`.
+- **Proposed:** `normalizeMultilineMessage()` in shared module.
 - **Risk:** Low
-- **Status:** Deferred — minimal duplication.
+- **Status:** Implemented (2026-04-15 review) — extracted to `normalizeMessageText()` in `lib/validation.ts`.
 
 ### AUDIT-005: Booking duration constants defined twice
 
@@ -188,3 +188,99 @@ This document records findings from a full code audit. Each finding includes a r
 - **Proposed:** `next/dynamic` with `ssr: false` for CalendarView.
 - **Risk:** Medium (changes loading experience on jam page)
 - **Status:** Deferred — would change the loading UX, needs product decision.
+
+---
+
+## Findings from 2026-04-15 review
+
+### AUDIT-020: Dead `startCooldown` function in useProfileSync
+
+- **File:** `hooks/useProfileSync.ts`
+- **Issue:** `startCooldown` callback defined but never invoked. Listed as dependency of `triggerManualSync` but never called inside it.
+- **Risk:** Low
+- **Status:** Implemented — removed dead function and dep entry.
+
+### AUDIT-021: Internal-only types unnecessarily exported
+
+- **Files:** `lib/notion-quarters-sync.ts` (`SyncWwuQuartersResult`), `hooks/useProfileSync.ts` (`SyncStatus`, `UseProfileSyncReturn`)
+- **Issue:** Types exported but never imported by any other file.
+- **Risk:** Low
+- **Status:** Implemented — removed `export` keyword.
+
+### AUDIT-022: Duplicated `navItems` array
+
+- **Files:** `components/SiteHeader.tsx`, `components/StickyNavPills.tsx`
+- **Issue:** Identical array defined independently in both files.
+- **Proposed:** Shared module.
+- **Risk:** Low
+- **Status:** Implemented — extracted to `lib/nav-items.ts`.
+
+### AUDIT-023: `WWU_EMAIL_RE` regex defined in 4 places
+
+- **Files:** `components/AccountSetupModal.tsx`, `components/EditProfileModal.tsx`, `app/api/profile/setup/route.ts`, `app/api/profile/me/route.ts`
+- **Issue:** Same regex duplicated.
+- **Risk:** Low
+- **Status:** Implemented — extracted to `lib/validation.ts`.
+
+### AUDIT-024: `MAX_MESSAGE_LENGTH` defined in 2 routes
+
+- **Files:** `app/api/support/contact/route.ts`, `app/api/support/reply/route.ts`
+- **Issue:** Same constant (1200) defined locally in both.
+- **Risk:** Low
+- **Status:** Implemented — extracted to `MAX_SUPPORT_MESSAGE_LENGTH` in `lib/validation.ts`.
+
+### AUDIT-025: Redundant profile read in events route
+
+- **File:** `app/api/events/route.ts`
+- **Issue:** `isAppAdmin()` at line 279 re-fetches profile from Supabase even though `currentUserProfile` was already loaded in the `Promise.all`.
+- **Risk:** Low-medium
+- **Status:** Implemented — switched to synchronous `isEffectiveAppAdmin(email, type)`.
+
+### AUDIT-026: Redundant profile read in cancel route
+
+- **File:** `app/api/cancel/route.ts`
+- **Issue:** Same pattern — profile loaded for practice cancel, then `isAppAdmin()` may load it again.
+- **Risk:** Low-medium
+- **Status:** Implemented — load profile unconditionally, use `isEffectiveAppAdmin`.
+
+### AUDIT-027: `closeTelegramSupportForumTopic` ignores HTTP errors
+
+- **File:** `lib/support.ts`
+- **Issue:** Telegram API response status not checked; 4xx/5xx treated as success.
+- **Risk:** Low
+- **Status:** Implemented — added `response.ok` check with warning log.
+
+### AUDIT-028: Manual profile sync does not surface API errors
+
+- **File:** `hooks/useProfileSync.ts`
+- **Issue:** When sync API returns non-OK, spinner finishes identically to success. No error state shown.
+- **Risk:** Low
+- **Status:** Implemented — sync now returns success/failure boolean; UI shows `"error"` state (red icon).
+
+### AUDIT-029: Misplaced JSDoc in quarter-window.ts
+
+- **File:** `lib/quarter-window.ts`
+- **Issue:** Comment "Returns the quarter where..." sat between `ActiveQuarterResult` and `ResolvedCalendarDataWindow` but describes `getActiveQuarterWindow`.
+- **Risk:** Zero
+- **Status:** Implemented — moved to above `getActiveQuarterWindow`.
+
+### AUDIT-030: `useEventPolling` response race condition
+
+- **File:** `hooks/useEventPolling.ts`
+- **Issue:** Multiple overlapping `loadEvents` calls (initial, poll, focus) not sequenced. Slower response can overwrite newer data.
+- **Risk:** Medium
+- **Status:** Deferred — needs AbortController pattern, careful testing of all polling paths.
+
+### AUDIT-031: `useDragSelect` pointer capture leak on unmount
+
+- **File:** `hooks/useDragSelect.ts`
+- **Issue:** Cleanup does not call `releasePointerCapture` for in-flight active pointer on unmount.
+- **Risk:** Low (browser-dependent, self-healing on next pointer event)
+- **Status:** Deferred — unlikely to cause real issues, complex to test.
+
+### AUDIT-032: Missing `.env.example` file
+
+- **Files:** `README.md`, `docs/ARCHITECTURE.md`
+- **Issue:** Multiple docs reference `.env.example` but the file does not exist on disk.
+- **Risk:** Zero (documentation only)
+- **Status:** Deferred — needs owner decision on which vars to include.

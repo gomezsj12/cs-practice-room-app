@@ -12,13 +12,12 @@ import { isAppAdmin } from "@/lib/admin";
 import { isMissingSupportSoftDeleteColumnsError } from "@/lib/support-schema";
 import { toSupportThreadKey } from "@/lib/support";
 import { getSupabaseAdmin } from "@/lib/supabase";
+import {
+  MAX_SUPPORT_MESSAGE_LENGTH,
+  normalizeMessageText,
+} from "@/lib/validation";
 
 const MIN_MESSAGE_LENGTH = 1;
-const MAX_MESSAGE_LENGTH = 1200;
-
-function cleanMessage(value: string) {
-  return value.replace(/\r\n/g, "\n").trim();
-}
 
 type ThreadForReply = {
   id: string;
@@ -44,15 +43,15 @@ export async function POST(request: NextRequest) {
 
     const body = (await request.json()) as { threadId?: string; message?: string };
     const threadId = body.threadId?.trim() || "";
-    const message = cleanMessage(body.message || "");
+    const message = normalizeMessageText(body.message || "");
 
     if (!threadId) {
       return NextResponse.json({ error: "Missing thread id." }, { status: 400 });
     }
 
-    if (message.length < MIN_MESSAGE_LENGTH || message.length > MAX_MESSAGE_LENGTH) {
+    if (message.length < MIN_MESSAGE_LENGTH || message.length > MAX_SUPPORT_MESSAGE_LENGTH) {
       return NextResponse.json(
-        { error: `Message must be between ${MIN_MESSAGE_LENGTH} and ${MAX_MESSAGE_LENGTH} characters.` },
+        { error: `Message must be between ${MIN_MESSAGE_LENGTH} and ${MAX_SUPPORT_MESSAGE_LENGTH} characters.` },
         { status: 400 },
       );
     }

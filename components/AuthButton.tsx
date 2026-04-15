@@ -294,7 +294,9 @@ export default function AuthButton({
                     title={
                       syncStatus === "cooldown"
                         ? `Wait ${cooldownRemaining}s`
-                        : "Sync profile"
+                        : syncStatus === "error"
+                          ? "Sync failed — try again"
+                          : "Sync profile"
                     }
                   >
                     <svg

@@ -27,13 +27,7 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useLayoutEffect, useRef } from "react";
 import SupportNavLink from "@/components/SupportNavLink";
-
-const navItems = [
-  { href: "/", label: "Home" },
-  { href: "/booking", label: "Booking" },
-  { href: "/calendar", label: "Calendar" },
-  { href: "/support", label: "Support" },
-];
+import { navItems } from "@/lib/nav-items";
 
 /** Inner nav padding-top from py-2.5 (10px). */
 const NAV_PADDING_TOP_PX = 10;

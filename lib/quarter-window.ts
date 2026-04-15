@@ -50,10 +50,6 @@ export type ActiveQuarterResult = {
   timeMax: Date;
 };
 
-/**
- * Returns the quarter where `start_date ≤ today ≤ end_date` (date-only, room TZ),
- * preferring the latest `start_date` if multiple rows match.
- */
 /** Same resolution as `GET /api/events` for Google list bounds and booking validation. */
 export type ResolvedCalendarDataWindow = {
   timeMin: Date;
@@ -105,6 +101,10 @@ export function bookingIntervalWithinDataWindow(
   return { ok: true };
 }
 
+/**
+ * Returns the quarter where `start_date ≤ today ≤ end_date` (date-only, room TZ),
+ * preferring the latest `start_date` if multiple rows match.
+ */
 export async function getActiveQuarterWindow(): Promise<ActiveQuarterResult | null> {
   const tz = getRoomTimeZone();
   const todayStr = calendarDateInZone(new Date(), tz);

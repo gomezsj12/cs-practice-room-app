@@ -23,8 +23,7 @@ import { useEffect, useRef, useState } from "react";
 import { signOut, useSession } from "next-auth/react";
 import { profileHasBookingAccess } from "@/lib/profile-access";
 import type { ProfileRow } from "@/lib/types";
-
-const WWU_EMAIL_RE = /^[A-Za-z]+\.[A-Za-z]+@wallawalla\.edu$/;
+import { WWU_EMAIL_RE } from "@/lib/validation";
 
 type Phase = "form" | "creating" | "done";
 

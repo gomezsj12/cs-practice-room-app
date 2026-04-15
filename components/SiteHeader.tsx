@@ -29,13 +29,7 @@ import {
 } from "@/components/auth-card-shortcut-actions-context";
 import DesktopNavShortcuts from "@/components/DesktopNavShortcuts";
 import SupportNavLink from "@/components/SupportNavLink";
-
-const navItems = [
-  { href: "/", label: "Home" },
-  { href: "/booking", label: "Booking" },
-  { href: "/calendar", label: "Calendar" },
-  { href: "/support", label: "Support" },
-];
+import { navItems } from "@/lib/nav-items";
 
 /**
  * Renders the global site header with navigation and auth controls.
