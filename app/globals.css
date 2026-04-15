@@ -24,6 +24,9 @@ a.sticky-nav-pill,
 .sticky-nav-pill > a {
   backdrop-filter: blur(var(--glass-blur, 0px));
   -webkit-backdrop-filter: blur(var(--glass-blur, 0px));
+  /* Dark inset fill that ramps in with scroll — serves as a readability
+     fallback on Android where backdrop-filter often has no visible effect. */
+  box-shadow: inset 0 0 0 99px rgb(3 3 3 / var(--glass-bg-alpha, 0));
 }
 
 

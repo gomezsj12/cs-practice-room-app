@@ -63,9 +63,14 @@ the `--glass-blur` CSS variable — it never sets `transform`.
 5. **Border consistency.** All pill borders (StickyNavPills, SiteHeader,
    SupportNavLink) use identical classes: `border-white/20` (inactive),
    `hover:border-white/35`, `border-blue-400` (active). Keep them in sync.
-6. **Glass blur.** Applied only to `<a>` elements via `a.sticky-nav-pill` and
-   `.sticky-nav-pill > a` selectors (not wrapper `<span>`s) to avoid square
-   clipping on non-rectangular containers (e.g. the Support pill wrapper).
+6. **Glass blur + background fallback.** Applied only to `<a>` elements via
+   `a.sticky-nav-pill` and `.sticky-nav-pill > a` selectors (not wrapper
+   `<span>`s) to avoid square clipping on non-rectangular containers (e.g. the
+   Support pill wrapper). An inset `box-shadow` driven by `--glass-bg-alpha`
+   provides a dark tinted background that ramps in alongside the blur. This
+   is the primary readability mechanism on Android Chrome/Firefox where
+   `backdrop-filter` often has no visible effect; on iOS/Safari it layers
+   underneath the blur for a frosted glass look.
 7. **No CSS `visibility: hidden` rule on the header nav.** The header nav
    must be visible in the SSR HTML. It is hidden by JS in `useLayoutEffect`
    so there is no delay before pills appear.
