@@ -14,6 +14,10 @@ This project is a new portal app for the CS Practice Room. It keeps the existing
    - `TELEGRAM_WEBHOOK_SECRET`
    - **`NOTION_WWU_QUARTERS_DATA_SOURCE_ID`** — Notion **WWU Quarters** data source id (so the calendar can resolve term bounds; optional locally if you rely on the rolling fallback).
    - **`CRON_SECRET`** — shared secret for `Authorization: Bearer …` on **`/api/cron/sync-quarters`** (Vercel Cron and manual sync); required in production if you use the sync route.
+   - **`NOTION_WEBHOOK_VERIFICATION_TOKEN`** — required wherever `POST /api/webhooks/notion` is reachable (same value Notion uses for `X-Notion-Signature`).
+   - **`TELEGRAM_WEBHOOK_SECRET`** — required in **production** (`VERCEL_ENV=production`) for `POST /api/support/telegram-webhook`; must match Telegram’s webhook secret token header.
+
+See **[docs/ARCHITECTURE.md](docs/ARCHITECTURE.md)** for the full variable list and the **Webhooks and cron** table.
 
 **Quarter sync:** Notion quarters are mirrored into Supabase table **`wwu_quarters`** by the cron route. Apply the migration in `supabase/migrations/`. On **Vercel Hobby**, `vercel.json` uses **one daily** cron (09:00 UTC); run a manual sync after Notion edits if you need immediate updates, or upgrade to Pro for more frequent schedules.
 3. Run the development server:

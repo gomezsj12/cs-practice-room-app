@@ -21,6 +21,11 @@
  * Google Calendar and Supabase failures are handled independently so a
  * Supabase outage doesn't block calendar display.
  *
+ * **Security:** This route intentionally does **not** require a session.
+ * Anyone who can reach the deployment can read the merged schedule (same
+ * data the calendar UI shows). Tamper-sensitive actions (book, cancel,
+ * holds, admin blocks) stay on separate `POST` routes that require `auth()`.
+ *
  * @see {@link @/lib/google} — Google Calendar service-account client
  * @see {@link @/lib/supabase} — Supabase admin client
  * @see {@link @/lib/types} — `ApiCalendarEvent`, `GoogleApiEvent`, `HoldRow`

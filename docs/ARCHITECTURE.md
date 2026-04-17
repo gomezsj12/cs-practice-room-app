@@ -261,7 +261,8 @@ Used by `lib/google.ts` so the **server** can read/write calendars without each 
 | `NOTION_FILLOUT_MASTER_DATA_SOURCE_ID` | Data source id for Fillout Form Master Database (practice cancel → **Session Status** via **Custom Event ID**) |
 | `NOTION_PEOPLE_DB_ID` | Database ID for the people directory (user profile lookup) |
 | `NOTION_PROFILE_LOG_DB_ID` | Database ID for the profile-creation audit log |
-| `NOTION_WEBHOOK_VERIFICATION_TOKEN` | Secret for `X-Notion-Signature` on `POST /api/webhooks/notion` (subscription verify + `page.properties_updated`) |
+| `NOTION_WEBHOOK_VERIFICATION_TOKEN` | **Required** wherever `POST /api/webhooks/notion` is used: same secret Notion uses for `X-Notion-Signature` (never rely on the JSON body as the HMAC key). For local-only testing without setting this first, `NOTION_WEBHOOK_ALLOW_UNSAFE_DEV=true` is honored only when `VERCEL_ENV` is neither `production` nor `preview` |
+| `NOTION_WEBHOOK_ALLOW_UNSAFE_DEV` | Optional: see `NOTION_WEBHOOK_VERIFICATION_TOKEN` — unsafe; never set in production or preview |
 | `NOTION_WEBHOOK_CALENDAR_DEBUG` | Optional: set to `1` to log parent ids and parsed jam **Status** for webhook troubleshooting |
 
 Jam and Fillout master databases should include a **Text** property **`CSPR Cancel origin`**. The app sets it to `calendar_app` when cancelling from the calendar UI first so the jam webhook skips a redundant Google delete.
@@ -299,7 +300,15 @@ Jam and Fillout master databases should include a **Text** property **`CSPR Canc
 | `NEXT_PUBLIC_TELEGRAM_GROUP_URL` | Public link to CS Practice Room Telegram group |
 | `TELEGRAM_BOT_TOKEN` | Telegram bot token for support inbox |
 | `TELEGRAM_SUPPORT_ADMIN_CHAT_ID` | Telegram chat ID where support messages are forwarded |
-| `TELEGRAM_WEBHOOK_SECRET` | Shared secret to verify incoming webhook requests |
+| `TELEGRAM_WEBHOOK_SECRET` | Shared secret: must match Telegram’s webhook **secret token** (`X-Telegram-Bot-Api-Secret-Token`). **Required** when `VERCEL_ENV=production` for `POST /api/support/telegram-webhook`; optional in development / preview for local testing |
+
+### Webhooks and cron (tamper resistance)
+
+| Variable | Requirement |
+| --- | --- |
+| `NOTION_WEBHOOK_VERIFICATION_TOKEN` | Set in **Production** and in **Preview** if Notion delivers webhooks to preview URLs. Same value as in the Notion integration. |
+| `TELEGRAM_WEBHOOK_SECRET` | Set in **Production** (enforced by the app). Set on **Preview** if Telegram posts to preview URLs. |
+| `CRON_SECRET` | Set wherever `GET`/`POST` `/api/cron/sync-quarters` is called (Vercel Cron uses `Authorization: Bearer ${CRON_SECRET}`). |
 
 ---
 
@@ -687,7 +696,8 @@ Central orchestration:
 
 ### `GET app/api/events/route.ts`
 
-- Optional session: reads `session.user.email` for permission hints.
+- **No auth required:** the merged schedule is intentionally readable without a session (same surface as the public calendar UI). Writes and privileged actions use other routes with `auth()`.
+- Optional session: reads `session.user.email` for permission hints (`canCancel`, admin overlays).
 - Resolves the fetch window with `lib/quarter-window.ts`: if a row in Supabase `wwu_quarters` contains **today** (calendar date in `ROOM_TIME_ZONE`, default `America/Los_Angeles`), Google list queries and related Supabase filters use that quarter’s inclusive start/end (as UTC instants via `date-fns-tz`). Otherwise falls back to the rolling window **7 days ago → 30 days ahead** and returns `quarter: null`.
 - Response includes `quarter: { name, startDate, endDate } | null` for the calendar header label and `validRange`.
 - Loads **practice** and **jam** calendars via `getCalendarClient()` for the resolved window.
@@ -816,7 +826,9 @@ All public tables have **RLS enabled** with **no permissive policies**. The `ano
 - The app is unaffected because it exclusively uses the **service role key** via `getSupabaseAdmin()` in server-side API routes — the service role bypasses RLS entirely.
 - If the app ever introduces a client-side Supabase client (using the anon key), explicit RLS policies would need to be created for the tables it accesses.
 
-This was applied via the `enable_rls_on_all_tables` migration (2026-04-11).
+This was applied via the `enable_rls_on_all_tables` migration (2026-04-11). Newer tables **`wwu_quarters`** and **`friday_exceptions`** use the same pattern via [`supabase/migrations/20260416180000_rls_wwu_quarters_friday_exceptions.sql`](../supabase/migrations/20260416180000_rls_wwu_quarters_friday_exceptions.sql) (enable RLS, revoke `anon` / `authenticated` grants).
+
+**Dashboard verification (manual):** In the Supabase project → **Table editor** → each public table → confirm **RLS enabled**. Under **Authentication** → **Policies**, confirm there are no unintended `USING (true)` policies. Under **Database** → **Roles**, confirm `anon` and `authenticated` have no table privileges on app data tables if you rely on service-role-only access.
 
 ### Table `reservation_holds`
 
@@ -843,7 +855,7 @@ See [Support system architecture](#support-system-architecture) above.
 
 | File | Role |
 | --- | --- |
-| `next.config.ts` | Default/empty Next config (placeholder for future options) |
+| `next.config.ts` | Redirects (`/jam` → `/calendar`) and global security headers (`X-Content-Type-Options`, `Referrer-Policy`, `X-Frame-Options`, `Permissions-Policy`) |
 | `tsconfig.json` | Strict TypeScript, `@/*` paths, Next plugin |
 | `postcss.config.mjs` | Tailwind v4 via `@tailwindcss/postcss` |
 | `eslint.config.mjs` | ESLint with Next preset (core-web-vitals + TypeScript) |
@@ -853,7 +865,7 @@ See [Support system architecture](#support-system-architecture) above.
 
 ## Request / data flow (summary)
 
-1. **Browse**: `GET /api/events` merges Google (practice + jam) + optional Supabase holds; UI assigns colors, cleaned descriptions, and owner-aware `canCancel` flags.
+1. **Browse**: `GET /api/events` merges Google (practice + jam) + optional Supabase holds (no session required); UI assigns colors, cleaned descriptions, and owner-aware `canCancel` flags when a session is present.
 2. **Select slot** (authenticated): `POST /api/holds/create` → optional 30-second hold, or fallback UI if disabled/fails.
 3. **Confirm**: `POST /api/reserve` → verify hold if any → overlap check → Google insert → Notion insert (best-effort) → delete hold.
 4. **Cancel**: `POST /api/cancel` → authorize by event type → Google delete → Notion status update for jams (Google Event ID) and practice (**Custom Event ID**, best-effort), stamping **CSPR Cancel origin** = `calendar_app`. **Notion → Google (jams only):** `POST /api/webhooks/notion` on `page.properties_updated` deletes the jam Calendar event when **Status** is **Cancelled** and origin is not `calendar_app`.

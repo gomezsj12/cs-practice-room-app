@@ -19,8 +19,11 @@
  * inserting, the handler checks for a duplicate `telegram_update_id` in
  * `support_messages` and returns early if one exists.
  *
- * Authorization: the optional `TELEGRAM_WEBHOOK_SECRET` env var is matched
- * against the `X-Telegram-Bot-Api-Secret-Token` header.
+ * Authorization: `TELEGRAM_WEBHOOK_SECRET` must be set in **production**
+ * (`VERCEL_ENV === "production"`): the handler rejects requests when it is
+ * missing. In development / preview, the secret remains optional so local
+ * testing can proceed; configure the same value as Telegram’s webhook
+ * “secret token” so only Telegram can invoke this URL.
  *
  * @see {@link @/lib/support} — parsing helpers (`parseReplyCommand`, `parseCloseCommand`, `extractSupportThreadIdFromText`)
  * @see {@link @/app/api/support/contact/route} — stores the outbound root message ID
@@ -107,14 +110,15 @@ function resolveSupportReply(message?: TelegramWebhookPayload["message"]) {
 }
 
 /**
- * Validates the `X-Telegram-Bot-Api-Secret-Token` header against the
- * `TELEGRAM_WEBHOOK_SECRET` env var. Returns `true` when the secret is
- * not configured (opt-in security).
+ * Validates the `X-Telegram-Bot-Api-Secret-Token` header against
+ * `TELEGRAM_WEBHOOK_SECRET`. In production the secret must be configured.
  */
 function isWebhookAuthorized(request: NextRequest) {
-  const expectedSecret = process.env.TELEGRAM_WEBHOOK_SECRET;
+  const expectedSecret = process.env.TELEGRAM_WEBHOOK_SECRET?.trim();
+  const isProduction = process.env.VERCEL_ENV === "production";
+
   if (!expectedSecret) {
-    return true;
+    return !isProduction;
   }
 
   const headerSecret = request.headers.get("x-telegram-bot-api-secret-token");
