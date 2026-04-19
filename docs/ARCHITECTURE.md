@@ -183,9 +183,9 @@ sequenceDiagram
 | Booking form | **Fillout** (external embedded iframe) | — |
 | Testing | **Playwright** | ^1.59.1 |
 | Hosting | **Vercel** (Hobby plan) | — |
-| Bundler (dev) | **Webpack** (`next dev --webpack`) — intentional for FullCalendar compat in dev | — |
+| Bundler (dev + prod build) | **Webpack** (`next dev --webpack`, `next build --webpack`) — intentional for FullCalendar compat and `next.config.ts` `watchOptions` | — |
 
-`package.json` runs the dev server with **`next dev --webpack`** (Webpack for development). Re-verify calendar behavior before switching dev bundlers.
+`package.json` runs **`next dev --webpack`** and **`next build --webpack`** so production builds use the same Webpack path as development (avoids Next.js 16 default Turbopack conflicting with a custom `webpack` config). Re-verify calendar behavior before switching bundlers.
 
 ---
 
@@ -338,9 +338,13 @@ cs-practice-room-app/
 │       │   └── route.ts           # POST: validate, overlap-check, create Google Calendar event, log to Notion
 │       ├── cancel/
 │       │   └── route.ts           # POST: authorize owner/admin, delete Google event, update Notion
+│       ├── practice-session/
+│       │   ├── route.ts           # PATCH: admin — practice times/status/patchlist in Google Calendar + Notion + cache
+│       │   ├── details/route.ts   # GET: admin — Notion page URL/status/patchlist (Supabase cache first, 5 min TTL)
+│       │   └── batch-statuses/route.ts # POST: admin — batch Session Status for calendar outlines (cache, Notion backfill)
 │       ├── webhooks/
 │       │   └── notion/
-│       │       └── route.ts       # POST: Notion webhooks — profiles + Notion Cancelled → Google delete
+│       │       └── route.ts       # POST: Notion webhooks — profiles, practice cache sync, Cancelled → Google delete
 │       ├── holds/
 │       │   ├── create/route.ts    # POST: overlap-check, insert Supabase hold (30s TTL)
 │       │   └── release/route.ts   # POST: authorize owner/admin, delete Supabase hold
@@ -363,12 +367,14 @@ cs-practice-room-app/
 │   ├── AccountSetupModal.tsx      # First-time sign-in: collects WWU email, creates Supabase profile
 │   ├── AuthButton.tsx             # Sign in/out button with loading/signed-in/signed-out states
 │   ├── AuthProvider.tsx           # NextAuth SessionProvider wrapper + AccountSetupModal mount
-│   ├── CalendarView.tsx           # Calendar orchestration: FullCalendar + hooks + modals + overlays
+│   ├── CalendarView.tsx           # Calendar orchestration: FullCalendar + hooks + modals; admin practice status outlines
 │   ├── ConfirmModal.tsx           # Generic confirm/cancel dialog (`data-blocking-app-modal` on overlay)
 │   ├── auth-card-shortcut-actions-context.tsx # React context: sign-in/out + profile reload for desktop shortcuts
 │   ├── ContactSupportForm.tsx     # Homepage contact form (creates support thread)
 │   ├── DesktopNavShortcuts.tsx    # Desktop (≥1152px) letter shortcuts: nav + auth; skips inputs/iframes/modals
-│   ├── EventDetailsModal.tsx      # Event detail popup: practice vs jam info, cancel button
+│   ├── EventDetailsModal.tsx      # Event detail popup: practice vs jam; admin practice Notion/time/status/patchlist
+│   ├── PracticeStatusDropdown.tsx # Admin: Notion Session Status picker (grouped, color chips)
+│   ├── TimePicker.tsx             # Admin: Material-style clock-face time picker
 │   ├── InstallPrompt.tsx          # PWA install prompt (Chromium beforeinstallprompt + iOS hint)
 │   ├── ReserveModal.tsx           # Booking form: name + instrument, hold countdown, mode states
 │   ├── ServiceWorkerRegistration.tsx # Registers /sw.js in production
@@ -396,6 +402,8 @@ cs-practice-room-app/
 │   ├── notion-calendar-webhook.ts # Jam Notion **Cancelled** → delete Google event
 │   ├── notion-sync-constants.ts   # **CSPR Cancel origin** property name + `calendar_app` value
 │   ├── practice-custom-event-id.ts # UTC **Custom Event ID** string for practice ↔ Notion row match
+│   ├── practice-session-cache.ts  # Supabase read-through cache for Notion practice row fields
+│   ├── practice-session-status.ts # Session Status labels, UI colors, calendar outline colors
 │   ├── pwaIcon.tsx                # createPwaIcon: JSX-based ImageResponse for PWA icons
 │   ├── profile-helpers.ts         # Shared Supabase profile lookup by Google email
 │   ├── siteConfig.ts              # Centralized app metadata + public URLs (Fillout, Telegram)
@@ -826,7 +834,7 @@ All public tables have **RLS enabled** with **no permissive policies**. The `ano
 - The app is unaffected because it exclusively uses the **service role key** via `getSupabaseAdmin()` in server-side API routes — the service role bypasses RLS entirely.
 - If the app ever introduces a client-side Supabase client (using the anon key), explicit RLS policies would need to be created for the tables it accesses.
 
-This was applied via the `enable_rls_on_all_tables` migration (2026-04-11). Newer tables **`wwu_quarters`** and **`friday_exceptions`** use the same pattern via [`supabase/migrations/20260416180000_rls_wwu_quarters_friday_exceptions.sql`](../supabase/migrations/20260416180000_rls_wwu_quarters_friday_exceptions.sql) (enable RLS, revoke `anon` / `authenticated` grants).
+This was applied via the `enable_rls_on_all_tables` migration (2026-04-11). Newer tables **`wwu_quarters`** and **`friday_exceptions`** use the same pattern via [`supabase/migrations/20260416180000_rls_wwu_quarters_friday_exceptions.sql`](../supabase/migrations/20260416180000_rls_wwu_quarters_friday_exceptions.sql) (enable RLS, revoke `anon` / `authenticated` grants). **`practice_session_cache`** follows the same pattern via [`supabase/migrations/20260419120000_practice_session_cache.sql`](../supabase/migrations/20260419120000_practice_session_cache.sql).
 
 **Dashboard verification (manual):** In the Supabase project → **Table editor** → each public table → confirm **RLS enabled**. Under **Authentication** → **Policies**, confirm there are no unintended `USING (true)` policies. Under **Database** → **Roles**, confirm `anon` and `authenticated` have no table privileges on app data tables if you rely on service-role-only access.
 
@@ -840,6 +848,21 @@ This was applied via the `enable_rls_on_all_tables` migration (2026-04-11). Newe
 | `start_at` / `end_at` | timestamptz | ISO timestamps |
 | `expires_at` | timestamptz | Hold expiry (30 seconds after create) |
 | `status` | text | e.g. `pending` |
+
+### Table `practice_session_cache`
+
+Read-through cache for **Notion Fillout / practice** row fields keyed by **Custom Event ID** (same string used to match Google Calendar practice events to Notion). Populated and refreshed by `POST /api/practice-session/batch-statuses` (Notion backfill on miss), `GET /api/practice-session/details` (miss or stale > 5 minutes), `PATCH /api/practice-session` (after Notion update), and `POST /api/webhooks/notion` (property updates on Fillout master rows). Warm-cache reads avoid Notion’s low rate limits on calendar load and modal open.
+
+| Column | Type | Usage |
+| --- | --- | --- |
+| `custom_event_id` | text (PK) | Custom Event ID segment string |
+| `notion_page_id` | text | Notion page UUID |
+| `notion_page_url` | text | Public Notion URL for the row |
+| `session_status` | text | Current **Session Status** name |
+| `patchlist_link` | text | **Link to Patchlist** value |
+| `cached_at` | timestamptz | Last write time (TTL for details API) |
+
+Index: `idx_psc_notion_page_id` on `notion_page_id` for webhook upserts by page id.
 
 ### Table `support_threads`
 
@@ -870,8 +893,9 @@ See [Support system architecture](#support-system-architecture) above.
 3. **Confirm**: `POST /api/reserve` → verify hold if any → overlap check → Google insert → Notion insert (best-effort) → delete hold.
 4. **Cancel**: `POST /api/cancel` → authorize by event type → Google delete → Notion status update for jams (Google Event ID) and practice (**Custom Event ID**, best-effort), stamping **CSPR Cancel origin** = `calendar_app`. **Notion → Google (jams only):** `POST /api/webhooks/notion` on `page.properties_updated` deletes the jam Calendar event when **Status** is **Cancelled** and origin is not `calendar_app`.
 5. **Support**: User submits via `/api/support/contact` → Supabase + Telegram. Admin replies via Telegram webhook or `/api/support/reply`.
+6. **Admin practice session (signed-in admin only):** `POST /api/practice-session/batch-statuses` loads Session Status outlines from **`practice_session_cache`** (bulk), backfilling Notion on miss. `GET /api/practice-session/details` serves modal fields from cache when fresh. `PATCH /api/practice-session` updates Google Calendar + Notion, then upserts the cache. **Notion webhook:** for Fillout master data-source pages, upserts **`practice_session_cache`** when properties change (in addition to existing cancel/profile behavior).
 
-**Source of truth for "what is booked"** is **Google Calendar** (two calendars). **Notion** is a **log/audit** mirror. **Supabase** is **ephemeral coordination** for holds and **persistent storage** for support threads.
+**Source of truth for "what is booked"** is **Google Calendar** (two calendars). **Notion** is a **log/audit** mirror. **Supabase** is **ephemeral coordination** for holds, **persistent storage** for support threads and quarter metadata, and a **read-through cache** for hot Notion-derived practice session fields (`practice_session_cache`).
 
 ---
 

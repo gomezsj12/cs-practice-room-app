@@ -259,6 +259,151 @@ export async function markPracticeBookingCancelledInNotionByCustomId(
 }
 
 /* ------------------------------------------------------------------ */
+/*  Practice session lookup + admin update helpers                    */
+/* ------------------------------------------------------------------ */
+
+/** Loose prop shape for reading practice page properties. */
+type PracticePageProp = {
+  type: string;
+  status?: { name?: string | null } | null;
+  rich_text?: Array<{ plain_text?: string }>;
+  url?: string | null;
+};
+
+/**
+ * Find the Notion page for a practice booking by its **Custom Event ID**.
+ * Returns the page ID, current Session Status, and constructed Notion URL,
+ * or `null` fields when no page matches.
+ *
+ * Requires `NOTION_FILLOUT_MASTER_DATA_SOURCE_ID`.
+ */
+export async function findPracticeNotionPage(
+  customEventId: string,
+): Promise<{
+  notionPageId: string | null;
+  currentStatus: string | null;
+  notionPageUrl: string | null;
+  patchlistLink: string | null;
+}> {
+  const dataSourceId =
+    process.env.NOTION_FILLOUT_MASTER_DATA_SOURCE_ID?.trim();
+
+  if (!dataSourceId) {
+    throw new Error(
+      "Missing NOTION_FILLOUT_MASTER_DATA_SOURCE_ID environment variable.",
+    );
+  }
+
+  const notion = getNotionClient();
+
+  const queryData = await notion.dataSources.query({
+    data_source_id: dataSourceId,
+    filter: {
+      property: NOTION_PRACTICE_CUSTOM_EVENT_ID_PROP,
+      rich_text: {
+        equals: customEventId,
+      },
+    },
+    page_size: 1,
+  });
+
+  const page = queryData.results?.[0];
+  if (!page) {
+    return { notionPageId: null, currentStatus: null, notionPageUrl: null, patchlistLink: null };
+  }
+
+  const pageId = page.id;
+  let currentStatus: string | null = null;
+  let patchlistLink: string | null = null;
+
+  if ("properties" in page) {
+    const props = page.properties as Record<string, PracticePageProp>;
+    const statusProp = props["Session Status"];
+    if (statusProp?.type === "status") {
+      currentStatus = statusProp.status?.name?.trim() ?? null;
+    }
+
+    const linkProp = props["Link to Patchlist"];
+    if (linkProp?.type === "url") {
+      patchlistLink = linkProp.url?.trim() || null;
+    } else if (linkProp?.type === "rich_text") {
+      patchlistLink =
+        (linkProp.rich_text ?? [])
+          .map((c) => c.plain_text ?? "")
+          .join("")
+          .trim() || null;
+    }
+  }
+
+  const notionPageUrl = `https://notion.so/${pageId.replace(/-/g, "")}`;
+
+  return { notionPageId: pageId, currentStatus, notionPageUrl, patchlistLink };
+}
+
+/** Parameters for {@link updatePracticeSessionInNotion}. */
+type UpdatePracticeSessionParams = {
+  notionPageId: string;
+  /** ISO-8601 datetime for the new start (updates "Start Date/Time"). */
+  newStartISO?: string;
+  /** Session duration in hours (updates "Session Length (hours)"). */
+  sessionLengthHours?: number;
+  /** New Custom Event ID string (updates "Custom Event ID" text property). */
+  newCustomEventId?: string;
+  /** New Session Status name (updates "Session Status"). */
+  newStatus?: string;
+  /** New URL for "Link to Patchlist" (empty string clears the value). */
+  newPatchlistLink?: string;
+};
+
+/**
+ * Batch-update practice session properties in Notion. Only includes
+ * properties whose values are provided (non-undefined).
+ */
+export async function updatePracticeSessionInNotion({
+  notionPageId,
+  newStartISO,
+  sessionLengthHours,
+  newCustomEventId,
+  newStatus,
+  newPatchlistLink,
+}: UpdatePracticeSessionParams) {
+  const notion = getNotionClient();
+
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any -- Notion SDK property shapes are complex; build dynamically
+  const properties: Record<string, any> = {};
+
+  if (newStartISO !== undefined) {
+    properties["Start Date/Time"] = { date: { start: newStartISO } };
+  }
+
+  if (sessionLengthHours !== undefined) {
+    properties["Session Length (hours)"] = { number: sessionLengthHours };
+  }
+
+  if (newCustomEventId !== undefined) {
+    properties["Custom Event ID"] = {
+      rich_text: [{ text: { content: newCustomEventId } }],
+    };
+  }
+
+  if (newStatus !== undefined) {
+    properties["Session Status"] = { status: { name: newStatus } };
+  }
+
+  if (newPatchlistLink !== undefined) {
+    properties["Link to Patchlist"] = {
+      url: newPatchlistLink || null,
+    };
+  }
+
+  if (Object.keys(properties).length === 0) {
+    return;
+  }
+
+  await notion.pages.update({ page_id: notionPageId, properties });
+}
+
+/* ------------------------------------------------------------------ */
 /*  User-profile helpers (people DB lookup + audit log)               */
 /* ------------------------------------------------------------------ */
 

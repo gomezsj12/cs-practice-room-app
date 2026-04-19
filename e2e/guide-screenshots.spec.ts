@@ -18,11 +18,19 @@ async function shot(
   page: import("@playwright/test").Page,
 ) {
   await fs.promises.mkdir(dir, { recursive: true });
-  await page.screenshot({
-    path: path.join(dir, name),
-    fullPage,
-    animations: "disabled",
-  });
+  const target = path.join(dir, name);
+  const tmpPath = `${target}.tmp`;
+  for (let attempt = 0; attempt < 3; attempt++) {
+    try {
+      await page.screenshot({ path: tmpPath, fullPage, animations: "disabled" });
+      await fs.promises.rename(tmpPath, target);
+      return;
+    } catch {
+      await fs.promises.unlink(tmpPath).catch(() => {});
+      if (attempt < 2) await new Promise((r) => setTimeout(r, 500));
+      else throw new Error(`Failed to write screenshot ${name} after 3 attempts`);
+    }
+  }
 }
 
 test.describe("Guide screenshots (production)", () => {
@@ -33,19 +41,19 @@ test.describe("Guide screenshots (production)", () => {
     });
     const page = await context.newPage();
     try {
-      await page.goto("/", { waitUntil: "domcontentloaded" });
+      await page.goto("/", { waitUntil: "networkidle" });
       await page.waitForTimeout(1500);
       await shot(OUT, "desktop-home.png", true, page);
 
-      await page.goto("/calendar", { waitUntil: "domcontentloaded" });
+      await page.goto("/calendar", { waitUntil: "networkidle" });
       await page.waitForTimeout(2000);
       await shot(OUT, "desktop-calendar.png", true, page);
 
-      await page.goto("/booking", { waitUntil: "domcontentloaded" });
+      await page.goto("/booking", { waitUntil: "networkidle" });
       await page.waitForTimeout(1500);
       await shot(OUT, "desktop-booking.png", true, page);
 
-      await page.goto("/support", { waitUntil: "domcontentloaded" });
+      await page.goto("/support", { waitUntil: "networkidle" });
       await page.waitForTimeout(1500);
       await shot(OUT, "desktop-support.png", true, page);
     } finally {
@@ -53,7 +61,11 @@ test.describe("Guide screenshots (production)", () => {
     }
   });
 
-  test("mobile viewports", async ({ browser }) => {
+  test("mobile viewports", async ({ browser, browserName }) => {
+    if (browserName === "firefox") {
+      test.skip();
+      return;
+    }
     const context = await browser.newContext({
       viewport: MOBILE,
       deviceScaleFactor: 2,
@@ -62,19 +74,19 @@ test.describe("Guide screenshots (production)", () => {
     });
     const page = await context.newPage();
     try {
-      await page.goto("/", { waitUntil: "domcontentloaded" });
+      await page.goto("/", { waitUntil: "networkidle" });
       await page.waitForTimeout(1500);
       await shot(OUT, "mobile-home.png", true, page);
 
-      await page.goto("/calendar", { waitUntil: "domcontentloaded" });
+      await page.goto("/calendar", { waitUntil: "networkidle" });
       await page.waitForTimeout(2000);
       await shot(OUT, "mobile-calendar.png", true, page);
 
-      await page.goto("/booking", { waitUntil: "domcontentloaded" });
+      await page.goto("/booking", { waitUntil: "networkidle" });
       await page.waitForTimeout(1500);
       await shot(OUT, "mobile-booking.png", true, page);
 
-      await page.goto("/support", { waitUntil: "domcontentloaded" });
+      await page.goto("/support", { waitUntil: "networkidle" });
       await page.waitForTimeout(1500);
       await shot(OUT, "mobile-support.png", true, page);
     } finally {

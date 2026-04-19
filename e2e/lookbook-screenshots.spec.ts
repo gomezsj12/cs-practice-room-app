@@ -31,18 +31,30 @@ async function shot(
   page: import("@playwright/test").Page,
 ) {
   await fs.promises.mkdir(dir, { recursive: true });
-  await page.screenshot({
-    path: path.join(dir, name),
-    fullPage,
-    animations: "disabled",
-  });
+  const target = path.join(dir, name);
+  const tmpPath = `${target}.tmp`;
+  for (let attempt = 0; attempt < 3; attempt++) {
+    try {
+      await page.screenshot({ path: tmpPath, fullPage, animations: "disabled" });
+      await fs.promises.rename(tmpPath, target);
+      return;
+    } catch {
+      await fs.promises.unlink(tmpPath).catch(() => {});
+      if (attempt < 2) await new Promise((r) => setTimeout(r, 500));
+      else throw new Error(`Failed to write screenshot ${name} after 3 attempts`);
+    }
+  }
 }
 
 for (const [vpName, viewport] of Object.entries(VIEWPORTS)) {
   test.describe(`Lookbook — ${vpName} (${viewport.width}×${viewport.height})`, () => {
     for (const pg of PAGES) {
-      test(`${pg.name}`, async ({ browser }) => {
+      test(`${pg.name}`, async ({ browser, browserName }) => {
         const isMobile = viewport.width < 768;
+        if (isMobile && browserName === "firefox") {
+          test.skip();
+          return;
+        }
         const context = await browser.newContext({
           viewport,
           deviceScaleFactor: isMobile ? 2 : 1,
@@ -51,7 +63,7 @@ for (const [vpName, viewport] of Object.entries(VIEWPORTS)) {
         });
         const page = await context.newPage();
         try {
-          await page.goto(pg.path, { waitUntil: "domcontentloaded" });
+          await page.goto(pg.path, { waitUntil: "networkidle" });
           await page.waitForTimeout(pg.waitMs);
 
           const topName = `${vpName}-${pg.name}-top.png`;

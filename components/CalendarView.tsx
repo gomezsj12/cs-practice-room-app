@@ -64,8 +64,14 @@ import {
   SLOT_MAX_STR,
   SLOT_MIN_STR,
 } from "@/lib/timeGridDragSelect";
-import type { CalendarEvent, PendingSelection } from "@/lib/types";
+import type {
+  CalendarEvent,
+  PendingSelection,
+  PracticeNotionDetails,
+  PracticeSessionChanges,
+} from "@/lib/types";
 import { formatBookingDateRange } from "@/lib/formatting";
+import { getStatusOutlineColor } from "@/lib/practice-session-status";
 
 /** Positions for Friday restriction bands — same coordinate space as {@link useNowIndicatorOverlay} (wrap-relative + scroll). */
 type FridayJamOverlayRect = {
@@ -244,6 +250,20 @@ export default function CalendarView() {
   const [isFridayExceptionSubmitting, setIsFridayExceptionSubmitting] =
     useState(false);
 
+  /** Admin: Notion details for the currently selected practice event. */
+  const notionDetailsCacheRef = useRef<Map<string, PracticeNotionDetails>>(
+    new Map(),
+  );
+  const [notionDetails, setNotionDetails] =
+    useState<PracticeNotionDetails | null>(null);
+  const [isLoadingNotionDetails, setIsLoadingNotionDetails] = useState(false);
+  const [isApplyingChanges, setIsApplyingChanges] = useState(false);
+
+  /** Map of googleEventId → Notion status color hex for practice event outlines. */
+  const [practiceStatusColors, setPracticeStatusColors] = useState<
+    Map<string, string>
+  >(new Map());
+
   const onAdminBlockRef = useRef<(start: Date, end: Date) => void>(
     () => {},
   );
@@ -268,6 +288,98 @@ export default function CalendarView() {
     pendingSelectionRef,
     session?.profileUpdatedAt,
   );
+
+  // Stable fingerprint of practice events — only changes when the set of
+  // practice googleEventIds or their times change, preventing redundant
+  // batch-statuses fetches on every polling cycle.
+  const practiceEventsFingerprint = useMemo(() => {
+    return events
+      .filter((ev) => ev.eventType === "practice" && ev.googleEventId)
+      .map((ev) => `${ev.googleEventId}|${ev.start}|${ev.end}`)
+      .sort()
+      .join(",");
+  }, [events]);
+
+  // Invalidate Notion details cache when the set of practice events changes
+  // (e.g. new events appear, times change). The modal auto-refresh handles
+  // keeping open modals up-to-date without clearing the cache on every poll.
+  useEffect(() => {
+    notionDetailsCacheRef.current.clear();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [practiceEventsFingerprint]);
+
+  // Fetch Notion statuses for all visible practice events (admin only)
+  // to render status-colored outlines on the calendar grid.
+  // Also refreshes on a 60-second interval so Notion edits appear.
+  const batchStatusIntervalRef = useRef<ReturnType<typeof setInterval> | null>(
+    null,
+  );
+
+  useEffect(() => {
+    if (!isAdmin || !practiceEventsFingerprint) {
+      setPracticeStatusColors(new Map());
+      return;
+    }
+
+    const practiceEvents = events.filter(
+      (ev) => ev.eventType === "practice" && ev.googleEventId,
+    );
+
+    function fetchBatchStatuses() {
+      fetch("/api/practice-session/batch-statuses", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          events: practiceEvents.map((ev) => ({
+            googleEventId: ev.googleEventId,
+            start: ev.start,
+            end: ev.end,
+          })),
+        }),
+      })
+        .then((res) => (res.ok ? res.json() : null))
+        .then((data: { statuses: Record<string, string | null> } | null) => {
+          if (!data?.statuses) return;
+          const map = new Map<string, string>();
+          for (const [gId, status] of Object.entries(data.statuses)) {
+            map.set(gId, getStatusOutlineColor(status));
+          }
+          setPracticeStatusColors(map);
+        })
+        .catch(() => {
+          /* swallow — calendar still works without outlines */
+        });
+    }
+
+    fetchBatchStatuses();
+
+    const REFRESH_MS = 60_000;
+    batchStatusIntervalRef.current = setInterval(fetchBatchStatuses, REFRESH_MS);
+
+    return () => {
+      if (batchStatusIntervalRef.current) {
+        clearInterval(batchStatusIntervalRef.current);
+      }
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isAdmin, practiceEventsFingerprint]);
+
+  // Derived events array with status outline colors merged in. When
+  // practiceStatusColors loads asynchronously, this memo recalculates and
+  // FullCalendar re-renders the affected events with outlines immediately.
+  const displayEvents = useMemo(() => {
+    if (!isAdmin || practiceStatusColors.size === 0) return events;
+    return events.map((ev) => {
+      if (ev.eventType !== "practice" || !ev.googleEventId) return ev;
+      const outlineColor = practiceStatusColors.get(ev.googleEventId);
+      if (!outlineColor) return ev;
+      return {
+        ...ev,
+        classNames: [...(ev.classNames ?? []), "fc-practice-status-outline"],
+        borderColor: outlineColor,
+      };
+    });
+  }, [events, isAdmin, practiceStatusColors]);
 
   const quarterValidRange = useMemo(() => {
     if (!quarter) {
@@ -647,6 +759,145 @@ export default function CalendarView() {
     }
   }
 
+  /**
+   * Fetch Notion details for a practice event (admin only).
+   * @param silent — when true, skip the loading spinner (used for background refreshes)
+   */
+  function fetchNotionDetailsForEvent(
+    googleEventId: string,
+    { silent = false }: { silent?: boolean } = {},
+  ) {
+    if (!silent) {
+      const cached = notionDetailsCacheRef.current.get(googleEventId);
+      if (cached) {
+        setNotionDetails(cached);
+        setIsLoadingNotionDetails(false);
+        return;
+      }
+
+      setNotionDetails(null);
+      setIsLoadingNotionDetails(true);
+    }
+
+    fetch(
+      `/api/practice-session/details?googleEventId=${encodeURIComponent(googleEventId)}`,
+    )
+      .then((res) => (res.ok ? res.json() : null))
+      .then((data: PracticeNotionDetails | null) => {
+        if (data) {
+          notionDetailsCacheRef.current.set(googleEventId, data);
+          setNotionDetails(data);
+        }
+      })
+      .catch(() => {
+        /* swallow — modal already shows without Notion data */
+      })
+      .finally(() => {
+        if (!silent) setIsLoadingNotionDetails(false);
+      });
+  }
+
+  // Auto-refresh Notion details while the practice modal is open (admin only).
+  // Silently re-fetches every 20s so edits made in Notion appear without
+  // manual refresh. Skips while changes are being applied.
+  useEffect(() => {
+    if (
+      !isAdmin ||
+      !selectedEvent ||
+      selectedEvent.eventType !== "practice" ||
+      !selectedEvent.googleEventId
+    ) {
+      return;
+    }
+
+    const gId = selectedEvent.googleEventId;
+    const REFRESH_MS = 30_000;
+
+    const id = setInterval(() => {
+      if (isApplyingChanges) return;
+      fetchNotionDetailsForEvent(gId, { silent: true });
+    }, REFRESH_MS);
+
+    return () => clearInterval(id);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isAdmin, selectedEvent, isApplyingChanges]);
+
+  async function handleApplyPracticeChanges(changes: PracticeSessionChanges) {
+    try {
+      setIsApplyingChanges(true);
+
+      const response = await fetch("/api/practice-session", {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(changes),
+      });
+
+      if (!response.ok) {
+        const data = await response.json().catch(() => ({}));
+        showToast(
+          data.error || "Failed to update practice session.",
+          "error",
+        );
+        return;
+      }
+
+      const result = await response.json();
+
+      if (result.warnings?.length) {
+        showToast(result.warnings[0], "info");
+      } else {
+        showToast("Practice session updated.", "success");
+      }
+
+      // Update Notion details cache
+      if (changes.newStatus || changes.newPatchlistLink !== undefined) {
+        const cached =
+          notionDetailsCacheRef.current.get(changes.googleEventId);
+        if (cached) {
+          notionDetailsCacheRef.current.set(changes.googleEventId, {
+            ...cached,
+            ...(changes.newStatus
+              ? { currentStatus: changes.newStatus }
+              : {}),
+            ...(changes.newPatchlistLink !== undefined
+              ? { patchlistLink: changes.newPatchlistLink || null }
+              : {}),
+          });
+        }
+      }
+
+      // Optimistically update the calendar outline color for the new status
+      if (changes.newStatus) {
+        setPracticeStatusColors((prev) => {
+          const next = new Map(prev);
+          next.set(changes.googleEventId, getStatusOutlineColor(changes.newStatus));
+          return next;
+        });
+      }
+
+      // Optimistically update the local events array with new times
+      if (changes.newStart && changes.newEnd) {
+        setEvents((prev) =>
+          prev.map((ev) =>
+            ev.googleEventId === changes.googleEventId
+              ? { ...ev, start: changes.newStart!, end: changes.newEnd! }
+              : ev,
+          ),
+        );
+      }
+
+      setSelectedEvent(null);
+      setNotionDetails(null);
+
+      // Background refresh for full consistency
+      loadEvents(true);
+    } catch {
+      showToast("Failed to update practice session.", "error");
+    } finally {
+      setIsApplyingChanges(false);
+    }
+  }
+
   const cancelTargetLabel = useMemo(
     () => getCalendarEventKindLabel(selectedEvent?.eventType),
     [selectedEvent?.eventType],
@@ -768,8 +1019,10 @@ export default function CalendarView() {
       }
 
       if (selectedEvent) {
+        if (isApplyingChanges) return;
         e.preventDefault();
         setSelectedEvent(null);
+        setNotionDetails(null);
       }
     }
 
@@ -790,6 +1043,7 @@ export default function CalendarView() {
     selectedEvent,
     setSelectedEvent,
     setShowCancelConfirm,
+    isApplyingChanges,
   ]);
 
   // Mobile touch gestures: horizontal swipe for prev/next day,
@@ -1129,7 +1383,7 @@ export default function CalendarView() {
               slotEventOverlap={false}
               editable={false}
               expandRows
-              events={events}
+              events={displayEvents}
               datesSet={handleDatesSet}
               dayHeaderClassNames={dayHeaderClassNames}
               eventClassNames={eventClassNames}
@@ -1191,7 +1445,7 @@ export default function CalendarView() {
                   return;
                 }
 
-                setSelectedEvent({
+                const calEvent: CalendarEvent = {
                   id: info.event.id,
                   googleEventId: info.event.extendedProps.googleEventId,
                   holdId: info.event.extendedProps.holdId,
@@ -1206,7 +1460,16 @@ export default function CalendarView() {
                   textColor: info.event.textColor,
                   canCancel: info.event.extendedProps.canCancel,
                   classNames: info.event.classNames,
-                });
+                };
+                setSelectedEvent(calEvent);
+
+                if (
+                  isAdmin &&
+                  eventType === "practice" &&
+                  calEvent.googleEventId
+                ) {
+                  fetchNotionDetailsForEvent(calEvent.googleEventId);
+                }
               }}
             />
 
@@ -1343,9 +1606,17 @@ export default function CalendarView() {
         isOpen={selectedEvent !== null}
         event={selectedEvent}
         isCancelling={isCancelling}
-        onClose={() => setSelectedEvent(null)}
+        onClose={() => {
+          setSelectedEvent(null);
+          setNotionDetails(null);
+        }}
         onCancel={() => setShowCancelConfirm(true)}
         dismissOnBackdrop={isMobile}
+        isAdmin={isAdmin}
+        notionDetails={notionDetails}
+        isLoadingNotionDetails={isLoadingNotionDetails}
+        isApplying={isApplyingChanges}
+        onApplyChanges={handleApplyPracticeChanges}
       />
 
       <ConfirmModal

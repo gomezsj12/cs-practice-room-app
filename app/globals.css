@@ -308,6 +308,12 @@ body {
   border-radius: 16px;
 }
 
+/* Admin practice event status outlines (border color set per-event via FullCalendar borderColor) */
+.fc .fc-timegrid-event-harness .fc-event.fc-practice-status-outline {
+  border-width: 3px !important;
+  border-style: solid !important;
+}
+
 /* Ended events (entire block before current time): dim + desaturate */
 .fc .fc-timegrid-event-harness .fc-event.fc-event-past {
   opacity: 0.5;

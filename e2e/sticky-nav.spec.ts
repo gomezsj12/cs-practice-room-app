@@ -26,11 +26,19 @@ const SCREENSHOT_DIR = path.join(
 
 async function saveScreenshot(page: Page, name: string) {
   await fs.promises.mkdir(SCREENSHOT_DIR, { recursive: true });
-  await page.screenshot({
-    path: path.join(SCREENSHOT_DIR, name),
-    fullPage: false,
-    animations: "disabled",
-  });
+  const target = path.join(SCREENSHOT_DIR, name);
+  const tmpPath = `${target}.tmp`;
+  for (let attempt = 0; attempt < 3; attempt++) {
+    try {
+      await page.screenshot({ path: tmpPath, fullPage: false, animations: "disabled" });
+      await fs.promises.rename(tmpPath, target);
+      return;
+    } catch {
+      await fs.promises.unlink(tmpPath).catch(() => {});
+      if (attempt < 2) await new Promise((r) => setTimeout(r, 500));
+      else throw new Error(`Failed to write screenshot ${name} after 3 attempts`);
+    }
+  }
 }
 
 async function ensureScrollable(page: Page) {

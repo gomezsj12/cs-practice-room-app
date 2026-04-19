@@ -15,6 +15,10 @@
 /playwright-report
 /test-results
 /screenshots
+/playwright/.auth/
+
+# Supabase CLI local cache (not project migrations)
+supabase/.temp/
 
 # next.js
 /.next/

@@ -213,3 +213,20 @@ export type SupportMessageRow = {
   telegram_update_id: string | null;
   created_at: string;
 };
+
+/** Admin-initiated changes to a practice session, sent to `PATCH /api/practice-session`. */
+export type PracticeSessionChanges = {
+  googleEventId: string;
+  newStart?: string;
+  newEnd?: string;
+  newStatus?: string;
+  newPatchlistLink?: string;
+};
+
+/** Notion-sourced details for a practice session, fetched lazily for admins. */
+export type PracticeNotionDetails = {
+  notionPageUrl: string | null;
+  currentStatus: string | null;
+  notionPageId: string | null;
+  patchlistLink: string | null;
+};

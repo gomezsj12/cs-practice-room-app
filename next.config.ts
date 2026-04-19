@@ -23,6 +23,24 @@ const nextConfig: NextConfig = {
   async headers() {
     return [{ source: "/:path*", headers: securityHeaders }];
   },
+  webpack: (config, { dev }) => {
+    if (dev) {
+      config.watchOptions = {
+        ...config.watchOptions,
+        ignored: [
+          "**/node_modules/**",
+          "**/.next/**",
+          "**/docs/screenshots/**",
+          "**/docs/guide-screenshots/**",
+          "**/screenshots/**",
+          "**/playwright/**",
+          "**/playwright-report/**",
+          "**/test-results/**",
+        ],
+      };
+    }
+    return config;
+  },
 };
 
 export default nextConfig;

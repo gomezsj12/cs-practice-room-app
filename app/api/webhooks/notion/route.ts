@@ -31,10 +31,12 @@ import { verifyNotionWebhookSignature } from "@/lib/notion-webhook";
 import { processNotionCalendarCancellationFromPage } from "@/lib/notion-calendar-webhook";
 import {
   getNotionClient,
+  getNotionPageParentIds,
   resolveNotionProfileWebhookActionFromPage,
   type NotionPersonSyncFields,
   type NotionProfileWebhookPage,
 } from "@/lib/notion";
+import { upsertCacheByNotionPageId } from "@/lib/practice-session-cache";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -201,6 +203,62 @@ export async function POST(req: Request) {
 
   if (calendarResult.outcome !== "not_calendar_page") {
     return NextResponse.json({ ok: true, calendar: calendarResult });
+  }
+
+  // Sync practice session cache for Fillout/practice pages (non-cancelled)
+  try {
+    const practiceDs =
+      process.env.NOTION_FILLOUT_MASTER_DATA_SOURCE_ID?.trim();
+    if (practiceDs && "properties" in page) {
+      const parentIds = getNotionPageParentIds(
+        page as Parameters<typeof getNotionPageParentIds>[0],
+      );
+      if (parentIds.includes(practiceDs)) {
+        const props = page.properties as Record<
+          string,
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
+          any
+        >;
+        const sessionStatus =
+          props["Session Status"]?.status?.name ??
+          props["Session Status"]?.select?.name ??
+          null;
+        const customEventIdProp =
+          props["Custom Event ID"]?.rich_text
+            ?.map((c: { plain_text?: string }) => c.plain_text ?? "")
+            .join("")
+            .trim() ??
+          props["Custom Event ID"]?.title
+            ?.map((c: { plain_text?: string }) => c.plain_text ?? "")
+            .join("")
+            .trim() ??
+          null;
+        const patchlistLink =
+          props["Link to Patchlist"]?.url ??
+          props["Link to Patchlist"]?.rich_text
+            ?.map((c: { plain_text?: string }) => c.plain_text ?? "")
+            .join("")
+            .trim() ??
+          null;
+
+        if (customEventIdProp && pageId) {
+          const notionPageUrl = `https://www.notion.so/${pageId.replace(/-/g, "")}`;
+          await upsertCacheByNotionPageId({
+            notion_page_id: pageId,
+            custom_event_id: customEventIdProp,
+            notion_page_url: notionPageUrl,
+            session_status: sessionStatus,
+            patchlist_link: patchlistLink || null,
+          });
+          console.info(
+            "[notion webhook] Practice session cache updated.",
+            { pageId, customEventId: customEventIdProp },
+          );
+        }
+      }
+    }
+  } catch (err) {
+    console.warn("[notion webhook] Practice cache sync failed:", err);
   }
 
   return NextResponse.json({ ok: true });
