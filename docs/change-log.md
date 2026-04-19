@@ -164,6 +164,7 @@ This file is the **single source of truth** for the full project history — fro
 | `e0e4b5d` | 2026-04-19 | **Vercel deploy: `/api/pwa-icon` on Node.js instead of Edge.** `next/og` `ImageResponse` bundles Resvg/Satori (~1 MB+), which exceeded the Hobby **1 MB Edge Function** limit; `runtime` set to `nodejs` so the route deploys as a Serverless Function. | Cursor agent |
 | `5681a84` | 2026-04-19 | **docs: record commit hash for ERR-010** in `docs/error-log.md`. | Cursor agent |
 | `a8f1125` | 2026-04-19 | **Practice Assignee(s) from Notion + admin picker, cache column, and live modal refresh.** Migration `assignees_json` on `practice_session_cache`; `lib/notion.ts` reads/writes Assignee(s) relation; webhook + PATCH + details hydrate assignees; `GET /api/practice-session/details?revalidate=1` skips warm cache so Notion edits show without TTL wait; `PracticeAssigneePicker` (verify icons, reorder, trigger); `EventDetailsModal` layout; `GET /api/notion/people-directory`. Docs: `ARCHITECTURE.md`, this log. | Cursor agent |
+| `f32ede6` | 2026-04-19 | **docs: set Part 2 change-log commit hash for assignees feature row.** | Cursor agent |
 
 
 ---
