@@ -1,7 +1,8 @@
 /**
  * @file PWA icon generation endpoint (`GET /api/pwa-icon?size=<n>`).
  *
- * Runs on the Edge runtime for fast response times. Returns a dynamically
+ * Runs on the Node.js runtime (not Edge): `next/og` bundles Resvg/Satori,
+ * which exceeds Vercel’s 1 MB Edge Function limit. Returns a dynamically
  * rendered PNG icon at either 192 or 512 px (snapped from the `size` query
  * param). Referenced by the PWA manifest for home-screen and splash icons.
  *
@@ -12,7 +13,7 @@
 import { NextRequest } from "next/server";
 import { createPwaIcon } from "@/lib/pwaIcon";
 
-export const runtime = "edge";
+export const runtime = "nodejs";
 
 /**
  * Handles `GET /api/pwa-icon`.

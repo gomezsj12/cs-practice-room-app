@@ -629,7 +629,7 @@ Exports a `MetadataRoute.Manifest` with app name, icons pointing at `/api/pwa-ic
 `lib/pwaIcon.tsx` renders a dark rounded square with "Room" / "Jam" typography using Next.js `ImageResponse` (from `next/og`). Used by:
 - `app/icon.tsx` — 192px favicon
 - `app/apple-icon.tsx` — 180px Apple touch icon
-- `app/api/pwa-icon/route.tsx` — Edge runtime, dynamic size via query param
+- `app/api/pwa-icon/route.tsx` — Node.js runtime (not Edge: `next/og` exceeds Vercel’s 1 MB Edge bundle limit), dynamic size via query param
 
 ### Install prompt (`components/InstallPrompt.tsx`)
 
@@ -758,7 +758,7 @@ Central orchestration:
 
 ### `GET app/api/pwa-icon/route.tsx`
 
-- `runtime = "edge"`.
+- `runtime = "nodejs"` (Edge would exceed Vercel’s 1 MB limit with `next/og`).
 - Query `size`: 512 or default 192.
 - Returns `ImageResponse` from `createPwaIcon`.
 
