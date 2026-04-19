@@ -58,7 +58,7 @@ This file documents **errors encountered during development and production**, th
 - **Date:** 2026-04-19
 - **Category:** Deploy
 - **Severity:** High
-- **Commit(s):** `—` (pending)
+- **Commit(s):** `e0e4b5d`
 - **Symptom:** Vercel reported: “The Edge Function `api/pwa-icon` size is 1.05 MB and your plan size limit is 1 MB.” Production build failed.
 - **Root cause:** The route used `export const runtime = "edge"`. `next/og` `ImageResponse` pulls in Satori and Resvg, which push the compiled Edge bundle over Vercel’s **1 MB** Edge limit on Hobby.
 - **Fix applied:** Set `export const runtime = "nodejs"` in `app/api/pwa-icon/route.tsx` so the handler deploys as a Node.js Serverless Function (higher size limit).
