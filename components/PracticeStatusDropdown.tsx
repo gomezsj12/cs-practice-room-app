@@ -85,20 +85,20 @@ export default function PracticeStatusDropdown({
   const dotColor = getStatusColor(currentStatus);
 
   return (
-    <div ref={containerRef} className="relative inline-flex">
+    <div ref={containerRef} className="relative mt-px inline-flex shrink-0">
       <button
         type="button"
         onClick={toggle}
         disabled={disabled}
         title={disabled ? "No Notion page linked" : `Status: ${currentStatus ?? "Unknown"}`}
-        className={`inline-flex h-5 w-5 items-center justify-center rounded-full transition-all ${
+        className={`inline-flex h-7 w-7 items-center justify-center rounded-full ${
           disabled
             ? "cursor-not-allowed opacity-40"
-            : "cursor-pointer hover:ring-2 hover:ring-white/30"
+            : "cursor-pointer"
         }`}
       >
         <span
-          className="inline-block h-3 w-3 rounded-full"
+          className="inline-block h-4 w-4 rounded-full"
           style={{ backgroundColor: dotColor }}
         />
       </button>

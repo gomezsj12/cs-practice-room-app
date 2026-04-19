@@ -256,25 +256,27 @@ export default function EventDetailsModal({
       }}
     >
       <div className="w-full max-w-md rounded-3xl border border-neutral-800 bg-[#121212] p-6 text-white shadow-2xl">
-        {/* Title row */}
-        <div className="mb-4 flex items-center gap-2">
-          {showAdminControls ? (
-            <PracticeStatusDropdown
-              currentStatus={effectiveStatus}
-              onSelect={(name) => setDraftStatus(name)}
-              disabled={isLoadingNotionDetails || !notionDetails?.notionPageId}
-            />
-          ) : (
-            <span
-              className={`inline-block h-3 w-3 shrink-0 rounded-full ${
-                isJam ? "bg-[#3f56c9]" : "bg-neutral-500"
-              }`}
-              style={dotColor ? { backgroundColor: dotColor } : undefined}
-            />
-          )}
-          <h2 className="min-w-0 flex-1 text-xl font-semibold leading-snug text-white">
-            {headlineTitle}
-          </h2>
+        {/* Title row: items-start keeps the Notion control top-right when the title wraps */}
+        <div className="mb-3 -ml-0.5 flex items-start gap-2">
+          <div className="flex min-w-0 flex-1 items-start gap-1">
+            {showAdminControls ? (
+              <PracticeStatusDropdown
+                currentStatus={effectiveStatus}
+                onSelect={(name) => setDraftStatus(name)}
+                disabled={isLoadingNotionDetails || !notionDetails?.notionPageId}
+              />
+            ) : (
+              <span
+                className={`mt-1.5 inline-block h-3 w-3 shrink-0 rounded-full ${
+                  isJam ? "bg-[#3f56c9]" : "bg-neutral-500"
+                }`}
+                style={dotColor ? { backgroundColor: dotColor } : undefined}
+              />
+            )}
+            <h2 className="min-w-0 flex-1 break-words text-xl font-semibold leading-snug text-white">
+              {headlineTitle}
+            </h2>
+          </div>
 
           {/* Notion icon button (admin + practice only) */}
           {showAdminControls && (
@@ -286,7 +288,7 @@ export default function EventDetailsModal({
         </div>
 
         {/* Time range and attendee info */}
-        <div className="mt-2 flex flex-wrap items-center gap-x-3 gap-y-1">
+        <div className="mt-1 flex flex-wrap items-center gap-x-3 gap-y-1">
           {sessionAttendeeCount != null ? (
             <span
               role="status"
@@ -356,13 +358,7 @@ export default function EventDetailsModal({
         {rawDescription ? (
           <div className="mt-5 rounded-2xl border border-white/10 bg-white/5 p-4">
             {detailsSectionTitle ? (
-              <p
-                className={
-                  detailsSectionTitle === "Contact Person"
-                    ? "text-sm font-semibold uppercase tracking-[0.18em] text-neutral-400"
-                    : "text-xs font-semibold uppercase tracking-[0.18em] text-neutral-400"
-                }
-              >
+              <p className="text-[13px] font-semibold uppercase tracking-[0.18em] text-neutral-400">
                 {detailsSectionTitle}
               </p>
             ) : null}
@@ -433,7 +429,7 @@ function NotionLinkButton({
 }) {
   if (loading) {
     return (
-      <span className="inline-flex h-7 w-7 animate-pulse items-center justify-center rounded-md bg-neutral-700" />
+      <span className="mt-0.5 inline-flex h-7 w-7 shrink-0 animate-pulse items-center justify-center rounded-md bg-neutral-700" />
     );
   }
 
@@ -445,7 +441,7 @@ function NotionLinkButton({
       target="_blank"
       rel="noopener noreferrer"
       title="Open in Notion"
-      className="inline-flex h-7 w-7 items-center justify-center rounded-md border border-neutral-700 bg-neutral-800 transition-colors hover:border-neutral-500 hover:bg-neutral-700"
+      className="mt-0.5 inline-flex h-7 w-7 shrink-0 items-center justify-center rounded-md border border-neutral-700 bg-neutral-800 transition-colors hover:border-neutral-500 hover:bg-neutral-700"
     >
       <svg
         width="16"
@@ -547,13 +543,15 @@ function PatchlistLinkInline({
 
   if (loading) {
     return (
-      <span className="inline-block h-4 w-24 animate-pulse rounded bg-neutral-700" />
+      <div className="relative min-w-0 flex-1">
+        <span className="inline-block h-4 w-24 animate-pulse rounded bg-neutral-700" />
+      </div>
     );
   }
 
-  if (editing) {
-    return (
-      <div ref={containerRef} className="relative min-w-0 flex-1">
+  return (
+    <div ref={containerRef} className="relative min-w-0 flex-1">
+      {editing ? (
         <div className="absolute left-0 top-full z-[60] mt-1 w-72 rounded-xl border border-neutral-700 bg-[#1a1a1a] p-3 shadow-2xl">
           <label className="mb-1 block text-[11px] font-medium text-neutral-400">
             Link to Patchlist
@@ -576,33 +574,32 @@ function PatchlistLinkInline({
             {inputValue || "No link set"}
           </p>
         </div>
-        {/* Inline trigger (stays in flow) */}
-        <button
-          type="button"
-          className="inline-flex items-center gap-1 text-xs text-blue-400"
+      ) : null}
+      <button
+        type="button"
+        disabled={disabled}
+        onClick={() => {
+          if (!editing) setEditing(true);
+        }}
+        title={value ?? "Add patchlist link"}
+        className={
+          editing
+            ? "inline-flex min-w-0 items-center gap-1 text-xs text-blue-400"
+            : "inline-flex min-w-0 items-center gap-1 text-xs text-neutral-400 transition-colors hover:text-blue-400 disabled:cursor-not-allowed disabled:opacity-50"
+        }
+      >
+        <LinkIcon />
+        <span
+          className={
+            editing
+              ? "underline"
+              : "truncate underline decoration-neutral-600 hover:decoration-blue-400"
+          }
         >
-          <LinkIcon />
-          <span className="underline">
-            {value ? compactUrl(value) : "Add patchlist link"}
-          </span>
-        </button>
-      </div>
-    );
-  }
-
-  return (
-    <button
-      type="button"
-      disabled={disabled}
-      onClick={() => setEditing(true)}
-      className="inline-flex min-w-0 items-center gap-1 text-xs text-neutral-400 transition-colors hover:text-blue-400 disabled:cursor-not-allowed disabled:opacity-50"
-      title={value ?? "Add patchlist link"}
-    >
-      <LinkIcon />
-      <span className="truncate underline decoration-neutral-600 hover:decoration-blue-400">
-        {value ? compactUrl(value) : "Add patchlist link"}
-      </span>
-    </button>
+          {value ? compactUrl(value) : "Add patchlist link"}
+        </span>
+      </button>
+    </div>
   );
 }
 

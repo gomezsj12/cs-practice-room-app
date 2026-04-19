@@ -79,12 +79,14 @@ function ClockFace({
   minute,
   onSelectHour,
   onSelectMinute,
+  onHourPointerRelease,
 }: {
   mode: ClockMode;
   hour: number;
   minute: number;
   onSelectHour: (h: number) => void;
   onSelectMinute: (m: number) => void;
+  onHourPointerRelease?: () => void;
 }) {
   const svgRef = useRef<SVGSVGElement>(null);
   const isDragging = useRef(false);
@@ -143,9 +145,21 @@ function ClockFace({
     [handlePointerEvent],
   );
 
-  const onPointerUp = useCallback(() => {
-    isDragging.current = false;
-  }, []);
+  const endPointerGesture = useCallback(
+    (e: React.PointerEvent) => {
+      const wasDragging = isDragging.current;
+      isDragging.current = false;
+      try {
+        (e.currentTarget as Element).releasePointerCapture?.(e.pointerId);
+      } catch {
+        /* capture may already be released */
+      }
+      if (mode === "hour" && wasDragging) {
+        onHourPointerRelease?.();
+      }
+    },
+    [mode, onHourPointerRelease],
+  );
 
   const items = mode === "hour" ? HOURS : MINUTE_MARKS;
   const selectedValue = mode === "hour" ? hour : minute;
@@ -168,7 +182,8 @@ function ClockFace({
       className="cursor-pointer touch-none"
       onPointerDown={onPointerDown}
       onPointerMove={onPointerMove}
-      onPointerUp={onPointerUp}
+      onPointerUp={endPointerGesture}
+      onPointerCancel={endPointerGesture}
     >
       {/* Background circle */}
       <circle
@@ -297,7 +312,6 @@ export default function TimePicker({
   function handleSelectHour(h: number) {
     setDraftHour(h);
     onChange(to24(h, draftMinute, draftPeriod));
-    setTimeout(() => setMode("minute"), 200);
   }
 
   function handleSelectMinute(m: number) {
@@ -402,6 +416,7 @@ export default function TimePicker({
             minute={draftMinute}
             onSelectHour={handleSelectHour}
             onSelectMinute={handleSelectMinute}
+            onHourPointerRelease={() => setMode("minute")}
           />
 
           {error && (

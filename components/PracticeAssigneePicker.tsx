@@ -447,6 +447,8 @@ export default function PracticeAssigneePicker({
 
   const n = selectedPageIds.length;
   const triggerEmptyLabel = "No Assignees";
+  /** Shown below `sm` when nothing is selected (compact trigger). */
+  const triggerEmptyLabelMobile = "None";
   const visibleTriggerIds = selectedPageIds.slice(0, TRIGGER_ICON_CAP);
   const triggerSummaries = visibleTriggerIds.map((id) => {
     const hit = summaryById.get(id);
@@ -531,15 +533,16 @@ export default function PracticeAssigneePicker({
         {n === 0 ? (
           <div className="flex min-h-[22px] min-w-0 items-center gap-2 overflow-hidden">
             <span
-              className="h-[22px] w-[22px] shrink-0"
+              className="hidden h-[22px] w-[22px] shrink-0 sm:block"
               aria-hidden
             />
             <span className="min-w-0 truncate text-xs font-medium">
-              {triggerEmptyLabel}
+              <span className="sm:hidden">{triggerEmptyLabelMobile}</span>
+              <span className="hidden sm:inline">{triggerEmptyLabel}</span>
             </span>
           </div>
         ) : (
-          <div className="flex min-h-[22px] min-w-0 items-center gap-2 overflow-hidden">
+          <div className="flex min-h-[22px] min-w-0 items-center justify-center gap-2 overflow-hidden sm:justify-start">
             <span className="flex shrink-0 items-center">
               {triggerSummaries.map((s, i) => (
                 <span
@@ -559,7 +562,7 @@ export default function PracticeAssigneePicker({
                 </span>
               ))}
             </span>
-            <span className="min-w-0 truncate text-xs font-medium">
+            <span className="hidden min-w-0 truncate text-xs font-medium sm:inline">
               {triggerText}
             </span>
           </div>
