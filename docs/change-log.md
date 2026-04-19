@@ -166,6 +166,7 @@ This file is the **single source of truth** for the full project history — fro
 | `a8f1125` | 2026-04-19 | **Practice Assignee(s) from Notion + admin picker, cache column, and live modal refresh.** Migration `assignees_json` on `practice_session_cache`; `lib/notion.ts` reads/writes Assignee(s) relation; webhook + PATCH + details hydrate assignees; `GET /api/practice-session/details?revalidate=1` skips warm cache so Notion edits show without TTL wait; `PracticeAssigneePicker` (verify icons, reorder, trigger); `EventDetailsModal` layout; `GET /api/notion/people-directory`. Docs: `ARCHITECTURE.md`, this log. | Cursor agent |
 | `f32ede6` | 2026-04-19 | **docs: set Part 2 change-log commit hash for assignees feature row.** | Cursor agent |
 | `3622ee3` | 2026-04-19 | **docs: add Part 2 row for hash-backfill commit.** | Cursor agent |
+| `c055123` | 2026-04-19 | **docs: normalize change-log rolling tip after assignees push.** | Cursor agent |
 | `—` | 2026-04-19 | **Rolling tip — next commit replaces this hash.** | Cursor agent |
 
 
