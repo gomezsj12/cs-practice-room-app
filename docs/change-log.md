@@ -168,7 +168,8 @@ This file is the **single source of truth** for the full project history — fro
 | `3622ee3` | 2026-04-19 | **docs: add Part 2 row for hash-backfill commit.** | Cursor agent |
 | `c055123` | 2026-04-19 | **docs: normalize change-log rolling tip after assignees push.** | Cursor agent |
 | `8a2850c` | 2026-04-19 | **docs: record c055123 in Part 2 change-log.** | Cursor agent |
-| `—` | 2026-04-19 | **Rolling tip — next commit replaces this hash.** | Cursor agent |
+| `a910e2c` | 2026-04-19 | **docs: add Part 2 row for 8a2850c change-log commit.** | Cursor agent |
+| `—` | 2026-04-19 | **docs: fix Part 2 rolling hash — use placeholder for tip commit.** | Cursor agent |
 
 
 ---
