@@ -266,12 +266,19 @@ export default function EventDetailsModal({
                 disabled={isLoadingNotionDetails || !notionDetails?.notionPageId}
               />
             ) : (
-              <span
-                className={`mt-1.5 inline-block h-3 w-3 shrink-0 rounded-full ${
-                  isJam ? "bg-[#3f56c9]" : "bg-neutral-500"
-                }`}
-                style={dotColor ? { backgroundColor: dotColor } : undefined}
-              />
+              <div
+                className="relative mt-px inline-flex shrink-0"
+                aria-hidden
+              >
+                <div className="inline-flex h-7 w-7 items-center justify-center rounded-full">
+                  <span
+                    className={`inline-block h-4 w-4 shrink-0 rounded-full ${
+                      isJam ? "bg-[#3f56c9]" : "bg-neutral-500"
+                    }`}
+                    style={dotColor ? { backgroundColor: dotColor } : undefined}
+                  />
+                </div>
+              </div>
             )}
             <h2 className="min-w-0 flex-1 break-words text-xl font-semibold leading-snug text-white">
               {headlineTitle}

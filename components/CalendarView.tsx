@@ -158,7 +158,7 @@ function NowIndicatorOverlayLayer({ o }: { o: NowIndicatorOverlayState }) {
 
   return (
     <div
-      className="pointer-events-none absolute inset-0 z-20"
+      className="pointer-events-none absolute inset-0 z-[30]"
       aria-hidden
     >
       <div
