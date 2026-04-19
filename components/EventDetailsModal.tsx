@@ -11,6 +11,7 @@
  * - Notion icon button that opens the linked Notion page
  * - Editable start/end times (same-day only)
  * - Status dropdown matching Notion's Session Status options
+ * - Assignee(s) multi-select (People directory) beside the time pickers
  * - Draft-then-apply: "Close" becomes "Apply Changes" when dirty
  *
  * A live "has ended" check (`nowMs >= end`) disables the cancel action once
@@ -39,6 +40,7 @@ import type {
   PracticeNotionDetails,
   PracticeSessionChanges,
 } from "@/lib/types";
+import PracticeAssigneePicker from "@/components/PracticeAssigneePicker";
 import PracticeStatusDropdown from "@/components/PracticeStatusDropdown";
 import TimePicker from "@/components/TimePicker";
 
@@ -72,6 +74,11 @@ function applyTimeToIso(baseIso: string, timeValue: string): string {
   return d.toISOString();
 }
 
+function assigneePageIdsEqual(a: string[], b: string[]): boolean {
+  if (a.length !== b.length) return false;
+  return a.every((v, i) => v === b[i]);
+}
+
 /**
  * Displays event details in a fixed overlay with an optional owner-only cancel
  * action and the event description when one is available.
@@ -98,6 +105,9 @@ export default function EventDetailsModal({
   const [draftPatchlistLink, setDraftPatchlistLink] = useState<string | null>(
     null,
   );
+  const [draftAssigneePageIds, setDraftAssigneePageIds] = useState<
+    string[] | null
+  >(null);
 
   useEffect(() => {
     if (!isOpen || !event) {
@@ -119,6 +129,7 @@ export default function EventDetailsModal({
     setDraftEndTime(null);
     setDraftStatus(null);
     setDraftPatchlistLink(null);
+    setDraftAssigneePageIds(null);
   }, [event?.id, isOpen]);
 
   if (!isOpen || !event) {
@@ -172,7 +183,16 @@ export default function EventDetailsModal({
   const patchlistChanged =
     draftPatchlistLink !== null &&
     draftPatchlistLink !== (originalPatchlistLink ?? "");
-  const isDirty = timesChanged || statusChanged || patchlistChanged;
+  const originalAssigneePageIds = (notionDetails?.assignees ?? []).map(
+    (a) => a.pageId,
+  );
+  const effectiveAssigneePageIds =
+    draftAssigneePageIds ?? originalAssigneePageIds;
+  const assigneesChanged =
+    draftAssigneePageIds !== null &&
+    !assigneePageIdsEqual(draftAssigneePageIds, originalAssigneePageIds);
+  const isDirty =
+    timesChanged || statusChanged || patchlistChanged || assigneesChanged;
 
   // Display times: use draft times when set, otherwise original
   const displayStart = timesChanged
@@ -206,6 +226,10 @@ export default function EventDetailsModal({
 
     if (patchlistChanged) {
       changes.newPatchlistLink = draftPatchlistLink ?? "";
+    }
+
+    if (assigneesChanged) {
+      changes.newAssigneePageIds = [...(draftAssigneePageIds ?? [])];
     }
 
     onApplyChanges(changes);
@@ -290,20 +314,42 @@ export default function EventDetailsModal({
 
         {/* Admin time editing (practice only) */}
         {showAdminControls && (
-          <div className="mt-4 flex items-center gap-2">
+          <div className="mt-4 flex w-full min-w-0 items-center gap-7">
+            <div className="flex shrink-0 items-center gap-2">
               <TimePicker
                 value={effectiveStartTime}
                 onChange={(v) => setDraftStartTime(v)}
                 disabled={busyState}
-                error={timeRangeInvalid ? "Must be at least 30 min before end time." : null}
+                error={
+                  timeRangeInvalid
+                    ? "Must be at least 30 min before end time."
+                    : null
+                }
               />
-              <span className="text-neutral-500">→</span>
+              <span className="shrink-0 text-neutral-500">→</span>
               <TimePicker
                 value={effectiveEndTime}
                 onChange={(v) => setDraftEndTime(v)}
                 disabled={busyState}
-                error={timeRangeInvalid ? "Must be at least 30 min after start time." : null}
+                error={
+                  timeRangeInvalid
+                    ? "Must be at least 30 min after start time."
+                    : null
+                }
               />
+            </div>
+            <div className="min-w-0 flex-1">
+              <PracticeAssigneePicker
+                className="w-full"
+                selectedPageIds={effectiveAssigneePageIds}
+                onChange={(ids) => setDraftAssigneePageIds(ids)}
+                resolvedSummaries={notionDetails?.assignees ?? []}
+                disabled={busyState}
+                loadingDetails={
+                  isLoadingNotionDetails || !notionDetails?.notionPageId
+                }
+              />
+            </div>
           </div>
         )}
 

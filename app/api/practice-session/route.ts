@@ -23,7 +23,10 @@ import { isAppAdmin } from "@/lib/admin";
 import { getEventEnd, getEventStart } from "@/lib/calendar-helpers";
 import { getCalendarClient } from "@/lib/google";
 import {
+  assigneePageIdsAreInPeopleDirectory,
   findPracticeNotionPage,
+  getCachedPeopleDirectorySummaries,
+  hydrateAssigneesFromOrderedIds,
   updatePracticeSessionInNotion,
 } from "@/lib/notion";
 import { upsertCacheEntry } from "@/lib/practice-session-cache";
@@ -59,6 +62,17 @@ export async function PATCH(request: NextRequest) {
         ? body.newPatchlistLink.trim()
         : undefined;
 
+    const rawAssigneeIds = body.newAssigneePageIds;
+    const newAssigneePageIds: string[] | undefined = Array.isArray(
+      rawAssigneeIds,
+    )
+      ? rawAssigneeIds
+          .map((x: unknown) =>
+            typeof x === "string" ? x.trim() : "",
+          )
+          .filter((id: string) => id.length > 0)
+      : undefined;
+
     if (!googleEventId) {
       return NextResponse.json(
         { error: "Missing googleEventId." },
@@ -69,12 +83,33 @@ export async function PATCH(request: NextRequest) {
     const timesChanged = Boolean(newStart && newEnd);
     const statusChanged = Boolean(newStatus);
     const patchlistChanged = newPatchlistLink !== undefined;
+    const assigneesChanged = newAssigneePageIds !== undefined;
 
-    if (!timesChanged && !statusChanged && !patchlistChanged) {
+    if (!timesChanged && !statusChanged && !patchlistChanged && !assigneesChanged) {
       return NextResponse.json(
         { error: "No changes provided." },
         { status: 400 },
       );
+    }
+
+    let peopleDirectory: Awaited<
+      ReturnType<typeof getCachedPeopleDirectorySummaries>
+    > | null = null;
+
+    if (assigneesChanged) {
+      peopleDirectory = await getCachedPeopleDirectorySummaries();
+      if (
+        newAssigneePageIds &&
+        !assigneePageIdsAreInPeopleDirectory(newAssigneePageIds, peopleDirectory)
+      ) {
+        return NextResponse.json(
+          {
+            error:
+              "One or more assignee page IDs are not in the People directory.",
+          },
+          { status: 400 },
+        );
+      }
     }
 
     const practiceCalendarId = process.env.PRACTICE_CALENDAR_ID;
@@ -148,6 +183,10 @@ export async function PATCH(request: NextRequest) {
             3_600_000
           : undefined;
 
+      const newAssigneeRelation = assigneesChanged
+        ? (newAssigneePageIds ?? []).map((id) => ({ id }))
+        : undefined;
+
       await updatePracticeSessionInNotion({
         notionPageId,
         newStartISO: newStart,
@@ -155,7 +194,18 @@ export async function PATCH(request: NextRequest) {
         newCustomEventId,
         newStatus: statusChanged ? newStatus : undefined,
         newPatchlistLink: patchlistChanged ? newPatchlistLink : undefined,
+        newAssigneeRelation,
       });
+
+      if (!peopleDirectory) {
+        peopleDirectory = await getCachedPeopleDirectorySummaries();
+      }
+      const assigneesForCache = assigneesChanged
+        ? hydrateAssigneesFromOrderedIds(newAssigneePageIds ?? [], peopleDirectory)
+        : hydrateAssigneesFromOrderedIds(
+            notionResult?.assigneePageIds ?? [],
+            peopleDirectory,
+          );
 
       // Write updated values to Supabase cache so subsequent reads are instant
       const cacheId = newCustomEventId ?? customEventId;
@@ -170,6 +220,7 @@ export async function PATCH(request: NextRequest) {
           patchlist_link: patchlistChanged
             ? newPatchlistLink ?? null
             : notionResult?.patchlistLink ?? null,
+          assignees_json: assigneesForCache,
         }).catch(() => {});
       }
 
@@ -178,6 +229,7 @@ export async function PATCH(request: NextRequest) {
         googleEventId,
         timesChanged,
         statusChanged,
+        assigneesChanged,
         newStatus: statusChanged ? newStatus : undefined,
         notionPageId,
       });

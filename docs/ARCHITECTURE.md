@@ -853,6 +853,8 @@ This was applied via the `enable_rls_on_all_tables` migration (2026-04-11). Newe
 
 Read-through cache for **Notion Fillout / practice** row fields keyed by **Custom Event ID** (same string used to match Google Calendar practice events to Notion). Populated and refreshed by `POST /api/practice-session/batch-statuses` (Notion backfill on miss), `GET /api/practice-session/details` (miss or stale > 5 minutes), `PATCH /api/practice-session` (after Notion update), and `POST /api/webhooks/notion` (property updates on Fillout master rows). Warm-cache reads avoid Notion’s low rate limits on calendar load and modal open.
 
+**`GET /api/practice-session/details`** accepts **`revalidate=1`** (also `true` / `yes`). When set, the handler **always** re-reads Notion and upserts this table, even if `cached_at` is inside the 5-minute TTL. The calendar admin modal appends this flag on every fetch (including the 20s background poll) so **Assignee(s)** and other fields update soon after edits in Notion without a full page reload.
+
 | Column | Type | Usage |
 | --- | --- | --- |
 | `custom_event_id` | text (PK) | Custom Event ID segment string |
@@ -860,6 +862,7 @@ Read-through cache for **Notion Fillout / practice** row fields keyed by **Custo
 | `notion_page_url` | text | Public Notion URL for the row |
 | `session_status` | text | Current **Session Status** name |
 | `patchlist_link` | text | **Link to Patchlist** value |
+| `assignees_json` | jsonb | Ordered **Assignee(s)** relation: array of `{ pageId, name, type, icon }` summaries for the admin picker |
 | `cached_at` | timestamptz | Last write time (TTL for details API) |
 
 Index: `idx_psc_notion_page_id` on `notion_page_id` for webhook upserts by page id.
@@ -893,7 +896,7 @@ See [Support system architecture](#support-system-architecture) above.
 3. **Confirm**: `POST /api/reserve` → verify hold if any → overlap check → Google insert → Notion insert (best-effort) → delete hold.
 4. **Cancel**: `POST /api/cancel` → authorize by event type → Google delete → Notion status update for jams (Google Event ID) and practice (**Custom Event ID**, best-effort), stamping **CSPR Cancel origin** = `calendar_app`. **Notion → Google (jams only):** `POST /api/webhooks/notion` on `page.properties_updated` deletes the jam Calendar event when **Status** is **Cancelled** and origin is not `calendar_app`.
 5. **Support**: User submits via `/api/support/contact` → Supabase + Telegram. Admin replies via Telegram webhook or `/api/support/reply`.
-6. **Admin practice session (signed-in admin only):** `POST /api/practice-session/batch-statuses` loads Session Status outlines from **`practice_session_cache`** (bulk), backfilling Notion on miss. `GET /api/practice-session/details` serves modal fields from cache when fresh. `PATCH /api/practice-session` updates Google Calendar + Notion, then upserts the cache. **Notion webhook:** for Fillout master data-source pages, upserts **`practice_session_cache`** when properties change (in addition to existing cancel/profile behavior).
+6. **Admin practice session (signed-in admin only):** `POST /api/practice-session/batch-statuses` loads Session Status outlines from **`practice_session_cache`** (bulk), backfilling Notion on miss. `GET /api/practice-session/details` serves modal fields from cache when fresh, unless **`revalidate=1`** (calendar always sends it so Notion is the source of truth while the modal is open). `GET /api/notion/people-directory` returns the People directory for the assignee picker (cached list server-side). `PATCH /api/practice-session` updates Google Calendar + Notion (including **Assignee(s)** relation), then upserts the cache. **Notion webhook:** for Fillout master data-source pages, upserts **`practice_session_cache`** when properties change (in addition to existing cancel/profile behavior).
 
 **Source of truth for "what is booked"** is **Google Calendar** (two calendars). **Notion** is a **log/audit** mirror. **Supabase** is **ephemeral coordination** for holds, **persistent storage** for support threads and quarter metadata, and a **read-through cache** for hot Notion-derived practice session fields (`practice_session_cache`).
 

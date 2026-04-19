@@ -7,7 +7,9 @@
  *
  * Reads from the Supabase `practice_session_cache` table first. Only queries
  * Notion when the cache misses or the entry is stale (>5 min), then backfills
- * the cache.
+ * the cache. Pass **`revalidate=1`** to skip the warm-cache fast path and
+ * always read Notion (used by the calendar modal so Notion-side edits show up
+ * without waiting for TTL expiry).
  */
 
 import { NextRequest, NextResponse } from "next/server";
@@ -15,7 +17,10 @@ import { auth } from "@/auth";
 import { isAppAdmin } from "@/lib/admin";
 import { getEventEnd, getEventStart } from "@/lib/calendar-helpers";
 import { getCalendarClient } from "@/lib/google";
-import { findPracticeNotionPage } from "@/lib/notion";
+import {
+  findPracticeNotionPage,
+  hydratePracticeAssigneesFromPageIds,
+} from "@/lib/notion";
 import {
   getCachedSessions,
   upsertCacheEntry,
@@ -72,6 +77,7 @@ export async function GET(request: NextRequest) {
         currentStatus: null,
         notionPageId: null,
         patchlistLink: null,
+        assignees: [],
       });
     }
 
@@ -81,6 +87,13 @@ export async function GET(request: NextRequest) {
       event,
       roomTz,
     );
+
+    const revalidateParam =
+      request.nextUrl.searchParams.get("revalidate") ?? "";
+    const forceRefresh =
+      revalidateParam === "1" ||
+      revalidateParam.toLowerCase() === "true" ||
+      revalidateParam.toLowerCase() === "yes";
 
     // Check Supabase cache first
     const candidateIds = [
@@ -93,7 +106,7 @@ export async function GET(request: NextRequest) {
       const hit = (utcId ? cached.get(utcId) : undefined) ??
         (wallId && wallId !== utcId ? cached.get(wallId) : undefined);
 
-      if (hit) {
+      if (hit && !forceRefresh) {
         const age = Date.now() - new Date(hit.cached_at).getTime();
         if (age < CACHE_TTL_MS) {
           return NextResponse.json({
@@ -101,6 +114,7 @@ export async function GET(request: NextRequest) {
             currentStatus: hit.session_status,
             notionPageId: hit.notion_page_id,
             patchlistLink: hit.patchlist_link,
+            assignees: hit.assignees_json ?? [],
           });
         }
       }
@@ -120,6 +134,10 @@ export async function GET(request: NextRequest) {
       }
     }
 
+    const assignees = result?.assigneePageIds?.length
+      ? await hydratePracticeAssigneesFromPageIds(result.assigneePageIds)
+      : [];
+
     // Backfill cache
     if (result && matchedId) {
       upsertCacheEntry({
@@ -128,6 +146,7 @@ export async function GET(request: NextRequest) {
         notion_page_url: result.notionPageUrl,
         session_status: result.currentStatus,
         patchlist_link: result.patchlistLink,
+        assignees_json: assignees,
       }).catch(() => {});
     }
 
@@ -136,6 +155,7 @@ export async function GET(request: NextRequest) {
       currentStatus: result?.currentStatus ?? null,
       notionPageId: result?.notionPageId ?? null,
       patchlistLink: result?.patchlistLink ?? null,
+      assignees,
     });
   } catch (error) {
     console.error("[practice-session/details] Error:", error);

@@ -12,10 +12,12 @@
  * @see {@link ../lib/types.ts}   — shared type definitions.
  */
 import { Client } from "@notionhq/client";
+import { unstable_cache } from "next/cache";
 import {
   NOTION_CSPR_CANCEL_ORIGIN_CALENDAR_APP,
   NOTION_CSPR_CANCEL_ORIGIN_PROPERTY,
 } from "@/lib/notion-sync-constants";
+import type { PracticeAssigneeSummary } from "@/lib/types";
 
 /** Pinned Notion API version to avoid breaking changes from upstream. */
 const NOTION_VERSION = "2026-03-11";
@@ -188,6 +190,9 @@ export async function markJamReservationCancelledInNotion(
 /** Notion text column on Fillout Form Master Database (API type is `rich_text`). */
 const NOTION_PRACTICE_CUSTOM_EVENT_ID_PROP = "Custom Event ID";
 
+/** Notion relation column on Fillout practice rows (People directory). */
+export const NOTION_PRACTICE_ASSIGNEES_PROP = "Assignee(s)";
+
 /**
  * Find a practice-booking row by **Custom Event ID** and set **Session Status** to
  * **Cancelled**. Returns the page ID on success, or `null` if none matched.
@@ -268,7 +273,23 @@ type PracticePageProp = {
   status?: { name?: string | null } | null;
   rich_text?: Array<{ plain_text?: string }>;
   url?: string | null;
+  relation?: Array<{ id?: string }>;
 };
+
+/**
+ * Read ordered People page IDs from a practice page's **Assignee(s)** relation.
+ */
+export function extractAssigneePageIdsFromPracticeProperties(
+  properties: Record<string, PracticePageProp>,
+): string[] {
+  const assignProp = properties[NOTION_PRACTICE_ASSIGNEES_PROP];
+  if (assignProp?.type !== "relation" || !Array.isArray(assignProp.relation)) {
+    return [];
+  }
+  return assignProp.relation
+    .map((r) => (typeof r?.id === "string" ? r.id.trim() : ""))
+    .filter((id) => id.length > 0);
+}
 
 /**
  * Find the Notion page for a practice booking by its **Custom Event ID**.
@@ -284,6 +305,7 @@ export async function findPracticeNotionPage(
   currentStatus: string | null;
   notionPageUrl: string | null;
   patchlistLink: string | null;
+  assigneePageIds: string[];
 }> {
   const dataSourceId =
     process.env.NOTION_FILLOUT_MASTER_DATA_SOURCE_ID?.trim();
@@ -309,15 +331,24 @@ export async function findPracticeNotionPage(
 
   const page = queryData.results?.[0];
   if (!page) {
-    return { notionPageId: null, currentStatus: null, notionPageUrl: null, patchlistLink: null };
+    return {
+      notionPageId: null,
+      currentStatus: null,
+      notionPageUrl: null,
+      patchlistLink: null,
+      assigneePageIds: [],
+    };
   }
 
   const pageId = page.id;
   let currentStatus: string | null = null;
   let patchlistLink: string | null = null;
+  let assigneePageIds: string[] = [];
 
   if ("properties" in page) {
     const props = page.properties as Record<string, PracticePageProp>;
+    assigneePageIds = extractAssigneePageIdsFromPracticeProperties(props);
+
     const statusProp = props["Session Status"];
     if (statusProp?.type === "status") {
       currentStatus = statusProp.status?.name?.trim() ?? null;
@@ -337,7 +368,13 @@ export async function findPracticeNotionPage(
 
   const notionPageUrl = `https://notion.so/${pageId.replace(/-/g, "")}`;
 
-  return { notionPageId: pageId, currentStatus, notionPageUrl, patchlistLink };
+  return {
+    notionPageId: pageId,
+    currentStatus,
+    notionPageUrl,
+    patchlistLink,
+    assigneePageIds,
+  };
 }
 
 /** Parameters for {@link updatePracticeSessionInNotion}. */
@@ -353,6 +390,8 @@ type UpdatePracticeSessionParams = {
   newStatus?: string;
   /** New URL for "Link to Patchlist" (empty string clears the value). */
   newPatchlistLink?: string;
+  /** Replace **Assignee(s)** relation; empty array clears. */
+  newAssigneeRelation?: { id: string }[];
 };
 
 /**
@@ -366,6 +405,7 @@ export async function updatePracticeSessionInNotion({
   newCustomEventId,
   newStatus,
   newPatchlistLink,
+  newAssigneeRelation,
 }: UpdatePracticeSessionParams) {
   const notion = getNotionClient();
 
@@ -393,6 +433,12 @@ export async function updatePracticeSessionInNotion({
   if (newPatchlistLink !== undefined) {
     properties["Link to Patchlist"] = {
       url: newPatchlistLink || null,
+    };
+  }
+
+  if (newAssigneeRelation !== undefined) {
+    properties[NOTION_PRACTICE_ASSIGNEES_PROP] = {
+      relation: newAssigneeRelation,
     };
   }
 
@@ -590,6 +636,124 @@ function parsePeopleDataSourceProperties(
     sjBand,
     type,
   };
+}
+
+const PEOPLE_DIRECTORY_PAGE_CAP = 2000;
+const PEOPLE_DIRECTORY_CACHE_SECONDS = 900;
+
+function parseNotionIconToAssigneeIcon(
+  icon: unknown,
+): PracticeAssigneeSummary["icon"] {
+  if (!icon || typeof icon !== "object" || !("type" in icon)) return null;
+  const rec = icon as { type: string; emoji?: string; external?: { url?: string }; file?: { url?: string } };
+  if (rec.type === "emoji" && typeof rec.emoji === "string" && rec.emoji) {
+    return { kind: "emoji", emoji: rec.emoji };
+  }
+  if (rec.type === "external" && rec.external?.url) {
+    return { kind: "url", url: rec.external.url };
+  }
+  if (rec.type === "file" && rec.file?.url) {
+    return { kind: "url", url: rec.file.url };
+  }
+  return null;
+}
+
+async function fetchPeopleDirectorySummariesUncached(): Promise<
+  PracticeAssigneeSummary[]
+> {
+  const dbId = process.env.NOTION_PEOPLE_DB_ID;
+  if (!dbId) {
+    throw new Error("Missing NOTION_PEOPLE_DB_ID environment variable.");
+  }
+
+  const notion = getNotionClient();
+  const people: PracticeAssigneeSummary[] = [];
+  let cursor: string | undefined;
+
+  while (people.length < PEOPLE_DIRECTORY_PAGE_CAP) {
+    const queryData = await notion.dataSources.query({
+      data_source_id: dbId,
+      page_size: 100,
+      ...(cursor ? { start_cursor: cursor } : {}),
+    });
+
+    for (const page of queryData.results) {
+      if (!("properties" in page)) continue;
+      const parsed = parsePeopleDataSourceProperties(
+        page.id,
+        page.properties as Record<string, NotionPeopleProp>,
+      );
+      const icon =
+        "icon" in page && page.icon != null
+          ? parseNotionIconToAssigneeIcon(page.icon)
+          : null;
+      people.push({
+        pageId: parsed.pageId,
+        name: parsed.displayName?.trim() || "Untitled",
+        type: parsed.type,
+        icon,
+      });
+    }
+
+    if (!queryData.has_more || !queryData.next_cursor) break;
+    cursor = queryData.next_cursor;
+  }
+
+  if (people.length >= PEOPLE_DIRECTORY_PAGE_CAP) {
+    console.warn(
+      "[notion] People directory assignee picker hit page cap:",
+      PEOPLE_DIRECTORY_PAGE_CAP,
+    );
+  }
+
+  return people;
+}
+
+/**
+ * Full People directory as assignee summaries, cached ~15 minutes server-side
+ * to avoid repeated paginated Notion queries.
+ */
+export const getCachedPeopleDirectorySummaries = unstable_cache(
+  fetchPeopleDirectorySummariesUncached,
+  ["notion-people-directory-assignee-picker-v1"],
+  { revalidate: PEOPLE_DIRECTORY_CACHE_SECONDS },
+);
+
+/** Join ordered assignee page IDs to a people directory list (unknown IDs get placeholders). */
+export function hydrateAssigneesFromOrderedIds(
+  assigneePageIds: string[],
+  people: PracticeAssigneeSummary[],
+): PracticeAssigneeSummary[] {
+  const byId = new Map(people.map((p) => [p.pageId, p]));
+  return assigneePageIds.map((id) => {
+    const hit = byId.get(id);
+    if (hit) {
+      return { ...hit };
+    }
+    return {
+      pageId: id,
+      name: "Unknown",
+      type: null,
+      icon: null,
+    };
+  });
+}
+
+export async function hydratePracticeAssigneesFromPageIds(
+  assigneePageIds: string[],
+): Promise<PracticeAssigneeSummary[]> {
+  if (assigneePageIds.length === 0) return [];
+  const people = await getCachedPeopleDirectorySummaries();
+  return hydrateAssigneesFromOrderedIds(assigneePageIds, people);
+}
+
+/** True when every id exists in the cached People directory (admin PATCH guard). */
+export function assigneePageIdsAreInPeopleDirectory(
+  ids: string[],
+  people: PracticeAssigneeSummary[],
+): boolean {
+  const allowed = new Set(people.map((p) => p.pageId));
+  return ids.every((id) => allowed.has(id));
 }
 
 /**

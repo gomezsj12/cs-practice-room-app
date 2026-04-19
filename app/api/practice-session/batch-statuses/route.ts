@@ -15,7 +15,10 @@
 import { NextRequest, NextResponse } from "next/server";
 import { auth } from "@/auth";
 import { isAppAdmin } from "@/lib/admin";
-import { findPracticeNotionPage } from "@/lib/notion";
+import {
+  findPracticeNotionPage,
+  hydratePracticeAssigneesFromPageIds,
+} from "@/lib/notion";
 import {
   getCachedSessions,
   upsertCacheEntry,
@@ -139,12 +142,16 @@ export async function POST(request: NextRequest) {
             }
 
             if (result && matchedId) {
+              const assignees = result.assigneePageIds?.length
+                ? await hydratePracticeAssigneesFromPageIds(result.assigneePageIds)
+                : [];
               upsertCacheEntry({
                 custom_event_id: matchedId,
                 notion_page_id: result.notionPageId,
                 notion_page_url: result.notionPageUrl,
                 session_status: result.currentStatus,
                 patchlist_link: result.patchlistLink,
+                assignees_json: assignees,
               }).catch(() => {});
             }
 

@@ -214,6 +214,19 @@ export type SupportMessageRow = {
   created_at: string;
 };
 
+/** Icon for a People directory row (from Notion page icon). */
+export type PracticeAssigneeIcon =
+  | { kind: "emoji"; emoji: string }
+  | { kind: "url"; url: string };
+
+/** One linked person for assignee UI and cache payloads. */
+export type PracticeAssigneeSummary = {
+  pageId: string;
+  name: string;
+  type: string | null;
+  icon: PracticeAssigneeIcon | null;
+};
+
 /** Admin-initiated changes to a practice session, sent to `PATCH /api/practice-session`. */
 export type PracticeSessionChanges = {
   googleEventId: string;
@@ -221,6 +234,8 @@ export type PracticeSessionChanges = {
   newEnd?: string;
   newStatus?: string;
   newPatchlistLink?: string;
+  /** Ordered Notion people page IDs; empty array clears assignees. */
+  newAssigneePageIds?: string[];
 };
 
 /** Notion-sourced details for a practice session, fetched lazily for admins. */
@@ -229,4 +244,5 @@ export type PracticeNotionDetails = {
   currentStatus: string | null;
   notionPageId: string | null;
   patchlistLink: string | null;
+  assignees: PracticeAssigneeSummary[];
 };

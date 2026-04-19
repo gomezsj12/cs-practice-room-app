@@ -2,7 +2,8 @@
  * Read-through Supabase cache for Notion practice session data.
  *
  * The `practice_session_cache` table stores Session Status, Link to Patchlist,
- * Notion page URL, and page ID keyed by Custom Event ID. This avoids hitting
+ * assignees (denormalized JSON), Notion page URL, and page ID keyed by Custom
+ * Event ID. This avoids hitting
  * Notion's rate-limited API on every calendar load / modal open.
  *
  * Cache is populated by:
@@ -13,6 +14,7 @@
  */
 
 import { getSupabaseAdmin } from "@/lib/supabase";
+import type { PracticeAssigneeSummary } from "@/lib/types";
 
 export type PracticeSessionCacheRow = {
   custom_event_id: string;
@@ -20,6 +22,7 @@ export type PracticeSessionCacheRow = {
   notion_page_url: string | null;
   session_status: string | null;
   patchlist_link: string | null;
+  assignees_json: PracticeAssigneeSummary[] | null;
   cached_at: string;
 };
 
@@ -60,6 +63,7 @@ export async function upsertCacheEntry(entry: {
   notion_page_url?: string | null;
   session_status?: string | null;
   patchlist_link?: string | null;
+  assignees_json?: PracticeAssigneeSummary[] | null;
 }): Promise<void> {
   const supabase = getSupabaseAdmin();
   const { error } = await supabase.from("practice_session_cache").upsert(
@@ -85,6 +89,7 @@ export async function updateCacheByNotionPageId(
   patch: {
     session_status?: string | null;
     patchlist_link?: string | null;
+    assignees_json?: PracticeAssigneeSummary[] | null;
     custom_event_id?: string;
     notion_page_url?: string;
   },
@@ -114,6 +119,7 @@ export async function upsertCacheByNotionPageId(entry: {
   notion_page_url?: string | null;
   session_status?: string | null;
   patchlist_link?: string | null;
+  assignees_json?: PracticeAssigneeSummary[] | null;
 }): Promise<void> {
   const supabase = getSupabaseAdmin();
 
@@ -127,6 +133,7 @@ export async function upsertCacheByNotionPageId(entry: {
     await updateCacheByNotionPageId(entry.notion_page_id, {
       session_status: entry.session_status,
       patchlist_link: entry.patchlist_link,
+      assignees_json: entry.assignees_json,
       custom_event_id: entry.custom_event_id,
       notion_page_url: entry.notion_page_url ?? undefined,
     });

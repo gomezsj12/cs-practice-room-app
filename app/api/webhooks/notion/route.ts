@@ -30,8 +30,10 @@ import { getSupabaseAdmin } from "@/lib/supabase";
 import { verifyNotionWebhookSignature } from "@/lib/notion-webhook";
 import { processNotionCalendarCancellationFromPage } from "@/lib/notion-calendar-webhook";
 import {
+  extractAssigneePageIdsFromPracticeProperties,
   getNotionClient,
   getNotionPageParentIds,
+  hydratePracticeAssigneesFromPageIds,
   resolveNotionProfileWebhookActionFromPage,
   type NotionPersonSyncFields,
   type NotionProfileWebhookPage,
@@ -241,6 +243,13 @@ export async function POST(req: Request) {
             .trim() ??
           null;
 
+        const assigneePageIds = extractAssigneePageIdsFromPracticeProperties(
+          props as Parameters<typeof extractAssigneePageIdsFromPracticeProperties>[0],
+        );
+        const assigneesJson = assigneePageIds.length
+          ? await hydratePracticeAssigneesFromPageIds(assigneePageIds)
+          : [];
+
         if (customEventIdProp && pageId) {
           const notionPageUrl = `https://www.notion.so/${pageId.replace(/-/g, "")}`;
           await upsertCacheByNotionPageId({
@@ -249,6 +258,7 @@ export async function POST(req: Request) {
             notion_page_url: notionPageUrl,
             session_status: sessionStatus,
             patchlist_link: patchlistLink || null,
+            assignees_json: assigneesJson,
           });
           console.info(
             "[notion webhook] Practice session cache updated.",

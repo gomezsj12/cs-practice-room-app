@@ -771,22 +771,24 @@ export default function CalendarView() {
       const cached = notionDetailsCacheRef.current.get(googleEventId);
       if (cached) {
         setNotionDetails(cached);
-        setIsLoadingNotionDetails(false);
-        return;
+      } else {
+        setNotionDetails(null);
       }
-
-      setNotionDetails(null);
       setIsLoadingNotionDetails(true);
     }
 
     fetch(
-      `/api/practice-session/details?googleEventId=${encodeURIComponent(googleEventId)}`,
+      `/api/practice-session/details?googleEventId=${encodeURIComponent(googleEventId)}&revalidate=1`,
     )
       .then((res) => (res.ok ? res.json() : null))
       .then((data: PracticeNotionDetails | null) => {
         if (data) {
-          notionDetailsCacheRef.current.set(googleEventId, data);
-          setNotionDetails(data);
+          const normalized: PracticeNotionDetails = {
+            ...data,
+            assignees: data.assignees ?? [],
+          };
+          notionDetailsCacheRef.current.set(googleEventId, normalized);
+          setNotionDetails(normalized);
         }
       })
       .catch(() => {
@@ -798,8 +800,8 @@ export default function CalendarView() {
   }
 
   // Auto-refresh Notion details while the practice modal is open (admin only).
-  // Silently re-fetches every 20s so edits made in Notion appear without
-  // manual refresh. Skips while changes are being applied.
+  // Silently re-fetches on an interval so edits made in Notion appear without
+  // manual refresh (`revalidate=1` on each request). Skips while applying.
   useEffect(() => {
     if (
       !isAdmin ||
@@ -811,7 +813,7 @@ export default function CalendarView() {
     }
 
     const gId = selectedEvent.googleEventId;
-    const REFRESH_MS = 30_000;
+    const REFRESH_MS = 20_000;
 
     const id = setInterval(() => {
       if (isApplyingChanges) return;
@@ -850,10 +852,30 @@ export default function CalendarView() {
       }
 
       // Update Notion details cache
-      if (changes.newStatus || changes.newPatchlistLink !== undefined) {
+      if (
+        changes.newStatus ||
+        changes.newPatchlistLink !== undefined ||
+        changes.newAssigneePageIds !== undefined
+      ) {
         const cached =
           notionDetailsCacheRef.current.get(changes.googleEventId);
         if (cached) {
+          let nextAssignees = cached.assignees;
+          if (changes.newAssigneePageIds !== undefined) {
+            const byPageId = new Map(
+              cached.assignees.map((a) => [a.pageId, a]),
+            );
+            nextAssignees = changes.newAssigneePageIds.map((id) => {
+              const hit = byPageId.get(id);
+              if (hit) return hit;
+              return {
+                pageId: id,
+                name: "Unknown",
+                type: null,
+                icon: null,
+              };
+            });
+          }
           notionDetailsCacheRef.current.set(changes.googleEventId, {
             ...cached,
             ...(changes.newStatus
@@ -861,6 +883,9 @@ export default function CalendarView() {
               : {}),
             ...(changes.newPatchlistLink !== undefined
               ? { patchlistLink: changes.newPatchlistLink || null }
+              : {}),
+            ...(changes.newAssigneePageIds !== undefined
+              ? { assignees: nextAssignees }
               : {}),
           });
         }
