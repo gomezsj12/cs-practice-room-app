@@ -986,14 +986,11 @@ export default function CalendarView() {
    * We suppress that click and, if no second tap arrives, fire a synthetic
    * `click` after a short delay (same order of magnitude as the on-event double-tap window).
    */
-  const delayedEventOpenTimerRef = useRef<ReturnType<typeof setTimeout> | null>(
-    null,
-  );
+  /** Browser `window.setTimeout` id (avoid `NodeJS.Timeout` from merged globals). */
+  const delayedEventOpenTimerRef = useRef<number | null>(null);
   /** Admin Friday band: delayed `setFridayToOpen` so double-tap-to-today can complete first. */
   const pendingFridayOpenDateStrRef = useRef<string | null>(null);
-  const delayedFridayOpenTimerRef = useRef<ReturnType<typeof setTimeout> | null>(
-    null,
-  );
+  const delayedFridayOpenTimerRef = useRef<number | null>(null);
 
   // Keyboard date-navigation: ArrowLeft/Right prev/next, T for today.
   // Only active on desktop when no modal is open and no drag in progress.
@@ -1231,7 +1228,9 @@ export default function CalendarView() {
       const fridayBand = startEl?.closest("[data-friday-jam-restriction]");
       gestureStartedOnFridayRestriction = Boolean(fridayBand);
       pendingFridayOpenDateStrRef.current =
-        fridayBand?.dataset.fridayDate ?? null;
+        fridayBand instanceof HTMLElement
+          ? (fridayBand.dataset.fridayDate ?? null)
+          : null;
       gestureStartedOnEvent = touchStartsOnCalendarEvent(e.target);
       tracking = true;
       swiping = false;
