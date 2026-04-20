@@ -174,7 +174,8 @@ This file is the **single source of truth** for the full project history — fro
 | `b442472` | 2026-04-19 | **Event details modal: single message for ended sessions** — one line for ended bookings (“can’t be edited or cancelled from here”); removes duplicate admin vs owner copy. | Cursor agent |
 | `f50ce64` | 2026-04-19 | **Enable admin backdrop dismiss for Friday and blocked modals.** | Cursor agent |
 | `2c2f5d2` | 2026-04-19 | **Homepage Contact card: refreshed support copy; mobile-only “Call Sam Gomez” `tel:` link with slow opacity pulse (grey pill); `transition-colors` so pulse is not overridden; `prefers-reduced-motion` respected.** | Cursor agent |
-| `—` | 2026-04-20 | **Sync Notion App Profile Creation Logs after Supabase profile writes.** `syncProfileCreationLogToNotion` queries the log data source by Google Email, updates all matching pages (or creates one), clears stale people relation on update; fire-and-forget from `profile/setup`, `profile/me` PATCH, `profile/sync`, and Notion people `sync_profile` webhook. | Cursor agent |
+| `d1ef362` | 2026-04-20 | **Sync Notion App Profile Creation Logs after Supabase profile writes.** `syncProfileCreationLogToNotion` queries the log data source by Google Email, updates all matching pages (or creates one), clears stale people relation on update; fire-and-forget from `profile/setup`, `profile/me` PATCH, `profile/sync`, and Notion people `sync_profile` webhook. | Cursor agent |
+| `—` | 2026-04-20 | **Jam reserve modal: replace instrument native select with animated dropdown.** Adds `components/ui/select.tsx` and updates `ReserveModal` to use it; introduces semantic Tailwind tokens for shared UI primitives. | Cursor agent |
 
 
 ---

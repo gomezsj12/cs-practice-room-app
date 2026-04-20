@@ -3,6 +3,12 @@
 :root {
   --background: #030303;
   --foreground: #ffffff;
+  /* Semantic tokens for shared UI primitives (e.g. custom Select). */
+  --card: #171717;
+  --muted: #262626;
+  --muted-foreground: #a3a3a3;
+  --border: #404040;
+  --destructive: #ef4444;
 }
 
 @theme {
@@ -12,6 +18,11 @@
 @theme inline {
   --color-background: var(--background);
   --color-foreground: var(--foreground);
+  --color-card: var(--card);
+  --color-muted: var(--muted);
+  --color-muted-foreground: var(--muted-foreground);
+  --color-border: var(--border);
+  --color-destructive: var(--destructive);
 }
 
 /* ── Sticky Nav Glass Pills ── */

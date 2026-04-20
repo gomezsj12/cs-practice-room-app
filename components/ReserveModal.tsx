@@ -30,6 +30,12 @@ import {
   formatBookingDateRange,
   formatHoldSecondsRemaining,
 } from "@/lib/formatting";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+} from "@/components/ui/select";
 
 type ReserveModalProps = {
   isOpen: boolean;
@@ -398,39 +404,40 @@ export default function ReserveModal({
             >
               Instrument
             </label>
-            <div className="relative">
-              <select
+            <Select
+              value={instrument}
+              onValueChange={setInstrument}
+              disabled={inputsDisabled}
+            >
+              <SelectTrigger
                 id="instrument"
-                value={instrument}
-                onChange={(e) => setInstrument(e.target.value)}
-                disabled={inputsDisabled}
-                className="w-full appearance-none rounded-xl border border-neutral-700 bg-[#1a1a1a] py-2 pl-3 pr-10 text-white outline-none focus:border-blue-500 disabled:opacity-60"
-              >
-                <option value="Drums">Drums</option>
-                <option value="Piano">Piano</option>
-                <option value="Other">Other</option>
-              </select>
-              <span
-                className="pointer-events-none absolute inset-y-0 right-3 flex items-center text-neutral-400"
-                aria-hidden={true}
-              >
-                <svg
-                  width="16"
-                  height="16"
-                  viewBox="0 0 24 24"
-                  fill="none"
-                  xmlns="http://www.w3.org/2000/svg"
+                variant="bordered"
+                className="h-auto min-h-[44px] w-full min-w-0 rounded-xl border border-neutral-700 bg-neutral-900 px-4 py-2.5 text-[16px] font-medium leading-snug text-white shadow-none hover:bg-neutral-800 focus-visible:border-neutral-600 focus-visible:ring-1 focus-visible:ring-neutral-600/40 disabled:opacity-60"
+              />
+              <SelectContent className="rounded-xl border border-neutral-700 bg-neutral-900">
+                <SelectItem
+                  index={0}
+                  value="Drums"
+                  className="px-4 py-2.5 text-[16px] font-medium leading-snug"
                 >
-                  <path
-                    d="M6 9l6 6 6-6"
-                    stroke="currentColor"
-                    strokeWidth="2"
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                  />
-                </svg>
-              </span>
-            </div>
+                  Drums
+                </SelectItem>
+                <SelectItem
+                  index={1}
+                  value="Piano"
+                  className="px-4 py-2.5 text-[16px] font-medium leading-snug"
+                >
+                  Piano
+                </SelectItem>
+                <SelectItem
+                  index={2}
+                  value="Other"
+                  className="px-4 py-2.5 text-[16px] font-medium leading-snug"
+                >
+                  Other
+                </SelectItem>
+              </SelectContent>
+            </Select>
           </div>
 
           {errorMessage ? (
