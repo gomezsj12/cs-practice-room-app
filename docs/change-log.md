@@ -171,7 +171,9 @@ This file is the **single source of truth** for the full project history — fro
 | `a910e2c` | 2026-04-19 | **docs: add Part 2 row for 8a2850c change-log commit.** | Cursor agent |
 | `3e6d267` | 2026-04-19 | **docs: fix Part 2 rolling hash — use placeholder for tip commit.** | Cursor agent |
 | `a8dcee5` | 2026-04-19 | **Mobile calendar: window-capture swipe/double-tap over session blocks; backdrop dismiss without opening another event; admin read-only past practice + PATCH 409; TimePicker revert on outside dismiss; Playwright `e2e/calendar-mobile-gestures.spec.ts` (Pixel 5).** | Cursor agent |
-| `—` | 2026-04-19 | **Event details modal: one line for ended bookings — “can’t be edited or cancelled from here”; removes duplicate admin vs owner copy.** | Cursor agent |
+| `b442472` | 2026-04-19 | **Event details modal: single message for ended sessions** — one line for ended bookings (“can’t be edited or cancelled from here”); removes duplicate admin vs owner copy. | Cursor agent |
+| `f50ce64` | 2026-04-19 | **Enable admin backdrop dismiss for Friday and blocked modals.** | Cursor agent |
+| `—` | 2026-04-19 | **Homepage Contact card: refreshed support copy; mobile-only “Call Sam Gomez” `tel:` link with slow opacity pulse (grey pill); `transition-colors` so pulse is not overridden; `prefers-reduced-motion` respected.** | Cursor agent |
 
 
 ---

@@ -186,15 +186,23 @@ export default function Home() {
 
         <section className="grid gap-4 lg:grid-cols-2">
           <article className={cardClass}>
-            <h2 className="text-2xl font-semibold">Contact Us</h2>
-            <div className="mt-3 space-y-3 text-sm leading-6 text-neutral-300">
+            <div className="flex items-start justify-between gap-3">
+              <h2 className="min-w-0 flex-1 text-2xl font-semibold">
+                Contact Us
+              </h2>
+              <a
+                href="tel:+15096108750"
+                className="animate-slow-attention-blink inline-flex shrink-0 items-center justify-center rounded-full border border-neutral-500/55 bg-neutral-600/25 px-3 py-1.5 text-center text-xs font-semibold leading-tight text-neutral-200 shadow-sm shadow-black/25 transition-colors hover:border-neutral-400/70 hover:bg-neutral-500/35 md:hidden"
+                aria-label="Call Sam Gomez at 509-610-8750"
+              >
+                Call Sam Gomez
+              </a>
+            </div>
+            <div className="mt-3 text-sm leading-6 text-neutral-300">
               <p>
-                Send us a message here! Feel free to ask us about reservation
-                problems or any questions you may have.
-              </p>
-              <p>
-                Also let us know if you would like to request a room closure or
-                use of the CSPR drum set for an external event.
+                Send us a message here! Feel free to ask us about requesting a
+                room closure, using the CSPR drum set for an external event, or
+                any other questions you might have.
               </p>
             </div>
             <p className="mt-3 text-sm">

@@ -461,3 +461,25 @@ body {
     font-size: 0.92rem;
   }
 }
+
+/* Homepage — slow attention pulse for mobile “call” CTA */
+@keyframes slow-attention-blink {
+  0%,
+  100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.38;
+  }
+}
+
+.animate-slow-attention-blink {
+  animation: slow-attention-blink 2.8s ease-in-out infinite;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .animate-slow-attention-blink {
+    animation: none;
+    opacity: 1;
+  }
+}
