@@ -1883,7 +1883,7 @@ export default function CalendarView() {
           setBlockedEventToDelete(null);
         }}
         onConfirm={handleDeleteBlockedTime}
-        dismissOnBackdrop={isMobile}
+        dismissOnBackdrop
       />
 
       <ConfirmModal
@@ -1894,8 +1894,12 @@ export default function CalendarView() {
         cancelLabel="Keep closed"
         isLoading={isFridayExceptionSubmitting}
         onCancel={() => setFridayToOpen(null)}
+        onBackdropDismiss={() => {
+          suppressEventClickUntilMsRef.current = Date.now() + 450;
+          setFridayToOpen(null);
+        }}
         onConfirm={handleOpenFriday}
-        dismissOnBackdrop={isMobile}
+        dismissOnBackdrop
       />
 
       <EventDetailsModal
