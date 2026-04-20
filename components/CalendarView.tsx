@@ -259,6 +259,13 @@ export default function CalendarView() {
   const [isLoadingNotionDetails, setIsLoadingNotionDetails] = useState(false);
   const [isApplyingChanges, setIsApplyingChanges] = useState(false);
 
+  /**
+   * After backdrop-dismiss of the event modal (or a navigation gesture on top
+   * of an event), FullCalendar can still receive a delayed click — ignore
+   * `eventClick` until this timestamp.
+   */
+  const suppressEventClickUntilMsRef = useRef(0);
+
   /** Map of googleEventId → Notion status color hex for practice event outlines. */
   const [practiceStatusColors, setPracticeStatusColors] = useState<
     Map<string, string>
@@ -1073,20 +1080,23 @@ export default function CalendarView() {
 
   // Mobile touch gestures: horizontal swipe for prev/next day,
   // double-tap for today. Ignored when modals are open or the target
-  // is an interactive element (button, link, calendar event).
+  // is an interactive element (button, link, role=button).
+  //
+  // Listeners are on **window** in the **capture** phase so they run before
+  // FullCalendar's `PointerDragging` touchstart on its inner container (bubble
+  // phase never reaches our outer wrapper when FC consumes the gesture chain).
   useEffect(() => {
-    const root = calendarInteractRef.current;
-    if (!root) {
-      return;
-    }
-    if (!isMobile) {
+    if (!isMobile || isLoading) {
       return;
     }
 
     const SWIPE_MIN_PX = 50;
     const SWIPE_MAX_OFF_AXIS_PX = 80;
-    const DOUBLE_TAP_MAX_MS = 320;
-    const DOUBLE_TAP_MAX_PX = 24;
+    /** Slightly stricter when the gesture starts on a session block. */
+    const DOUBLE_TAP_MAX_MS_GRID = 320;
+    const DOUBLE_TAP_MAX_MS_ON_EVENT = 260;
+    const DOUBLE_TAP_MAX_PX_GRID = 24;
+    const DOUBLE_TAP_MAX_PX_ON_EVENT = 18;
 
     let startX = 0;
     let startY = 0;
@@ -1095,14 +1105,24 @@ export default function CalendarView() {
     let lastTapAt = 0;
     let lastTapX = 0;
     let lastTapY = 0;
+    /** True for the current finger-down if touchstart was on a FullCalendar event. */
+    let gestureStartedOnEvent = false;
 
-    function shouldIgnoreTarget(target: EventTarget | null) {
+    function shouldIgnoreGestureTarget(target: EventTarget | null) {
+      const el = target instanceof HTMLElement ? target : null;
+      if (!el) {
+        return false;
+      }
+      return Boolean(el.closest("button,a,[role='button']"));
+    }
+
+    function touchStartsOnCalendarEvent(target: EventTarget | null) {
       const el = target instanceof HTMLElement ? target : null;
       if (!el) {
         return false;
       }
       return Boolean(
-        el.closest("button,a,[role='button'],.fc-event,.fc-timegrid-event-harness"),
+        el.closest(".fc-event,.fc-timegrid-event-harness"),
       );
     }
 
@@ -1110,14 +1130,25 @@ export default function CalendarView() {
       return inDefaultIdleState;
     }
 
+    function touchTargetIsInsideCalendar(ev: TouchEvent): boolean {
+      const root = calendarInteractRef.current;
+      const target = ev.target;
+      return Boolean(
+        root && target instanceof Node && root.contains(target),
+      );
+    }
+
     function onTouchStart(e: TouchEvent) {
+      if (!touchTargetIsInsideCalendar(e)) {
+        return;
+      }
       if (e.touches.length !== 1) {
         return;
       }
       if (!canNavigateByGesture()) {
         return;
       }
-      if (shouldIgnoreTarget(e.target)) {
+      if (shouldIgnoreGestureTarget(e.target)) {
         return;
       }
 
@@ -1125,6 +1156,7 @@ export default function CalendarView() {
       if (!t) {
         return;
       }
+      gestureStartedOnEvent = touchStartsOnCalendarEvent(e.target);
       tracking = true;
       swiping = false;
       startX = t.clientX;
@@ -1141,6 +1173,12 @@ export default function CalendarView() {
       }
       const t = e.touches.item(0);
       if (!t) {
+        return;
+      }
+      // Finger may move over nodes outside the calendar; still honor swipe.
+      const root = calendarInteractRef.current;
+      if (!root) {
+        tracking = false;
         return;
       }
 
@@ -1183,6 +1221,7 @@ export default function CalendarView() {
       const dy = t.clientY - startY;
 
       if (swiping && Math.abs(dx) >= SWIPE_MIN_PX && Math.abs(dy) <= SWIPE_MAX_OFF_AXIS_PX) {
+        suppressEventClickUntilMsRef.current = Date.now() + 450;
         // Common mobile convention: swipe left -> next, swipe right -> prev.
         if (dx < 0) {
           goToNext();
@@ -1196,7 +1235,14 @@ export default function CalendarView() {
       const now = Date.now();
       const dt = now - lastTapAt;
       const dist = Math.hypot(t.clientX - lastTapX, t.clientY - lastTapY);
-      if (dt <= DOUBLE_TAP_MAX_MS && dist <= DOUBLE_TAP_MAX_PX && canNavigateByGesture()) {
+      const maxMs = gestureStartedOnEvent
+        ? DOUBLE_TAP_MAX_MS_ON_EVENT
+        : DOUBLE_TAP_MAX_MS_GRID;
+      const maxPx = gestureStartedOnEvent
+        ? DOUBLE_TAP_MAX_PX_ON_EVENT
+        : DOUBLE_TAP_MAX_PX_GRID;
+      if (dt <= maxMs && dist <= maxPx && canNavigateByGesture()) {
+        suppressEventClickUntilMsRef.current = Date.now() + 450;
         lastTapAt = 0;
         goToToday();
         return;
@@ -1206,16 +1252,27 @@ export default function CalendarView() {
       lastTapY = t.clientY;
     }
 
-    root.addEventListener("touchstart", onTouchStart, { passive: true });
-    root.addEventListener("touchmove", onTouchMove, { passive: false });
-    root.addEventListener("touchend", onTouchEnd, { passive: true });
+    function onTouchCancel() {
+      tracking = false;
+      swiping = false;
+    }
+
+    const touchStartOpts: AddEventListenerOptions = { capture: true, passive: true };
+    const touchMoveOpts: AddEventListenerOptions = { capture: true, passive: false };
+    const touchEndOpts: AddEventListenerOptions = { capture: true, passive: true };
+
+    window.addEventListener("touchstart", onTouchStart, touchStartOpts);
+    window.addEventListener("touchmove", onTouchMove, touchMoveOpts);
+    window.addEventListener("touchend", onTouchEnd, touchEndOpts);
+    window.addEventListener("touchcancel", onTouchCancel, touchEndOpts);
 
     return () => {
-      root.removeEventListener("touchstart", onTouchStart);
-      root.removeEventListener("touchmove", onTouchMove);
-      root.removeEventListener("touchend", onTouchEnd);
+      window.removeEventListener("touchstart", onTouchStart, touchStartOpts);
+      window.removeEventListener("touchmove", onTouchMove, touchMoveOpts);
+      window.removeEventListener("touchend", onTouchEnd, touchEndOpts);
+      window.removeEventListener("touchcancel", onTouchCancel, touchEndOpts);
     };
-  }, [inDefaultIdleState, isMobile]);
+  }, [inDefaultIdleState, isLoading, isMobile]);
 
   function handleDatesSet(arg: DatesSetArg) {
     setCalendarTitle(arg.view.title);
@@ -1390,6 +1447,7 @@ export default function CalendarView() {
         ) : (
           <div
             ref={calendarInteractRef}
+            data-calendar-interact
             className="relative isolate [-webkit-tap-highlight-color:transparent] [touch-action:manipulation]"
           >
             <FullCalendar
@@ -1431,6 +1489,10 @@ export default function CalendarView() {
               eventMinHeight={36}
               longPressDelay={150}
               eventClick={(info) => {
+                if (Date.now() < suppressEventClickUntilMsRef.current) {
+                  return;
+                }
+
                 const eventType = info.event.extendedProps.eventType as
                   | "practice"
                   | "jam"
@@ -1632,6 +1694,11 @@ export default function CalendarView() {
         event={selectedEvent}
         isCancelling={isCancelling}
         onClose={() => {
+          setSelectedEvent(null);
+          setNotionDetails(null);
+        }}
+        onBackdropDismiss={() => {
+          suppressEventClickUntilMsRef.current = Date.now() + 450;
           setSelectedEvent(null);
           setNotionDetails(null);
         }}

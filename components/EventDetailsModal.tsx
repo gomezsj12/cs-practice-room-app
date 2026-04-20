@@ -19,11 +19,14 @@
  * ended. The timestamp is captured via `requestAnimationFrame` each time the
  * modal opens, so the check is fresh without continuous polling.
  *
+ * When the session has ended, admin practice controls (Notion-backed fields and
+ * times) are read-only; the Notion link remains available for viewing.
+ *
  * @see CalendarView — opens this modal on event click
  * @see ConfirmModal — secondary confirmation before actual cancellation
  */
 
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useRef, useState, type SyntheticEvent } from "react";
 import {
   getCalendarEventKindLabel,
   stripPracticeContactPersonLabel,
@@ -50,6 +53,8 @@ type EventDetailsModalProps = {
   isCancelling: boolean;
   dismissOnBackdrop?: boolean;
   onClose: () => void;
+  /** When set, backdrop taps call this instead of `onClose` (e.g. to suppress click-through). */
+  onBackdropDismiss?: () => void;
   onCancel: () => void;
   isAdmin?: boolean;
   notionDetails?: PracticeNotionDetails | null;
@@ -89,6 +94,7 @@ export default function EventDetailsModal({
   isCancelling,
   dismissOnBackdrop = false,
   onClose,
+  onBackdropDismiss,
   onCancel,
   isAdmin = false,
   notionDetails = null,
@@ -143,6 +149,7 @@ export default function EventDetailsModal({
   const start = new Date(event.start);
   const end = new Date(event.end);
   const hasEnded = nowMs >= end.getTime();
+  const adminReadOnly = showAdminControls && hasEnded;
   const rawDescription = event.description?.trim();
   const practiceDescription =
     !isJam && rawDescription
@@ -208,6 +215,7 @@ export default function EventDetailsModal({
     timesChanged && displayEnd.getTime() - displayStart.getTime() < MIN_GAP_MS;
 
   function handleApply() {
+    if (adminReadOnly) return;
     if (!isDirty || !onApplyChanges || !event?.googleEventId) return;
     if (timeRangeInvalid) return;
 
@@ -241,19 +249,21 @@ export default function EventDetailsModal({
     : undefined;
 
   const busyState = isCancelling || isApplying;
+  const dismissFromBackdrop = onBackdropDismiss ?? onClose;
+
+  function handleBackdropDismiss(e: SyntheticEvent<HTMLDivElement>) {
+    if (!dismissOnBackdrop || busyState) return;
+    if (e.target !== e.currentTarget) return;
+    e.preventDefault();
+    dismissFromBackdrop();
+  }
 
   return (
     <div
       data-blocking-app-modal
       className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 p-4"
-      onMouseDown={(e) => {
-        if (!dismissOnBackdrop || busyState) return;
-        if (e.target === e.currentTarget) onClose();
-      }}
-      onTouchStart={(e) => {
-        if (!dismissOnBackdrop || busyState) return;
-        if (e.target === e.currentTarget) onClose();
-      }}
+      onMouseDown={handleBackdropDismiss}
+      onTouchStart={handleBackdropDismiss}
     >
       <div className="w-full max-w-md rounded-3xl border border-neutral-800 bg-[#121212] p-6 text-white shadow-2xl">
         {/* Title row: items-start keeps the Notion control top-right when the title wraps */}
@@ -263,7 +273,11 @@ export default function EventDetailsModal({
               <PracticeStatusDropdown
                 currentStatus={effectiveStatus}
                 onSelect={(name) => setDraftStatus(name)}
-                disabled={isLoadingNotionDetails || !notionDetails?.notionPageId}
+                disabled={
+                  adminReadOnly ||
+                  isLoadingNotionDetails ||
+                  !notionDetails?.notionPageId
+                }
               />
             ) : (
               <div
@@ -311,7 +325,7 @@ export default function EventDetailsModal({
             <PatchlistLinkInline
               value={effectivePatchlistLink}
               loading={isLoadingNotionDetails}
-              disabled={busyState}
+              disabled={busyState || adminReadOnly}
               onChange={(v) => setDraftPatchlistLink(v)}
             />
           ) : (
@@ -328,7 +342,7 @@ export default function EventDetailsModal({
               <TimePicker
                 value={effectiveStartTime}
                 onChange={(v) => setDraftStartTime(v)}
-                disabled={busyState}
+                disabled={busyState || adminReadOnly}
                 error={
                   timeRangeInvalid
                     ? "Must be at least 30 min before end time."
@@ -339,7 +353,7 @@ export default function EventDetailsModal({
               <TimePicker
                 value={effectiveEndTime}
                 onChange={(v) => setDraftEndTime(v)}
-                disabled={busyState}
+                disabled={busyState || adminReadOnly}
                 error={
                   timeRangeInvalid
                     ? "Must be at least 30 min after start time."
@@ -353,7 +367,7 @@ export default function EventDetailsModal({
                 selectedPageIds={effectiveAssigneePageIds}
                 onChange={(ids) => setDraftAssigneePageIds(ids)}
                 resolvedSummaries={notionDetails?.assignees ?? []}
-                disabled={busyState}
+                disabled={busyState || adminReadOnly}
                 loadingDetails={
                   isLoadingNotionDetails || !notionDetails?.notionPageId
                 }
@@ -384,6 +398,13 @@ export default function EventDetailsModal({
           </p>
         ) : null}
 
+        {adminReadOnly ? (
+          <p className="mt-3 text-sm text-neutral-400">
+            This session has already ended. Notion details are shown for reference
+            only; times and session fields cannot be edited.
+          </p>
+        ) : null}
+
         {/* Bottom buttons */}
         <div className="mt-6 flex gap-3">
           {canShowCancelButton ? (
@@ -401,7 +422,7 @@ export default function EventDetailsModal({
             </button>
           ) : null}
 
-          {showAdminControls && isDirty ? (
+          {showAdminControls && isDirty && !adminReadOnly ? (
             <button
               type="button"
               onClick={handleApply}

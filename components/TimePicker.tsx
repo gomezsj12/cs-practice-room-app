@@ -4,6 +4,10 @@
  * Material-style clock-face time picker for the admin practice session modal.
  * Two-phase selection: pick hour on a clock face, then pick minutes.
  * AM/PM toggle at the top. Dark-themed to match the modal.
+ *
+ * **Closing:** "Done" closes the popover and keeps the current value (already
+ * applied to the parent via `onChange`). Escape or a pointer-down outside the
+ * popover reverts to the value from when the popover was opened, then closes.
  */
 
 import { useCallback, useEffect, useRef, useState } from "react";
@@ -276,15 +280,25 @@ export default function TimePicker({
 
   const hasError = Boolean(error);
 
+  const revertToValueOnOpen = useCallback(() => {
+    onChange(valueOnOpenRef.current);
+    const restored = parse24(valueOnOpenRef.current);
+    setDraftHour(restored.hour12);
+    setDraftMinute(restored.minute);
+    setDraftPeriod(restored.period);
+  }, [onChange]);
+
   useEffect(() => {
     if (!open) return;
 
-    function handleClickOutside(e: MouseEvent) {
+    /** Capture phase so we see the event before children; works for mouse and touch. */
+    function handleOutsidePointerDown(e: PointerEvent) {
       if (hasError) return;
       if (
         containerRef.current &&
         !containerRef.current.contains(e.target as Node)
       ) {
+        revertToValueOnOpen();
         setOpen(false);
       }
     }
@@ -292,22 +306,18 @@ export default function TimePicker({
     function handleEscape(e: KeyboardEvent) {
       if (e.key === "Escape") {
         e.stopPropagation();
-        onChange(valueOnOpenRef.current);
-        const restored = parse24(valueOnOpenRef.current);
-        setDraftHour(restored.hour12);
-        setDraftMinute(restored.minute);
-        setDraftPeriod(restored.period);
+        revertToValueOnOpen();
         setOpen(false);
       }
     }
 
-    document.addEventListener("mousedown", handleClickOutside);
+    document.addEventListener("pointerdown", handleOutsidePointerDown, true);
     document.addEventListener("keydown", handleEscape, true);
     return () => {
-      document.removeEventListener("mousedown", handleClickOutside);
+      document.removeEventListener("pointerdown", handleOutsidePointerDown, true);
       document.removeEventListener("keydown", handleEscape, true);
     };
-  }, [open, hasError, onChange]);
+  }, [open, hasError, revertToValueOnOpen]);
 
   function handleSelectHour(h: number) {
     setDraftHour(h);

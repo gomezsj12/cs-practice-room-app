@@ -131,6 +131,20 @@ export async function PATCH(request: NextRequest) {
     });
     const event = eventResponse.data as GoogleApiEvent;
 
+    const eventEndIso = getEventEnd(event);
+    const eventEndMs = eventEndIso
+      ? new Date(eventEndIso).getTime()
+      : Number.NaN;
+    if (Number.isFinite(eventEndMs) && eventEndMs <= Date.now()) {
+      return NextResponse.json(
+        {
+          error:
+            "This practice session has already ended and cannot be updated.",
+        },
+        { status: 409 },
+      );
+    }
+
     // Step 2: Build OLD Custom Event ID and look up Notion page
     let customEventId = buildPracticeCustomEventIdFromGoogleEvent(event);
     let notionResult = customEventId
