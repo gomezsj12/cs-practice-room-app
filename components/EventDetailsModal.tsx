@@ -392,16 +392,9 @@ export default function EventDetailsModal({
           </div>
         ) : null}
 
-        {event.canCancel && hasEnded ? (
+        {hasEnded && (adminReadOnly || event.canCancel) ? (
           <p className="mt-3 text-sm text-neutral-400">
-            {`This ${eventKindLabel} has already ended, so it can\u2019t be cancelled from here.`}
-          </p>
-        ) : null}
-
-        {adminReadOnly ? (
-          <p className="mt-3 text-sm text-neutral-400">
-            This session has already ended. Notion details are shown for reference
-            only; times and session fields cannot be edited.
+            {`This ${eventKindLabel} has already ended, so it can\u2019t be edited or cancelled from here.`}
           </p>
         ) : null}
 
