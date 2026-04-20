@@ -205,14 +205,6 @@ export default function Home() {
                 any other questions you might have.
               </p>
             </div>
-            <p className="mt-3 text-sm">
-              <Link
-                href="/support"
-                className="text-blue-300 transition hover:text-blue-200"
-              >
-                View our replies in the support tab.
-              </Link>
-            </p>
             <ContactSupportForm />
           </article>
 

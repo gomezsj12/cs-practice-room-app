@@ -1577,7 +1577,7 @@ export default function CalendarView() {
 
                 <div className="flex items-center gap-2">
                   <span className="h-3 w-3 rounded-full border border-dashed border-neutral-300 bg-white/20" />
-                  <span>Temporary hold</span>
+                  <span>Hold</span>
                 </div>
 
                 <div className="flex items-center gap-2">

@@ -80,7 +80,7 @@ The home page has:
 - **Contact Us** — Send a message to the team. You must be **signed in** to send; otherwise you’ll see a prompt to sign in first. After sending, replies appear under **Support**.
 - **Resources** — Links such as **Terms & Conditions**, **Meet with us**, and sometimes a group chat link (if your team has enabled it).
 
-**Tip:** You can jump to the full support inbox with **View our replies in the support tab** under Contact Us.
+**Tip:** You can jump to the full support inbox with **View our replies…** under Contact Us.
 
 ---
 

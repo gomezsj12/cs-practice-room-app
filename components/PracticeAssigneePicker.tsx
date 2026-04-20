@@ -199,6 +199,7 @@ export default function PracticeAssigneePicker({
 }: PracticeAssigneePickerProps) {
   const [open, setOpen] = useState(false);
   const [search, setSearch] = useState("");
+  const [isCoarsePointer, setIsCoarsePointer] = useState(false);
   const [people, setPeople] = useState<PracticeAssigneeSummary[] | null>(null);
   const [loadError, setLoadError] = useState<string | null>(null);
   const [isLoadingPeople, setIsLoadingPeople] = useState(false);
@@ -300,6 +301,14 @@ export default function PracticeAssigneePicker({
       void loadPeople();
     }
   }, [open, loadPeople]);
+
+  useEffect(() => {
+    const mq = window.matchMedia("(pointer: coarse)");
+    const apply = () => setIsCoarsePointer(mq.matches);
+    apply();
+    mq.addEventListener("change", apply);
+    return () => mq.removeEventListener("change", apply);
+  }, []);
 
   /** Abort in-progress pointer drag if the popover closes. */
   useEffect(() => {
@@ -589,7 +598,7 @@ export default function PracticeAssigneePicker({
               onChange={(e) => setSearch(e.target.value)}
               placeholder="Search people…"
               className="w-full rounded-lg border border-neutral-700 bg-neutral-900 px-2.5 py-1.5 text-sm text-white placeholder:text-neutral-500 focus:border-blue-500 focus:outline-none"
-              autoFocus
+              autoFocus={!isCoarsePointer}
             />
           </div>
 

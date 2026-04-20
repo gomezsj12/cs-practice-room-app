@@ -573,7 +573,7 @@ function PatchlistLinkInline({
   return (
     <div ref={containerRef} className="relative min-w-0 flex-1">
       {editing ? (
-        <div className="absolute left-0 top-full z-[60] mt-1 w-72 rounded-xl border border-neutral-700 bg-[#1a1a1a] p-3 shadow-2xl">
+        <div className="absolute right-0 top-full z-[60] mt-1 w-[min(22rem,calc(100vw-2rem))] max-w-[calc(100vw-2rem)] rounded-xl border border-neutral-700 bg-[#1a1a1a] p-3 shadow-2xl sm:w-72">
           <label className="mb-1 block text-[11px] font-medium text-neutral-400">
             Link to Patchlist
           </label>

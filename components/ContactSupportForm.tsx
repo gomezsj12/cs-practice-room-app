@@ -15,6 +15,7 @@
 
 import { useState } from "react";
 import { useSession } from "next-auth/react";
+import Link from "next/link";
 import Toast from "@/components/Toast";
 
 const MIN_MESSAGE_LENGTH = 10;
@@ -123,11 +124,17 @@ export default function ContactSupportForm() {
           />
         </label>
 
-        <div className="flex justify-end">
+        <div className="flex items-center justify-between gap-3">
+          <Link
+            href="/support"
+            className="min-w-0 truncate text-sm text-blue-300 transition hover:text-blue-200"
+          >
+            View our replies…
+          </Link>
           <button
             type="submit"
             disabled={!canSubmit}
-            className="rounded-full bg-blue-500 px-4 py-2 text-sm font-medium text-white transition hover:bg-blue-400 disabled:cursor-not-allowed disabled:opacity-50"
+            className="shrink-0 rounded-full bg-blue-500 px-4 py-2 text-sm font-medium text-white transition hover:bg-blue-400 disabled:cursor-not-allowed disabled:opacity-50"
           >
             {isSubmitting ? "Submitting..." : "Submit support request"}
           </button>
