@@ -23,6 +23,7 @@ import { profileHasBookingAccess } from "@/lib/profile-access";
 import { getSupabaseAdmin } from "@/lib/supabase";
 import {
   findNotionPersonByWWUEmail,
+  syncProfileCreationLogToNotion,
   emptyDepartments,
 } from "@/lib/notion";
 import type { DepartmentFlags } from "@/lib/notion";
@@ -136,6 +137,16 @@ export async function PATCH(req: Request) {
       { status: 500 },
     );
   }
+
+  syncProfileCreationLogToNotion({
+    displayName: profile.display_name,
+    googleEmail: profile.google_email,
+    wwuEmail: profile.walla_walla_email,
+    foundInNotion: !!profile.notion_page_id,
+    notionPageId: profile.notion_page_id,
+  }).catch((err) => {
+    console.error("[profile/me PATCH] Notion audit log sync failed:", err);
+  });
 
   return NextResponse.json({
     profile,

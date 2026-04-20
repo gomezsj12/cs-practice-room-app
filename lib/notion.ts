@@ -6,7 +6,7 @@
  * - Mark practice bookings cancelled in the Fillout Form Master Database (Custom Event ID +
  *   CSPR Cancel origin when cancelled from the app).
  * - Look up users in the Notion people database by WWU email.
- * - Log profile-creation events to a Notion audit database.
+ * - Log and sync profile audit rows in the Notion profile-creation log data source.
  *
  * @see {@link ../lib/google.ts}  — Google Calendar side of the same booking flow.
  * @see {@link ../lib/types.ts}   — shared type definitions.
@@ -879,8 +879,8 @@ export async function resolveNotionProfileWebhookAction(
   );
 }
 
-/** Parameters for {@link logProfileCreationToNotion}. */
-type ProfileLogParams = {
+/** Parameters for {@link syncProfileCreationLogToNotion} and {@link logProfileCreationToNotion}. */
+export type ProfileLogSyncParams = {
   displayName: string;
   googleEmail: string;
   wwuEmail: string;
@@ -889,56 +889,132 @@ type ProfileLogParams = {
   notionPageId: string | null;
 };
 
+type ProfileLogPropertyMode = {
+  includeCreatedAt: boolean;
+  /** On create, omit relation when empty; on update, always set (empty clears). */
+  relationMode: "omit_if_empty" | "always";
+};
+
+function buildProfileLogNotionProperties(
+  {
+    displayName,
+    googleEmail,
+    wwuEmail,
+    foundInNotion,
+    notionPageId,
+  }: ProfileLogSyncParams,
+  { includeCreatedAt, relationMode }: ProfileLogPropertyMode,
+): Record<string, unknown> {
+  const props: Record<string, unknown> = {
+    Name: {
+      title: [{ text: { content: displayName } }],
+    },
+    "Google Email": {
+      email: googleEmail,
+    },
+    "WWU Email": {
+      email: wwuEmail,
+    },
+    "Found in Notion": {
+      checkbox: foundInNotion,
+    },
+  };
+
+  if (notionPageId) {
+    props["CSPR Notion Profile"] = {
+      relation: [{ id: notionPageId }],
+    };
+  } else if (relationMode === "always") {
+    props["CSPR Notion Profile"] = { relation: [] };
+  }
+
+  if (includeCreatedAt) {
+    props["Created At"] = {
+      date: { start: new Date().toISOString() },
+    };
+  }
+
+  return props;
+}
+
 /**
- * Write an audit row to the Notion profile-creation log database.
+ * Upsert the Notion profile-creation log row for this Google account: query by
+ * **Google Email**, update all matches, or create one if none exist.
  *
  * When a people-DB match exists, links it via the "CSPR Notion Profile"
- * relation property (page id of the matched row).
+ * relation property. On update, an empty relation clears that link in Notion.
  *
- * Called fire-and-forget from the profile-setup API route — a failure
- * here should never block profile creation in Supabase.
+ * Intended to be called fire-and-forget after Supabase profile writes — a
+ * failure here should never block the primary flow.
  *
  * Requires `NOTION_PROFILE_LOG_DB_ID` env var.
  */
-export async function logProfileCreationToNotion({
-  displayName,
-  googleEmail,
-  wwuEmail,
-  foundInNotion,
-  notionPageId,
-}: ProfileLogParams) {
+export async function syncProfileCreationLogToNotion(
+  params: ProfileLogSyncParams,
+): Promise<void> {
   const dbId = process.env.NOTION_PROFILE_LOG_DB_ID;
   if (!dbId) {
     throw new Error("Missing NOTION_PROFILE_LOG_DB_ID environment variable.");
   }
 
   const notion = getNotionClient();
+  const filterEmail = params.googleEmail.trim();
 
+  const pageIds: string[] = [];
+  let cursor: string | undefined;
+  for (;;) {
+    const res = await notion.dataSources.query({
+      data_source_id: dbId,
+      filter: {
+        property: "Google Email",
+        email: { equals: filterEmail },
+      },
+      page_size: 100,
+      ...(cursor ? { start_cursor: cursor } : {}),
+    });
+
+    for (const row of res.results) {
+      if (row && typeof row === "object" && "id" in row) {
+        const id = (row as { id: string }).id;
+        if (typeof id === "string") pageIds.push(id);
+      }
+    }
+
+    if (!res.has_more || !res.next_cursor) break;
+    cursor = res.next_cursor;
+  }
+
+  if (pageIds.length > 0) {
+    const updateProps = buildProfileLogNotionProperties(params, {
+      includeCreatedAt: false,
+      relationMode: "always",
+    });
+    for (const pageId of pageIds) {
+      await notion.pages.update({
+        page_id: pageId,
+        properties: updateProps as Parameters<
+          typeof notion.pages.update
+        >[0]["properties"],
+      });
+    }
+    return;
+  }
+
+  const createProps = buildProfileLogNotionProperties(params, {
+    includeCreatedAt: true,
+    relationMode: "omit_if_empty",
+  });
   await notion.pages.create({
     parent: { type: "data_source_id", data_source_id: dbId },
-    properties: {
-      Name: {
-        title: [{ text: { content: displayName } }],
-      },
-      "Google Email": {
-        email: googleEmail,
-      },
-      "WWU Email": {
-        email: wwuEmail,
-      },
-      "Found in Notion": {
-        checkbox: foundInNotion,
-      },
-      ...(notionPageId
-        ? {
-            "CSPR Notion Profile": {
-              relation: [{ id: notionPageId }],
-            },
-          }
-        : {}),
-      "Created At": {
-        date: { start: new Date().toISOString() },
-      },
-    },
+    properties: createProps as Parameters<
+      typeof notion.pages.create
+    >[0]["properties"],
   });
+}
+
+/** @see {@link syncProfileCreationLogToNotion} */
+export async function logProfileCreationToNotion(
+  params: ProfileLogSyncParams,
+): Promise<void> {
+  await syncProfileCreationLogToNotion(params);
 }

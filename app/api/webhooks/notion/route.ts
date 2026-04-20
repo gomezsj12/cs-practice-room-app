@@ -35,6 +35,7 @@ import {
   getNotionPageParentIds,
   hydratePracticeAssigneesFromPageIds,
   resolveNotionProfileWebhookActionFromPage,
+  syncProfileCreationLogToNotion,
   type NotionPersonSyncFields,
   type NotionProfileWebhookPage,
 } from "@/lib/notion";
@@ -175,12 +176,25 @@ export async function POST(req: Request) {
       .from("profiles")
       .update(patch)
       .eq("notion_page_id", resolved.fields.pageId)
-      .select("id");
+      .select("id, google_email, display_name, walla_walla_email, notion_page_id");
     if (error) {
       console.error("[notion webhook] Supabase update failed:", error);
       return new NextResponse("supabase error", { status: 500 });
     }
-    if (data?.length) {
+    const updated = data?.[0];
+    if (updated) {
+      syncProfileCreationLogToNotion({
+        displayName: updated.display_name,
+        googleEmail: updated.google_email,
+        wwuEmail: updated.walla_walla_email,
+        foundInNotion: !!updated.notion_page_id,
+        notionPageId: updated.notion_page_id,
+      }).catch((err) => {
+        console.error(
+          "[notion webhook] Notion profile audit log sync failed:",
+          err,
+        );
+      });
       return NextResponse.json({ ok: true, action: "updated_profile" });
     }
   }

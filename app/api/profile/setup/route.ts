@@ -15,7 +15,7 @@ import { auth } from "@/auth";
 import { isEffectiveAppAdmin } from "@/lib/admin";
 import {
   findNotionPersonByWWUEmail,
-  logProfileCreationToNotion,
+  syncProfileCreationLogToNotion,
   emptyDepartments,
 } from "@/lib/notion";
 import type { DepartmentFlags } from "@/lib/notion";
@@ -101,8 +101,8 @@ export async function POST(req: Request) {
     );
   }
 
-  // Fire-and-forget: log to Notion audit DB
-  logProfileCreationToNotion({
+  // Fire-and-forget: sync Notion audit DB (create or update by Google Email)
+  syncProfileCreationLogToNotion({
     displayName,
     googleEmail: session.user.email,
     wwuEmail,
