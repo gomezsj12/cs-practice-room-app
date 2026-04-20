@@ -22,6 +22,8 @@ type ConfirmModalProps = {
   dismissOnBackdrop?: boolean;
   onCancel: () => void;
   onConfirm: () => void;
+  /** When set, backdrop taps call this instead of `onCancel` (e.g. suppress calendar click-through). */
+  onBackdropDismiss?: () => void;
 };
 
 /**
@@ -33,9 +35,10 @@ type ConfirmModalProps = {
  * @param props.confirmLabel - Label for the destructive/confirm button (default `"Confirm"`).
  * @param props.cancelLabel - Label for the safe/cancel button (default `"Cancel"`).
  * @param props.isLoading - Disables both buttons and shows a loading label on confirm.
- * @param props.dismissOnBackdrop - When `true`, tapping the backdrop calls `onCancel`.
- * @param props.onCancel - Callback when the cancel button (or backdrop) is activated.
+ * @param props.dismissOnBackdrop - When `true`, tapping the backdrop dismisses the dialog.
+ * @param props.onCancel - Callback when the cancel button is activated.
  * @param props.onConfirm - Callback when the confirm button is activated.
+ * @param props.onBackdropDismiss - When `dismissOnBackdrop` and set, backdrop taps call this instead of `onCancel`.
  */
 export default function ConfirmModal({
   isOpen,
@@ -47,9 +50,18 @@ export default function ConfirmModal({
   dismissOnBackdrop = false,
   onCancel,
   onConfirm,
+  onBackdropDismiss,
 }: ConfirmModalProps) {
   if (!isOpen) {
     return null;
+  }
+
+  function dismissFromBackdrop() {
+    if (onBackdropDismiss) {
+      onBackdropDismiss();
+    } else {
+      onCancel();
+    }
   }
 
   return (
@@ -61,7 +73,7 @@ export default function ConfirmModal({
           return;
         }
         if (e.target === e.currentTarget) {
-          onCancel();
+          dismissFromBackdrop();
         }
       }}
       onTouchStart={(e) => {
@@ -69,7 +81,7 @@ export default function ConfirmModal({
           return;
         }
         if (e.target === e.currentTarget) {
-          onCancel();
+          dismissFromBackdrop();
         }
       }}
     >

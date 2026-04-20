@@ -399,6 +399,13 @@ body {
   color: rgba(255, 255, 255, 0.92) !important;
 }
 
+/* Let touches hit the event anchor so mobile swipe / double-tap (window capture) see a consistent target. */
+.fc .fc-timegrid-event-harness .fc-event.fc-blocked-event .fc-event-main,
+.fc .fc-timegrid-event-harness .fc-event.fc-blocked-event .fc-custom-event,
+.fc .fc-timegrid-event-harness .fc-event.fc-blocked-event .fc-custom-event-title {
+  pointer-events: none;
+}
+
 /* ── Now Indicator ── */
 /* FullCalendar still renders these for layout; custom overlay draws visible line/arrow/label. */
 

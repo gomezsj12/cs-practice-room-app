@@ -19,6 +19,8 @@
  * **Touch gestures** (mobile only):
  * - Horizontal swipe — navigate prev/next day
  * - Double-tap — jump to today
+ *   (including over Friday restriction bands, blocked-off events, and other
+ *   `data-calendar-gesture-passthrough` targets)
  *
  * Key hooks consumed:
  * - {@link useBookingFlow} — hold / reserve / cancel state machine
@@ -33,7 +35,7 @@
 
 import type { CSSProperties } from "react";
 import { useEffect, useMemo, useRef, useState } from "react";
-import type { DatesSetArg, EventContentArg } from "@fullcalendar/core";
+import type { DatesSetArg, EventContentArg, EventMountArg } from "@fullcalendar/core";
 import { addDays, format, parseISO } from "date-fns";
 import FullCalendar from "@fullcalendar/react";
 import interactionPlugin from "@fullcalendar/interaction";
@@ -968,6 +970,31 @@ export default function CalendarView() {
     isLoading === false &&
     isDragInteracting === false;
 
+  /** Read inside window touch listeners so they do not re-subscribe when idle/drag flags flicker. */
+  const inDefaultIdleStateRef = useRef(inDefaultIdleState);
+  inDefaultIdleStateRef.current = inDefaultIdleState;
+
+  /**
+   * Double-tap timing survives effect cleanups; finalized on touchend **or**
+   * touchcancel (browsers often cancel touch after a tap without touchend).
+   */
+  const lastTapForNavGestureRef = useRef({ at: 0, x: 0, y: 0 });
+  const activeNavGestureTouchIdRef = useRef<number | null>(null);
+  /**
+   * After a tap on `.fc-event`, the browser often fires `click` before a second
+   * tap’s `touchend`, which opened the modal and blocked double-tap-to-today.
+   * We suppress that click and, if no second tap arrives, fire a synthetic
+   * `click` after a short delay (same order of magnitude as the on-event double-tap window).
+   */
+  const delayedEventOpenTimerRef = useRef<ReturnType<typeof setTimeout> | null>(
+    null,
+  );
+  /** Admin Friday band: delayed `setFridayToOpen` so double-tap-to-today can complete first. */
+  const pendingFridayOpenDateStrRef = useRef<string | null>(null);
+  const delayedFridayOpenTimerRef = useRef<ReturnType<typeof setTimeout> | null>(
+    null,
+  );
+
   // Keyboard date-navigation: ArrowLeft/Right prev/next, T for today.
   // Only active on desktop when no modal is open and no drag in progress.
   useEffect(() => {
@@ -1080,7 +1107,8 @@ export default function CalendarView() {
 
   // Mobile touch gestures: horizontal swipe for prev/next day,
   // double-tap for today. Ignored when modals are open or the target
-  // is an interactive element (button, link, role=button).
+  // is an interactive element (button, link, role=button), except nodes marked
+  // `data-calendar-gesture-passthrough` (Friday bands, blocked events, etc.).
   //
   // Listeners are on **window** in the **capture** phase so they run before
   // FullCalendar's `PointerDragging` touchstart on its inner container (bubble
@@ -1092,42 +1120,84 @@ export default function CalendarView() {
 
     const SWIPE_MIN_PX = 50;
     const SWIPE_MAX_OFF_AXIS_PX = 80;
-    /** Slightly stricter when the gesture starts on a session block. */
-    const DOUBLE_TAP_MAX_MS_GRID = 320;
-    const DOUBLE_TAP_MAX_MS_ON_EVENT = 260;
-    const DOUBLE_TAP_MAX_PX_GRID = 24;
-    const DOUBLE_TAP_MAX_PX_ON_EVENT = 18;
+    /** On session blocks, slightly tighter than empty grid (also drives delayed single-tap open). */
+    const DOUBLE_TAP_MAX_MS_GRID = 550;
+    const DOUBLE_TAP_MAX_MS_ON_EVENT = 160;
+    const DOUBLE_TAP_MAX_PX_GRID = 48;
+    const DOUBLE_TAP_MAX_PX_ON_EVENT = 40;
+    /** Single-tap on a block: wait this long for a possible 2nd tap, then synthetic `click`. */
+    const EVENT_SINGLE_TAP_CLICK_DELAY_MS = DOUBLE_TAP_MAX_MS_ON_EVENT + 18;
+    /** Suppress native `eventClick` through the double-tap window plus a small buffer. */
+    const EVENT_SINGLE_TAP_SUPPRESS_MS = DOUBLE_TAP_MAX_MS_ON_EVENT + 42;
 
     let startX = 0;
     let startY = 0;
     let tracking = false;
     let swiping = false;
-    let lastTapAt = 0;
-    let lastTapX = 0;
-    let lastTapY = 0;
     /** True for the current finger-down if touchstart was on a FullCalendar event. */
     let gestureStartedOnEvent = false;
+    let gestureStartedOnFridayRestriction = false;
 
     function shouldIgnoreGestureTarget(target: EventTarget | null) {
       const el = target instanceof HTMLElement ? target : null;
       if (!el) {
         return false;
       }
-      return Boolean(el.closest("button,a,[role='button']"));
+      // Friday restriction overlays use `role="button"` for keyboard users;
+      // still allow swipe / double-tap on top of them.
+      if (
+        el.closest("[data-calendar-gesture-passthrough]") ||
+        el.closest("[data-friday-jam-restriction]")
+      ) {
+        return false;
+      }
+      if (el.closest("button,[role='button']")) {
+        return true;
+      }
+      // FullCalendar renders timed events as `<a class="fc-event">`; those must
+      // still allow swipe / double-tap. Ignore other links (e.g. rare in-grid nav).
+      const link = el.closest("a");
+      if (
+        link &&
+        !link.closest(".fc-event,.fc-timegrid-event-harness")
+      ) {
+        return true;
+      }
+      return false;
     }
 
+    /** True when the touch is on a timed-grid event segment (practice, jam, hold, blocked, …). */
     function touchStartsOnCalendarEvent(target: EventTarget | null) {
       const el = target instanceof HTMLElement ? target : null;
       if (!el) {
         return false;
       }
-      return Boolean(
-        el.closest(".fc-event,.fc-timegrid-event-harness"),
-      );
+      return Boolean(el.closest(".fc-timegrid-event-harness"));
     }
 
     function canNavigateByGesture() {
-      return inDefaultIdleState;
+      return inDefaultIdleStateRef.current;
+    }
+
+    function changedTouchById(e: TouchEvent, id: number): Touch | null {
+      for (let i = 0; i < e.changedTouches.length; i++) {
+        const touch = e.changedTouches.item(i);
+        if (touch?.identifier === id) {
+          return touch;
+        }
+      }
+      return null;
+    }
+
+    function clearDelayedEventOpen() {
+      if (delayedEventOpenTimerRef.current !== null) {
+        window.clearTimeout(delayedEventOpenTimerRef.current);
+        delayedEventOpenTimerRef.current = null;
+      }
+      if (delayedFridayOpenTimerRef.current !== null) {
+        window.clearTimeout(delayedFridayOpenTimerRef.current);
+        delayedFridayOpenTimerRef.current = null;
+      }
     }
 
     function touchTargetIsInsideCalendar(ev: TouchEvent): boolean {
@@ -1156,11 +1226,18 @@ export default function CalendarView() {
       if (!t) {
         return;
       }
+      const startEl =
+        e.target instanceof HTMLElement ? e.target : null;
+      const fridayBand = startEl?.closest("[data-friday-jam-restriction]");
+      gestureStartedOnFridayRestriction = Boolean(fridayBand);
+      pendingFridayOpenDateStrRef.current =
+        fridayBand?.dataset.fridayDate ?? null;
       gestureStartedOnEvent = touchStartsOnCalendarEvent(e.target);
       tracking = true;
       swiping = false;
       startX = t.clientX;
       startY = t.clientY;
+      activeNavGestureTouchIdRef.current = t.identifier;
     }
 
     function onTouchMove(e: TouchEvent) {
@@ -1197,7 +1274,8 @@ export default function CalendarView() {
         if (Math.abs(dx) > Math.abs(dy) * 1.5) {
           swiping = true;
         } else {
-          tracking = false;
+          // Do not clear `tracking`: small diagonal jitter on a tap would skip
+          // `touchend` and break double-tap-to-today (lastTap* never updates).
           return;
         }
       }
@@ -1206,21 +1284,24 @@ export default function CalendarView() {
       e.preventDefault();
     }
 
-    function onTouchEnd(e: TouchEvent) {
-      if (!tracking) {
+    function finalizeNavTouch(e: TouchEvent) {
+      const expectedId = activeNavGestureTouchIdRef.current;
+      if (expectedId === null) {
         return;
       }
-      tracking = false;
-
-      const t = e.changedTouches.item(0);
+      const t = changedTouchById(e, expectedId);
       if (!t) {
         return;
       }
+      activeNavGestureTouchIdRef.current = null;
+      tracking = false;
 
       const dx = t.clientX - startX;
       const dy = t.clientY - startY;
 
       if (swiping && Math.abs(dx) >= SWIPE_MIN_PX && Math.abs(dy) <= SWIPE_MAX_OFF_AXIS_PX) {
+        clearDelayedEventOpen();
+        pendingFridayOpenDateStrRef.current = null;
         suppressEventClickUntilMsRef.current = Date.now() + 450;
         // Common mobile convention: swipe left -> next, swipe right -> prev.
         if (dx < 0) {
@@ -1228,13 +1309,15 @@ export default function CalendarView() {
         } else {
           goToPrev();
         }
+        swiping = false;
         return;
       }
 
       // Not a swipe: treat as tap (for double-tap today).
       const now = Date.now();
-      const dt = now - lastTapAt;
-      const dist = Math.hypot(t.clientX - lastTapX, t.clientY - lastTapY);
+      const prev = lastTapForNavGestureRef.current;
+      const dt = now - prev.at;
+      const dist = Math.hypot(t.clientX - prev.x, t.clientY - prev.y);
       const maxMs = gestureStartedOnEvent
         ? DOUBLE_TAP_MAX_MS_ON_EVENT
         : DOUBLE_TAP_MAX_MS_GRID;
@@ -1242,19 +1325,95 @@ export default function CalendarView() {
         ? DOUBLE_TAP_MAX_PX_ON_EVENT
         : DOUBLE_TAP_MAX_PX_GRID;
       if (dt <= maxMs && dist <= maxPx && canNavigateByGesture()) {
-        suppressEventClickUntilMsRef.current = Date.now() + 450;
-        lastTapAt = 0;
+        clearDelayedEventOpen();
+        pendingFridayOpenDateStrRef.current = null;
+        suppressEventClickUntilMsRef.current =
+          Date.now() + DOUBLE_TAP_MAX_MS_GRID + 150;
+        lastTapForNavGestureRef.current = { at: 0, x: 0, y: 0 };
         goToToday();
+        swiping = false;
         return;
       }
-      lastTapAt = now;
-      lastTapX = t.clientX;
-      lastTapY = t.clientY;
+      lastTapForNavGestureRef.current = {
+        at: now,
+        x: t.clientX,
+        y: t.clientY,
+      };
+      swiping = false;
+
+      if (!canNavigateByGesture()) {
+        clearDelayedEventOpen();
+        pendingFridayOpenDateStrRef.current = null;
+        return;
+      }
+
+      // Single tap on a timed event: delay synthetic `click` for double-tap window.
+      if (gestureStartedOnEvent) {
+        clearDelayedEventOpen();
+        suppressEventClickUntilMsRef.current =
+          Date.now() + EVENT_SINGLE_TAP_SUPPRESS_MS;
+        const tapAt = now;
+        const cx = t.clientX;
+        const cy = t.clientY;
+        delayedEventOpenTimerRef.current = window.setTimeout(() => {
+          delayedEventOpenTimerRef.current = null;
+          if (lastTapForNavGestureRef.current.at !== tapAt) {
+            return;
+          }
+          suppressEventClickUntilMsRef.current = 0;
+          const el = document.elementFromPoint(cx, cy);
+          const clickable =
+            el?.closest("a.fc-event") ??
+            el
+              ?.closest(".fc-timegrid-event-harness")
+              ?.querySelector("a.fc-event");
+          if (clickable instanceof HTMLElement) {
+            clickable.dispatchEvent(
+              new MouseEvent("click", {
+                bubbles: true,
+                cancelable: true,
+                view: window,
+                clientX: cx,
+                clientY: cy,
+              }),
+            );
+          }
+        }, EVENT_SINGLE_TAP_CLICK_DELAY_MS);
+        return;
+      }
+
+      // Admin Friday restriction band: delay opening confirm so double-tap can run.
+      if (
+        gestureStartedOnFridayRestriction &&
+        isAdminRef.current &&
+        pendingFridayOpenDateStrRef.current
+      ) {
+        clearDelayedEventOpen();
+        suppressEventClickUntilMsRef.current =
+          Date.now() + EVENT_SINGLE_TAP_SUPPRESS_MS;
+        const tapAt = now;
+        const dateStr = pendingFridayOpenDateStrRef.current;
+        delayedFridayOpenTimerRef.current = window.setTimeout(() => {
+          delayedFridayOpenTimerRef.current = null;
+          if (lastTapForNavGestureRef.current.at !== tapAt) {
+            return;
+          }
+          suppressEventClickUntilMsRef.current = 0;
+          setFridayToOpen(dateStr);
+        }, EVENT_SINGLE_TAP_CLICK_DELAY_MS);
+        return;
+      }
+
+      clearDelayedEventOpen();
+      pendingFridayOpenDateStrRef.current = null;
     }
 
-    function onTouchCancel() {
-      tracking = false;
-      swiping = false;
+    function onTouchEnd(e: TouchEvent) {
+      finalizeNavTouch(e);
+    }
+
+    function onTouchCancel(e: TouchEvent) {
+      finalizeNavTouch(e);
     }
 
     const touchStartOpts: AddEventListenerOptions = { capture: true, passive: true };
@@ -1267,12 +1426,14 @@ export default function CalendarView() {
     window.addEventListener("touchcancel", onTouchCancel, touchEndOpts);
 
     return () => {
+      clearDelayedEventOpen();
+      activeNavGestureTouchIdRef.current = null;
       window.removeEventListener("touchstart", onTouchStart, touchStartOpts);
       window.removeEventListener("touchmove", onTouchMove, touchMoveOpts);
       window.removeEventListener("touchend", onTouchEnd, touchEndOpts);
       window.removeEventListener("touchcancel", onTouchCancel, touchEndOpts);
     };
-  }, [inDefaultIdleState, isLoading, isMobile]);
+  }, [isLoading, isMobile]);
 
   function handleDatesSet(arg: DatesSetArg) {
     setCalendarTitle(arg.view.title);
@@ -1309,6 +1470,32 @@ export default function CalendarView() {
       return [];
     }
     return end.getTime() <= nowTick ? ["fc-event-past"] : [];
+  }
+
+  function handleEventDidMount(arg: EventMountArg) {
+    const eventType = arg.event.extendedProps.eventType as
+      | "practice"
+      | "jam"
+      | "hold"
+      | "blocked"
+      | undefined;
+    if (eventType === "blocked") {
+      const root = arg.el.closest("a.fc-event") ?? arg.el;
+      root.setAttribute("data-calendar-gesture-passthrough", "");
+    }
+  }
+
+  function handleEventWillUnmount(arg: EventMountArg) {
+    const eventType = arg.event.extendedProps.eventType as
+      | "practice"
+      | "jam"
+      | "hold"
+      | "blocked"
+      | undefined;
+    if (eventType === "blocked") {
+      const root = arg.el.closest("a.fc-event") ?? arg.el;
+      root.removeAttribute("data-calendar-gesture-passthrough");
+    }
   }
 
   function renderEventContent(arg: EventContentArg) {
@@ -1467,6 +1654,8 @@ export default function CalendarView() {
               editable={false}
               expandRows
               events={displayEvents}
+              eventDidMount={handleEventDidMount}
+              eventWillUnmount={handleEventWillUnmount}
               datesSet={handleDatesSet}
               dayHeaderClassNames={dayHeaderClassNames}
               eventClassNames={eventClassNames}
@@ -1572,11 +1761,22 @@ export default function CalendarView() {
                 {fridayJamOverlays.map((o) => (
                   <div
                     key={o.key}
+                    data-calendar-gesture-passthrough=""
+                    data-friday-jam-restriction=""
+                    data-friday-date={o.dateStr}
                     role={isAdmin ? "button" : undefined}
                     tabIndex={isAdmin ? 0 : undefined}
                     onClick={
                       isAdmin
-                        ? () => setFridayToOpen(o.dateStr)
+                        ? () => {
+                            if (
+                              Date.now() <
+                              suppressEventClickUntilMsRef.current
+                            ) {
+                              return;
+                            }
+                            setFridayToOpen(o.dateStr);
+                          }
                         : undefined
                     }
                     onKeyDown={
@@ -1584,6 +1784,12 @@ export default function CalendarView() {
                         ? (e) => {
                             if (e.key === "Enter" || e.key === " ") {
                               e.preventDefault();
+                              if (
+                                Date.now() <
+                                suppressEventClickUntilMsRef.current
+                              ) {
+                                return;
+                              }
                               setFridayToOpen(o.dateStr);
                             }
                           }
@@ -1673,6 +1879,10 @@ export default function CalendarView() {
         cancelLabel="Keep blocked"
         isLoading={isBlockDeleting}
         onCancel={() => setBlockedEventToDelete(null)}
+        onBackdropDismiss={() => {
+          suppressEventClickUntilMsRef.current = Date.now() + 450;
+          setBlockedEventToDelete(null);
+        }}
         onConfirm={handleDeleteBlockedTime}
         dismissOnBackdrop={isMobile}
       />
