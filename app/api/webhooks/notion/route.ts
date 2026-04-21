@@ -20,6 +20,11 @@
  * so this route tries both the env var and the body token when verifying the
  * signature.
  *
+ * On successful **subscription verify** only, the handler logs the
+ * `verification_token` so you can paste it into Notion’s dialog and copy the
+ * same value into `NOTION_WEBHOOK_VERIFICATION_TOKEN` in Vercel (treat runtime
+ * logs as sensitive).
+ *
  * Subscribe to event type: `page.properties_updated`.
  */
 
@@ -116,12 +121,14 @@ export async function POST(req: Request) {
   }
 
   if (typeof body.verification_token === "string" && body.type === undefined) {
+    const token = body.verification_token.trim();
     console.info(
-      "[notion webhook] Subscription verify OK (signature validated; token not logged).",
+      "[notion webhook] Subscription verify OK (signature validated). Paste the next line into Notion’s “Verification token” field, then set NOTION_WEBHOOK_VERIFICATION_TOKEN in Vercel to the same value for signed events.",
     );
+    console.info(`[notion webhook] verification_token=${token}`);
     if (!envToken) {
       console.warn(
-        "[notion webhook] NOTION_WEBHOOK_VERIFICATION_TOKEN is unset. Copy this subscription verification token from the Notion Webhooks UI into Vercel so signed event deliveries (e.g. page.properties_updated) continue to validate.",
+        "[notion webhook] NOTION_WEBHOOK_VERIFICATION_TOKEN is still unset; page.events will 401 until you add it in Vercel (same value as above).",
       );
     }
     return new NextResponse(null, { status: 200 });
