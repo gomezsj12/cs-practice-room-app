@@ -12,7 +12,8 @@
 import { deleteGoogleCalendarEventIdempotent } from "@/lib/google-calendar-webhook-delete";
 import { getCalendarClient } from "@/lib/google";
 import { getEventEnd, getEventStart } from "@/lib/calendar-helpers";
-import { getNotionClient, getNotionPageParentIds } from "@/lib/notion";
+import { getNotionClientForRealm } from "@/lib/notion-clients";
+import { getNotionPageParentIds } from "@/lib/notion";
 import {
   NOTION_CSPR_CANCEL_ORIGIN_CALENDAR_APP,
   NOTION_CSPR_CANCEL_ORIGIN_PROPERTY,
@@ -320,7 +321,7 @@ async function findPracticeCalendarEventByTimeRange(
 export async function processNotionCalendarCancellationWebhook(
   pageId: string,
 ): Promise<NotionCalendarCancelWebhookResult> {
-  const notion = getNotionClient();
+  const notion = getNotionClientForRealm("calendar");
   const page = await notion.pages.retrieve({ page_id: pageId });
   return processNotionCalendarCancellationFromPage(
     page as NotionPageForCalendarCancel,

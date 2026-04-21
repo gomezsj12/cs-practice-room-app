@@ -4,7 +4,7 @@
  * Requires `NOTION_WWU_QUARTERS_DATA_SOURCE_ID` and Notion property names
  * (defaults: **Name**, **Start Date**, **End Date**).
  */
-import { getNotionClient } from "@/lib/notion";
+import { getNotionClientForRealm } from "@/lib/notion-clients";
 import { getSupabaseAdmin } from "@/lib/supabase";
 
 type NotionTitleProp = {
@@ -72,7 +72,7 @@ export async function syncWwuQuartersFromNotion(): Promise<SyncWwuQuartersResult
   const endProp =
     process.env.NOTION_WWU_QUARTERS_END_DATE_PROP?.trim() || "End Date";
 
-  const notion = getNotionClient();
+  const notion = getNotionClientForRealm("calendar");
   const pages: Array<{ id: string; properties: Record<string, unknown> }> = [];
 
   let cursor: string | undefined;

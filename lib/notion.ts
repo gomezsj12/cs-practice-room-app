@@ -1,7 +1,8 @@
 /**
  * Notion API client, jam-reservation, and user-profile helpers.
  *
- * Manages a singleton Notion client and exposes helpers to:
+ * Uses dual Notion integrations via {@link getNotionClientForRealm} — calendar
+ * (jam, practice) vs profile (people, profile log). Exposes helpers to:
  * - Create and cancel jam reservations in the Notion data source.
  * - Mark practice bookings cancelled in the Fillout Form Master Database (Custom Event ID +
  *   CSPR Cancel origin when cancelled from the app).
@@ -12,40 +13,17 @@
  * @see {@link ../lib/google.ts}  — Google Calendar side of the same booking flow.
  * @see {@link ../lib/types.ts}   — shared type definitions.
  */
-import { Client } from "@notionhq/client";
+import type { Client } from "@notionhq/client";
 import { unstable_cache } from "next/cache";
+import { getNotionClientForRealm } from "@/lib/notion-clients";
+
+export { getNotionClient, getNotionClientForRealm } from "@/lib/notion-clients";
+export type { NotionRealm } from "@/lib/notion-clients";
 import {
   NOTION_CSPR_CANCEL_ORIGIN_CALENDAR_APP,
   NOTION_CSPR_CANCEL_ORIGIN_PROPERTY,
 } from "@/lib/notion-sync-constants";
 import type { PracticeAssigneeSummary } from "@/lib/types";
-
-/** Pinned Notion API version to avoid breaking changes from upstream. */
-const NOTION_VERSION = "2026-03-11";
-
-/** Singleton — created on first call, reused for the lifetime of the process. */
-let _client: Client | null = null;
-
-/**
- * Return a shared Notion client, creating it on first call.
- * Requires `NOTION_TOKEN` env var.
- */
-export function getNotionClient() {
-  if (!_client) {
-    const token = process.env.NOTION_TOKEN;
-
-    if (!token) {
-      throw new Error("Missing NOTION_TOKEN environment variable.");
-    }
-
-    _client = new Client({
-      auth: token,
-      notionVersion: NOTION_VERSION,
-    });
-  }
-
-  return _client;
-}
 
 /** Parameters for creating a jam reservation page in Notion. */
 type CreateJamReservationParams = {
@@ -80,7 +58,7 @@ export async function createJamReservationInNotion({
     throw new Error("Missing NOTION_DATA_SOURCE_ID environment variable.");
   }
 
-  const notion = getNotionClient();
+  const notion = getNotionClientForRealm("calendar");
 
   return notion.pages.create({
     parent: {
@@ -147,7 +125,7 @@ export async function markJamReservationCancelledInNotion(
     throw new Error("Missing NOTION_DATA_SOURCE_ID environment variable.");
   }
 
-  const notion = getNotionClient();
+  const notion = getNotionClientForRealm("calendar");
 
   const queryData = await notion.dataSources.query({
     data_source_id: dataSourceId,
@@ -214,7 +192,7 @@ export async function markPracticeBookingCancelledInNotionByCustomId(
     );
   }
 
-  const notion = getNotionClient();
+  const notion = getNotionClientForRealm("calendar");
 
   const queryData = await notion.dataSources.query({
     data_source_id: dataSourceId,
@@ -317,7 +295,7 @@ export async function findPracticeNotionPage(
     );
   }
 
-  const notion = getNotionClient();
+  const notion = getNotionClientForRealm("calendar");
 
   const queryData = await notion.dataSources.query({
     data_source_id: dataSourceId,
@@ -408,7 +386,7 @@ export async function updatePracticeSessionInNotion({
   newPatchlistLink,
   newAssigneeRelation,
 }: UpdatePracticeSessionParams) {
-  const notion = getNotionClient();
+  const notion = getNotionClientForRealm("calendar");
 
   // eslint-disable-next-line @typescript-eslint/no-explicit-any -- Notion SDK property shapes are complex; build dynamically
   const properties: Record<string, any> = {};
@@ -667,7 +645,7 @@ async function fetchPeopleDirectorySummariesUncached(): Promise<
     throw new Error("Missing NOTION_PEOPLE_DB_ID environment variable.");
   }
 
-  const notion = getNotionClient();
+  const notion = getNotionClientForRealm("calendar");
   const people: PracticeAssigneeSummary[] = [];
   let cursor: string | undefined;
 
@@ -716,7 +694,7 @@ async function fetchPeopleDirectorySummariesUncached(): Promise<
  */
 export const getCachedPeopleDirectorySummaries = unstable_cache(
   fetchPeopleDirectorySummariesUncached,
-  ["notion-people-directory-assignee-picker-v1"],
+  ["notion-people-directory-assignee-picker-v2-calendar"],
   { revalidate: PEOPLE_DIRECTORY_CACHE_SECONDS },
 );
 
@@ -773,7 +751,7 @@ export async function findNotionPersonByWWUEmail(
     throw new Error("Missing NOTION_PEOPLE_DB_ID environment variable.");
   }
 
-  const notion = getNotionClient();
+  const notion = getNotionClientForRealm("profile");
 
   const result = await notion.dataSources.query({
     data_source_id: dbId,
@@ -868,7 +846,7 @@ export function resolveNotionProfileWebhookActionFromPage(
 export async function resolveNotionProfileWebhookAction(
   pageId: string,
 ): Promise<NotionProfileWebhookAction> {
-  const notion = getNotionClient();
+  const notion = getNotionClientForRealm("profile");
   const page = await notion.pages.retrieve({ page_id: pageId });
 
   if (!("properties" in page)) {
@@ -998,7 +976,7 @@ export async function syncProfileLogPresenceToNotion(
     throw new Error("Missing NOTION_PROFILE_LOG_DB_ID environment variable.");
   }
 
-  const notion = getNotionClient();
+  const notion = getNotionClientForRealm("profile");
   const pageIds = await queryProfileLogPageIdsByGoogleEmail(
     notion,
     dbId,
@@ -1045,7 +1023,7 @@ export async function syncProfileCreationLogToNotion(
     throw new Error("Missing NOTION_PROFILE_LOG_DB_ID environment variable.");
   }
 
-  const notion = getNotionClient();
+  const notion = getNotionClientForRealm("profile");
   const pageIds = await queryProfileLogPageIdsByGoogleEmail(
     notion,
     dbId,

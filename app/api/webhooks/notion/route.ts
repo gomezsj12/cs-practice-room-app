@@ -13,17 +13,20 @@
  *   Google Calendar event.
  *
  * Configure in the Notion integration (Webhooks tab): URL must be HTTPS.
- * Set `NOTION_WEBHOOK_VERIFICATION_TOKEN` to the subscription verification
- * token (same secret Notion uses for `X-Notion-Signature`). For the initial
- * subscription verify POST, Notion signs the body using `verification_token`
- * inside that body ([Notion webhooks](https://developers.notion.com/reference/webhooks)),
- * so this route tries both the env var and the body token when verifying the
- * signature.
+ * Set **`NOTION_WEBHOOK_VERIFICATION_TOKEN_CALENDAR`** and/or
+ * **`NOTION_WEBHOOK_VERIFICATION_TOKEN_PROFILE`** to each integration’s
+ * subscription verification token (same secret Notion uses for
+ * `X-Notion-Signature`). Legacy **`NOTION_WEBHOOK_VERIFICATION_TOKEN`** is still
+ * accepted and treated as the **profile** integration’s secret.
+ *
+ * For the initial subscription verify POST, Notion signs the body using
+ * `verification_token` inside that body ([Notion webhooks](https://developers.notion.com/reference/webhooks)),
+ * so this route tries env secrets **and** the body token when verifying the signature.
  *
  * On successful **subscription verify** only, the handler logs the
  * `verification_token` so you can paste it into Notion’s dialog and copy the
- * same value into `NOTION_WEBHOOK_VERIFICATION_TOKEN` in Vercel (treat runtime
- * logs as sensitive).
+ * same value into the matching `NOTION_WEBHOOK_VERIFICATION_TOKEN_*` in Vercel
+ * (treat runtime logs as sensitive).
  *
  * Subscribe to event type: `page.properties_updated`.
  */
@@ -31,11 +34,11 @@
 import { NextResponse } from "next/server";
 import { isEffectiveAppAdmin } from "@/lib/admin";
 import { getSupabaseAdmin } from "@/lib/supabase";
-import { verifyNotionWebhookSignature } from "@/lib/notion-webhook";
+import { matchNotionWebhookSignatureAndRealm } from "@/lib/notion-webhook-secrets";
 import { processNotionCalendarCancellationFromPage } from "@/lib/notion-calendar-webhook";
 import {
   extractAssigneePageIdsFromPracticeProperties,
-  getNotionClient,
+  getNotionClientForRealm,
   getNotionPageParentIds,
   hydratePracticeAssigneesFromPageIds,
   resolveNotionProfileWebhookActionFromPage,
@@ -79,56 +82,65 @@ export async function POST(req: Request) {
     return new NextResponse("invalid json", { status: 400 });
   }
 
-  const envToken = process.env.NOTION_WEBHOOK_VERIFICATION_TOKEN?.trim() ?? "";
-
-  /** Notion signs payloads with the subscription’s verification token (see Notion webhook docs). */
   const bodyToken =
     typeof body.verification_token === "string"
       ? body.verification_token.trim()
       : "";
 
-  const candidateSecrets = [...new Set([envToken, bodyToken].filter(Boolean))];
+  const isSubscriptionVerify =
+    typeof body.verification_token === "string" && body.type === undefined;
 
-  if (candidateSecrets.length === 0) {
-    return NextResponse.json(
-      {
-        error:
-          "missing_signing_secret",
-        hint:
-          "Set NOTION_WEBHOOK_VERIFICATION_TOKEN in Vercel to your webhook subscription verification token, or trigger a new subscription verify POST from Notion (body must include verification_token).",
-      },
-      { status: 401 },
-    );
-  }
+  const webhookMatch = matchNotionWebhookSignatureAndRealm(
+    rawBody,
+    signature,
+    bodyToken,
+    isSubscriptionVerify,
+  );
 
-  let matchedSecret: string | null = null;
-  for (const secret of candidateSecrets) {
-    if (verifyNotionWebhookSignature(rawBody, signature, secret)) {
-      matchedSecret = secret;
-      break;
+  if (!webhookMatch) {
+    const hasAnySecretHint =
+      (process.env.NOTION_WEBHOOK_VERIFICATION_TOKEN_CALENDAR?.trim() ?? "") ||
+      (process.env.NOTION_WEBHOOK_VERIFICATION_TOKEN_PROFILE?.trim() ?? "") ||
+      (process.env.NOTION_WEBHOOK_VERIFICATION_TOKEN?.trim() ?? "") ||
+      bodyToken;
+
+    if (!hasAnySecretHint) {
+      return NextResponse.json(
+        {
+          error: "missing_signing_secret",
+          hint:
+            "Set NOTION_WEBHOOK_VERIFICATION_TOKEN_CALENDAR and/or NOTION_WEBHOOK_VERIFICATION_TOKEN_PROFILE (or legacy NOTION_WEBHOOK_VERIFICATION_TOKEN), or trigger subscription verify from Notion so the body includes verification_token.",
+        },
+        { status: 401 },
+      );
     }
-  }
 
-  if (!matchedSecret) {
     return NextResponse.json(
       {
         error: "invalid_signature",
         hint:
-          "NOTION_WEBHOOK_VERIFICATION_TOKEN must equal this integration’s webhook verification token from Notion (same one Notion uses for X-Notion-Signature). For subscription verify, the body’s verification_token is tried automatically.",
+          "Webhook signing secret must match this integration in Notion. Use NOTION_WEBHOOK_VERIFICATION_TOKEN_CALENDAR or _PROFILE (or legacy NOTION_WEBHOOK_VERIFICATION_TOKEN). For subscription verify, the body verification_token is tried automatically.",
       },
       { status: 401 },
     );
   }
 
-  if (typeof body.verification_token === "string" && body.type === undefined) {
-    const token = body.verification_token.trim();
+  const { realm } = webhookMatch;
+  const envCal =
+    process.env.NOTION_WEBHOOK_VERIFICATION_TOKEN_CALENDAR?.trim() ?? "";
+  const envProf =
+    process.env.NOTION_WEBHOOK_VERIFICATION_TOKEN_PROFILE?.trim() ?? "";
+  const envLegacy = process.env.NOTION_WEBHOOK_VERIFICATION_TOKEN?.trim() ?? "";
+
+  if (isSubscriptionVerify) {
+    const token = body.verification_token!.trim();
     console.info(
-      "[notion webhook] Subscription verify OK (signature validated). Paste the next line into Notion’s “Verification token” field, then set NOTION_WEBHOOK_VERIFICATION_TOKEN in Vercel to the same value for signed events.",
+      "[notion webhook] Subscription verify OK (signature validated). Paste the next line into Notion’s “Verification token” field, then set NOTION_WEBHOOK_VERIFICATION_TOKEN_CALENDAR or NOTION_WEBHOOK_VERIFICATION_TOKEN_PROFILE (or legacy NOTION_WEBHOOK_VERIFICATION_TOKEN for profile) in Vercel to the same value for signed events.",
     );
     console.info(`[notion webhook] verification_token=${token}`);
-    if (!envToken) {
+    if (!envCal && !envProf && !envLegacy) {
       console.warn(
-        "[notion webhook] NOTION_WEBHOOK_VERIFICATION_TOKEN is still unset; page.events will 401 until you add it in Vercel (same value as above).",
+        "[notion webhook] No NOTION_WEBHOOK_VERIFICATION_TOKEN_* env vars set; page.properties_updated deliveries will fail signature check until you add the matching secret in Vercel.",
       );
     }
     return new NextResponse(null, { status: 200 });
@@ -144,9 +156,13 @@ export async function POST(req: Request) {
 
   const pageId = body.entity.id;
 
-  let page: Awaited<ReturnType<ReturnType<typeof getNotionClient>["pages"]["retrieve"]>>;
+  let page: Awaited<
+    ReturnType<ReturnType<typeof getNotionClientForRealm>["pages"]["retrieve"]>
+  >;
   try {
-    page = await getNotionClient().pages.retrieve({ page_id: pageId });
+    page = await getNotionClientForRealm(realm).pages.retrieve({
+      page_id: pageId,
+    });
   } catch (err) {
     console.error("[notion webhook] Notion page read failed:", err);
     return new NextResponse("notion error", { status: 500 });

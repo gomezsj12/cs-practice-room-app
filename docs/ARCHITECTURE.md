@@ -256,13 +256,16 @@ Used by `lib/google.ts` so the **server** can read/write calendars without each 
 
 | Variable | Purpose |
 | --- | --- |
-| `NOTION_TOKEN` | Integration token |
+| `NOTION_TOKEN` | **Fallback** integration token when split vars are unset (migration) |
+| `NOTION_TOKEN_CALENDAR` | Internal integration secret for **calendar** realm: jam DS, Fillout master, quarters sync, people directory cache (assignee picker) |
+| `NOTION_TOKEN_PROFILE` | Internal integration secret for **profile** realm: people lookup, profile creation log, presence |
 | `NOTION_DATA_SOURCE_ID` | Data source id for jam reservation logging |
 | `NOTION_FILLOUT_MASTER_DATA_SOURCE_ID` | Data source id for Fillout Form Master Database (practice cancel → **Session Status** via **Custom Event ID**) |
 | `NOTION_PEOPLE_DB_ID` | Database ID for the people directory (user profile lookup) |
 | `NOTION_PROFILE_LOG_DB_ID` | Database ID for the profile-creation audit log |
-| `NOTION_WEBHOOK_VERIFICATION_TOKEN` | **Required** wherever `POST /api/webhooks/notion` is used: same secret Notion uses for `X-Notion-Signature` (never rely on the JSON body as the HMAC key). For local-only testing without setting this first, `NOTION_WEBHOOK_ALLOW_UNSAFE_DEV=true` is honored only when `VERCEL_ENV` is neither `production` nor `preview` |
-| `NOTION_WEBHOOK_ALLOW_UNSAFE_DEV` | Optional: see `NOTION_WEBHOOK_VERIFICATION_TOKEN` — unsafe; never set in production or preview |
+| `NOTION_WEBHOOK_VERIFICATION_TOKEN_CALENDAR` | Webhook verification secret for the **calendar** Notion integration (same value Notion uses for `X-Notion-Signature` on that subscription) |
+| `NOTION_WEBHOOK_VERIFICATION_TOKEN_PROFILE` | Webhook verification secret for the **profile** Notion integration |
+| `NOTION_WEBHOOK_VERIFICATION_TOKEN` | **Legacy:** profile integration’s webhook secret; still verified and treated as **profile** realm |
 | `NOTION_WEBHOOK_CALENDAR_DEBUG` | Optional: set to `1` to log parent ids and parsed jam **Status** for webhook troubleshooting |
 
 Jam and Fillout master databases should include a **Text** property **`CSPR Cancel origin`**. The app sets it to `calendar_app` when cancelling from the calendar UI first so the jam webhook skips a redundant Google delete.
@@ -777,8 +780,8 @@ Admin-role helpers. `getAdminEmails()` parses the `ADMIN_EMAILS` env var into a 
 ### `lib/supabase.ts`
 `getSupabaseAdmin()`: `SUPABASE_URL` + `SUPABASE_SERVICE_ROLE_KEY`, no session persistence (server-only). Lazy singleton. The service role key bypasses RLS, so all tables are accessible even though RLS is enabled with no permissive policies (see [Row-Level Security](#row-level-security-rls)).
 
-### `lib/notion.ts`
-`getNotionClient()` / headers with `NOTION_TOKEN` and fixed API version. `createJamReservationInNotion`: `pages.create` with parent `data_source_id`. `markJamReservationCancelledInNotion` / `markPracticeBookingCancelledInNotionByCustomId`: set Cancelled + **CSPR Cancel origin** when the cancel originated in the app (practice: calendar → Notion only; Notion does not delete practice Google events). `processNotionCalendarCancellationWebhook` ([`lib/notion-calendar-webhook.ts`](lib/notion-calendar-webhook.ts)): jam only — Notion **Cancelled** → Google `events.delete`. `findNotionPersonByWWUEmail`: queries the people database by "Walla Walla Email" for profile setup/sync and returns page id, **Name** (as display name), departments, SJ band, and type. `syncProfileCreationLogToNotion` / `logProfileCreationToNotion`: upsert the profile-creation log by **Google Email**; **`ProfileLogSyncMode`** `metadataOnly` skips email properties on update (new rows always created with `full`). `syncProfileLogPresenceToNotion`: updates **Is Active** + **Last Active At…** only (fire-and-forget from `POST /api/profile/presence`).
+### `lib/notion.ts` + `lib/notion-clients.ts`
+`getNotionClientForRealm("calendar" | "profile")` in [`lib/notion-clients.ts`](lib/notion-clients.ts): lazy singleton per realm, `NOTION_TOKEN_CALENDAR` / `NOTION_TOKEN_PROFILE` with `NOTION_TOKEN` fallback. `getNotionClient()` re-exports as **calendar** for legacy call sites. `createJamReservationInNotion`: `pages.create` with parent `data_source_id`. `markJamReservationCancelledInNotion` / `markPracticeBookingCancelledInNotionByCustomId`: set Cancelled + **CSPR Cancel origin** when the cancel originated in the app (practice: calendar → Notion only; Notion does not delete practice Google events). `processNotionCalendarCancellationWebhook` ([`lib/notion-calendar-webhook.ts`](lib/notion-calendar-webhook.ts)): jam only — Notion **Cancelled** → Google `events.delete`. `findNotionPersonByWWUEmail`: queries the people database by "Walla Walla Email" for profile setup/sync and returns page id, **Name** (as display name), departments, SJ band, and type. `syncProfileCreationLogToNotion` / `logProfileCreationToNotion`: upsert the profile-creation log by **Google Email**; **`ProfileLogSyncMode`** `metadataOnly` skips email properties on update (new rows always created with `full`). `syncProfileLogPresenceToNotion`: updates **Is Active** + **Last Active At…** only (fire-and-forget from `POST /api/profile/presence`).
 
 ### `lib/pwaIcon.tsx`
 `ImageResponse` JSX: dark rounded square, "Room" / "Jam" typography.
