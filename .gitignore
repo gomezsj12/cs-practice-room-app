@@ -46,6 +46,9 @@ yarn-error.log*
 # local Cursor agent skills (not shared via git)
 .cursor/skills/
 
+# Cursor MCP config (may contain secrets)
+.cursor/mcp.json
+
 # typescript
 *.tsbuildinfo
 next-env.d.ts
