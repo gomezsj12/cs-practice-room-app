@@ -13,13 +13,12 @@
  *   Google Calendar event.
  *
  * Configure in the Notion integration (Webhooks tab): URL must be HTTPS.
- * Set `NOTION_WEBHOOK_VERIFICATION_TOKEN` to the integration’s verification
- * token (same value Notion uses for `X-Notion-Signature`). Requests are
- * rejected if this env var is unset — the token in the JSON body is never
- * used as the HMAC secret (that would allow forged webhooks). For local-only
- * experiments, `NOTION_WEBHOOK_ALLOW_UNSAFE_DEV=true` may be set when
- * `VERCEL_ENV` is not `production` or `preview` to fall back to the body
- * token for signature verification only.
+ * Set `NOTION_WEBHOOK_VERIFICATION_TOKEN` to the subscription verification
+ * token (same secret Notion uses for `X-Notion-Signature`). For the initial
+ * subscription verify POST, Notion signs the body using `verification_token`
+ * inside that body ([Notion webhooks](https://developers.notion.com/reference/webhooks)),
+ * so this route tries both the env var and the body token when verifying the
+ * signature.
  *
  * Subscribe to event type: `page.properties_updated`.
  */
@@ -76,35 +75,55 @@ export async function POST(req: Request) {
   }
 
   const envToken = process.env.NOTION_WEBHOOK_VERIFICATION_TOKEN?.trim() ?? "";
-  const vercelEnv = process.env.VERCEL_ENV;
-  const allowUnsafeBodyToken =
-    process.env.NOTION_WEBHOOK_ALLOW_UNSAFE_DEV === "true" &&
-    vercelEnv !== "production" &&
-    vercelEnv !== "preview";
-  const verificationToken =
-    envToken ||
-    (allowUnsafeBodyToken && typeof body.verification_token === "string"
-      ? body.verification_token
-      : "");
 
-  if (!verificationToken) {
+  /** Notion signs payloads with the subscription’s verification token (see Notion webhook docs). */
+  const bodyToken =
+    typeof body.verification_token === "string"
+      ? body.verification_token.trim()
+      : "";
+
+  const candidateSecrets = [...new Set([envToken, bodyToken].filter(Boolean))];
+
+  if (candidateSecrets.length === 0) {
     return NextResponse.json(
       {
         error:
-          "Missing NOTION_WEBHOOK_VERIFICATION_TOKEN. Set it to your Notion webhook verification token (same value used for X-Notion-Signature).",
+          "missing_signing_secret",
+        hint:
+          "Set NOTION_WEBHOOK_VERIFICATION_TOKEN in Vercel to your webhook subscription verification token, or trigger a new subscription verify POST from Notion (body must include verification_token).",
       },
       { status: 401 },
     );
   }
 
-  if (!verifyNotionWebhookSignature(rawBody, signature, verificationToken)) {
-    return new NextResponse("unauthorized", { status: 401 });
+  let matchedSecret: string | null = null;
+  for (const secret of candidateSecrets) {
+    if (verifyNotionWebhookSignature(rawBody, signature, secret)) {
+      matchedSecret = secret;
+      break;
+    }
+  }
+
+  if (!matchedSecret) {
+    return NextResponse.json(
+      {
+        error: "invalid_signature",
+        hint:
+          "NOTION_WEBHOOK_VERIFICATION_TOKEN must equal this integration’s webhook verification token from Notion (same one Notion uses for X-Notion-Signature). For subscription verify, the body’s verification_token is tried automatically.",
+      },
+      { status: 401 },
+    );
   }
 
   if (typeof body.verification_token === "string" && body.type === undefined) {
     console.info(
       "[notion webhook] Subscription verify OK (signature validated; token not logged).",
     );
+    if (!envToken) {
+      console.warn(
+        "[notion webhook] NOTION_WEBHOOK_VERIFICATION_TOKEN is unset. Copy this subscription verification token from the Notion Webhooks UI into Vercel so signed event deliveries (e.g. page.properties_updated) continue to validate.",
+      );
+    }
     return new NextResponse(null, { status: 200 });
   }
 
