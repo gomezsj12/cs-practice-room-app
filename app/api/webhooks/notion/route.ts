@@ -183,13 +183,16 @@ export async function POST(req: Request) {
     }
     const updated = data?.[0];
     if (updated) {
-      syncProfileCreationLogToNotion({
-        displayName: updated.display_name,
-        googleEmail: updated.google_email,
-        wwuEmail: updated.walla_walla_email,
-        foundInNotion: !!updated.notion_page_id,
-        notionPageId: updated.notion_page_id,
-      }).catch((err) => {
+      syncProfileCreationLogToNotion(
+        {
+          displayName: updated.display_name,
+          googleEmail: updated.google_email,
+          wwuEmail: updated.walla_walla_email,
+          foundInNotion: !!updated.notion_page_id,
+          notionPageId: updated.notion_page_id,
+        },
+        "metadataOnly",
+      ).catch((err) => {
         console.error(
           "[notion webhook] Notion profile audit log sync failed:",
           err,

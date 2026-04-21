@@ -468,6 +468,7 @@ Path alias: `@/*` → project root (`tsconfig.json`).
 
 - Client wrapper: **`SessionProvider`** from `next-auth/react`.
 - Mounts **`AccountSetupModal`** globally so it appears over any page when profile setup is incomplete.
+- Mounts **`ProfilePresenceReporter`**, which runs **`useProfilePresence`**: authenticated clients POST **`/api/profile/presence`** so the Notion App Profile Creation Logs row gets **Is Active** and **Last Active At…** (foreground/hidden/`pagehide`, with one reconcile ping after a full reload so the checkbox does not stay false incorrectly).
 
 ### `components/SiteHeader.tsx`
 
@@ -489,6 +490,7 @@ Path alias: `@/*` → project root (`tsconfig.json`).
 - Shows the signed-in user's email.
 - When the profile is complete: **edit** (WWU email) and **refresh** (re-sync from Notion), powered by **`hooks/useProfileSync.ts`**.
 - **Profile sync behavior**: `POST /api/profile/sync` runs on mount and every 60 seconds while signed in with a complete profile, updating Supabase from the Notion people database. **`profiles.display_name`** is always set: people row **Name** when non-empty, otherwise the Google account display name, otherwise `"Unknown"`. **Background** sync does **not** call NextAuth **`session.update()`** unless **`bookingAccess`** would change (same rule as `auth.ts`: linked Notion page ↔ `notion_page_id` on the profile). That avoids a session refetch and broad `useSession()` re-renders on every tick, which previously caused visible full-page flicker. **Manual** refresh still calls **`session.update()`** after a successful sync so JWT-backed UI (e.g. booking access) updates immediately.
+- **App Profile Creation Logs (Notion)**: `syncProfileCreationLogToNotion` uses **`metadataOnly`** from **`POST /api/profile/sync`** and from the Notion people **`sync_profile`** webhook so **Google Email** / **WWU Email** on the log row are **not** rewritten on every poll. **`full`** sync (includes both emails) runs after **`POST /api/profile/setup`** and **`PATCH /api/profile/me`** (pencil / manual WWU edit). **`POST /api/profile/presence`** updates only **Is Active** and **Last Active At…** for the signed-in Google account.
 
 ---
 
@@ -776,7 +778,7 @@ Admin-role helpers. `getAdminEmails()` parses the `ADMIN_EMAILS` env var into a 
 `getSupabaseAdmin()`: `SUPABASE_URL` + `SUPABASE_SERVICE_ROLE_KEY`, no session persistence (server-only). Lazy singleton. The service role key bypasses RLS, so all tables are accessible even though RLS is enabled with no permissive policies (see [Row-Level Security](#row-level-security-rls)).
 
 ### `lib/notion.ts`
-`getNotionClient()` / headers with `NOTION_TOKEN` and fixed API version. `createJamReservationInNotion`: `pages.create` with parent `data_source_id`. `markJamReservationCancelledInNotion` / `markPracticeBookingCancelledInNotionByCustomId`: set Cancelled + **CSPR Cancel origin** when the cancel originated in the app (practice: calendar → Notion only; Notion does not delete practice Google events). `processNotionCalendarCancellationWebhook` ([`lib/notion-calendar-webhook.ts`](lib/notion-calendar-webhook.ts)): jam only — Notion **Cancelled** → Google `events.delete`. `findNotionPersonByWWUEmail`: queries the people database by "Walla Walla Email" for profile setup/sync and returns page id, **Name** (as display name), departments, SJ band, and type. `logProfileCreationToNotion`: writes an audit row to the profile-creation log database (fire-and-forget).
+`getNotionClient()` / headers with `NOTION_TOKEN` and fixed API version. `createJamReservationInNotion`: `pages.create` with parent `data_source_id`. `markJamReservationCancelledInNotion` / `markPracticeBookingCancelledInNotionByCustomId`: set Cancelled + **CSPR Cancel origin** when the cancel originated in the app (practice: calendar → Notion only; Notion does not delete practice Google events). `processNotionCalendarCancellationWebhook` ([`lib/notion-calendar-webhook.ts`](lib/notion-calendar-webhook.ts)): jam only — Notion **Cancelled** → Google `events.delete`. `findNotionPersonByWWUEmail`: queries the people database by "Walla Walla Email" for profile setup/sync and returns page id, **Name** (as display name), departments, SJ band, and type. `syncProfileCreationLogToNotion` / `logProfileCreationToNotion`: upsert the profile-creation log by **Google Email**; **`ProfileLogSyncMode`** `metadataOnly` skips email properties on update (new rows always created with `full`). `syncProfileLogPresenceToNotion`: updates **Is Active** + **Last Active At…** only (fire-and-forget from `POST /api/profile/presence`).
 
 ### `lib/pwaIcon.tsx`
 `ImageResponse` JSX: dark rounded square, "Room" / "Jam" typography.

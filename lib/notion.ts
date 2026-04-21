@@ -6,7 +6,8 @@
  * - Mark practice bookings cancelled in the Fillout Form Master Database (Custom Event ID +
  *   CSPR Cancel origin when cancelled from the app).
  * - Look up users in the Notion people database by WWU email.
- * - Log and sync profile audit rows in the Notion profile-creation log data source.
+ * - Log and sync profile audit rows in the Notion profile-creation log data source
+ *   (`full` vs `metadataOnly` modes; presence fields via `syncProfileLogPresenceToNotion`).
  *
  * @see {@link ../lib/google.ts}  — Google Calendar side of the same booking flow.
  * @see {@link ../lib/types.ts}   — shared type definitions.
@@ -889,10 +890,22 @@ export type ProfileLogSyncParams = {
   notionPageId: string | null;
 };
 
+/**
+ * `full` — writes Google + WWU email (setup, manual profile edit).
+ * `metadataOnly` — skips email columns (background Notion sync / people webhook).
+ */
+export type ProfileLogSyncMode = "full" | "metadataOnly";
+
+/** App Profile Creation Logs — presence columns (titles must match the Notion data source). */
+export const NOTION_PROFILE_LOG_IS_ACTIVE = "Is Active";
+export const NOTION_PROFILE_LOG_LAST_ACTIVE_AT = "Last Active At...";
+
 type ProfileLogPropertyMode = {
   includeCreatedAt: boolean;
   /** On create, omit relation when empty; on update, always set (empty clears). */
   relationMode: "omit_if_empty" | "always";
+  /** When `metadataOnly`, email properties are omitted (updates only). */
+  syncMode: ProfileLogSyncMode;
 };
 
 function buildProfileLogNotionProperties(
@@ -903,22 +916,25 @@ function buildProfileLogNotionProperties(
     foundInNotion,
     notionPageId,
   }: ProfileLogSyncParams,
-  { includeCreatedAt, relationMode }: ProfileLogPropertyMode,
+  { includeCreatedAt, relationMode, syncMode }: ProfileLogPropertyMode,
 ): Record<string, unknown> {
   const props: Record<string, unknown> = {
     Name: {
       title: [{ text: { content: displayName } }],
     },
-    "Google Email": {
-      email: googleEmail,
-    },
-    "WWU Email": {
-      email: wwuEmail,
-    },
     "Found in Notion": {
       checkbox: foundInNotion,
     },
   };
+
+  if (syncMode === "full") {
+    props["Google Email"] = {
+      email: googleEmail,
+    };
+    props["WWU Email"] = {
+      email: wwuEmail,
+    };
+  }
 
   if (notionPageId) {
     props["CSPR Notion Profile"] = {
@@ -937,34 +953,17 @@ function buildProfileLogNotionProperties(
   return props;
 }
 
-/**
- * Upsert the Notion profile-creation log row for this Google account: query by
- * **Google Email**, update all matches, or create one if none exist.
- *
- * When a people-DB match exists, links it via the "CSPR Notion Profile"
- * relation property. On update, an empty relation clears that link in Notion.
- *
- * Intended to be called fire-and-forget after Supabase profile writes — a
- * failure here should never block the primary flow.
- *
- * Requires `NOTION_PROFILE_LOG_DB_ID` env var.
- */
-export async function syncProfileCreationLogToNotion(
-  params: ProfileLogSyncParams,
-): Promise<void> {
-  const dbId = process.env.NOTION_PROFILE_LOG_DB_ID;
-  if (!dbId) {
-    throw new Error("Missing NOTION_PROFILE_LOG_DB_ID environment variable.");
-  }
-
-  const notion = getNotionClient();
-  const filterEmail = params.googleEmail.trim();
-
+async function queryProfileLogPageIdsByGoogleEmail(
+  notion: Client,
+  dataSourceId: string,
+  googleEmail: string,
+): Promise<string[]> {
+  const filterEmail = googleEmail.trim();
   const pageIds: string[] = [];
   let cursor: string | undefined;
   for (;;) {
     const res = await notion.dataSources.query({
-      data_source_id: dbId,
+      data_source_id: dataSourceId,
       filter: {
         property: "Google Email",
         email: { equals: filterEmail },
@@ -983,11 +982,81 @@ export async function syncProfileCreationLogToNotion(
     if (!res.has_more || !res.next_cursor) break;
     cursor = res.next_cursor;
   }
+  return pageIds;
+}
+
+/**
+ * Sets presence fields on all profile-log rows for the given Google account.
+ * No-ops when no matching pages exist.
+ */
+export async function syncProfileLogPresenceToNotion(
+  googleEmail: string,
+  active: boolean,
+): Promise<void> {
+  const dbId = process.env.NOTION_PROFILE_LOG_DB_ID;
+  if (!dbId) {
+    throw new Error("Missing NOTION_PROFILE_LOG_DB_ID environment variable.");
+  }
+
+  const notion = getNotionClient();
+  const pageIds = await queryProfileLogPageIdsByGoogleEmail(
+    notion,
+    dbId,
+    googleEmail,
+  );
+  if (pageIds.length === 0) return;
+
+  const when = new Date().toISOString();
+  const presenceProps = {
+    [NOTION_PROFILE_LOG_IS_ACTIVE]: { checkbox: active },
+    [NOTION_PROFILE_LOG_LAST_ACTIVE_AT]: { date: { start: when } },
+  } as Parameters<typeof notion.pages.update>[0]["properties"];
+
+  for (const pageId of pageIds) {
+    await notion.pages.update({
+      page_id: pageId,
+      properties: presenceProps,
+    });
+  }
+}
+
+/**
+ * Upsert the Notion profile-creation log row for this Google account: query by
+ * **Google Email**, update all matches, or create one if none exist.
+ *
+ * When a people-DB match exists, links it via the "CSPR Notion Profile"
+ * relation property. On update, an empty relation clears that link in Notion.
+ *
+ * Intended to be called fire-and-forget after Supabase profile writes — a
+ * failure here should never block the primary flow.
+ *
+ * New rows are always created with {@link ProfileLogSyncMode} `full` (both
+ * emails required). {@link ProfileLogSyncMode} `metadataOnly` only affects
+ * updates so background sync does not rewrite email columns.
+ *
+ * Requires `NOTION_PROFILE_LOG_DB_ID` env var.
+ */
+export async function syncProfileCreationLogToNotion(
+  params: ProfileLogSyncParams,
+  syncMode: ProfileLogSyncMode = "full",
+): Promise<void> {
+  const dbId = process.env.NOTION_PROFILE_LOG_DB_ID;
+  if (!dbId) {
+    throw new Error("Missing NOTION_PROFILE_LOG_DB_ID environment variable.");
+  }
+
+  const notion = getNotionClient();
+  const pageIds = await queryProfileLogPageIdsByGoogleEmail(
+    notion,
+    dbId,
+    params.googleEmail,
+  );
 
   if (pageIds.length > 0) {
     const updateProps = buildProfileLogNotionProperties(params, {
       includeCreatedAt: false,
       relationMode: "always",
+      syncMode,
     });
     for (const pageId of pageIds) {
       await notion.pages.update({
@@ -1003,6 +1072,7 @@ export async function syncProfileCreationLogToNotion(
   const createProps = buildProfileLogNotionProperties(params, {
     includeCreatedAt: true,
     relationMode: "omit_if_empty",
+    syncMode: "full",
   });
   await notion.pages.create({
     parent: { type: "data_source_id", data_source_id: dbId },
@@ -1016,5 +1086,5 @@ export async function syncProfileCreationLogToNotion(
 export async function logProfileCreationToNotion(
   params: ProfileLogSyncParams,
 ): Promise<void> {
-  await syncProfileCreationLogToNotion(params);
+  await syncProfileCreationLogToNotion(params, "full");
 }

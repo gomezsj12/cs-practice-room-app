@@ -90,13 +90,16 @@ export async function POST() {
     );
   }
 
-  syncProfileCreationLogToNotion({
-    displayName: profile.display_name,
-    googleEmail: profile.google_email,
-    wwuEmail: profile.walla_walla_email,
-    foundInNotion: !!profile.notion_page_id,
-    notionPageId: profile.notion_page_id,
-  }).catch((err) => {
+  syncProfileCreationLogToNotion(
+    {
+      displayName: profile.display_name,
+      googleEmail: profile.google_email,
+      wwuEmail: profile.walla_walla_email,
+      foundInNotion: !!profile.notion_page_id,
+      notionPageId: profile.notion_page_id,
+    },
+    "metadataOnly",
+  ).catch((err) => {
     console.error("[profile/sync] Notion audit log sync failed:", err);
   });
 
