@@ -8,7 +8,8 @@
  *   CSPR Cancel origin when cancelled from the app).
  * - Look up users in the Notion people database by WWU email.
  * - Log and sync profile audit rows in the Notion profile-creation log data source
- *   (`full` vs `metadataOnly` modes; presence fields via `syncProfileLogPresenceToNotion`).
+ *   (`full` vs `metadataOnly` modes; presence fields via `syncProfileLogPresenceToNotion`,
+ *   with profile-log page id TTL cache for presence).
  *
  * @see {@link ../lib/google.ts}  — Google Calendar side of the same booking flow.
  * @see {@link ../lib/types.ts}   — shared type definitions.
@@ -23,6 +24,11 @@ import {
   NOTION_CSPR_CANCEL_ORIGIN_CALENDAR_APP,
   NOTION_CSPR_CANCEL_ORIGIN_PROPERTY,
 } from "@/lib/notion-sync-constants";
+import {
+  getProfileLogPageIdsFromCache,
+  invalidateProfileLogPageIdsCache,
+  setProfileLogPageIdsCache,
+} from "@/lib/profile-log-page-id-cache";
 import type { PracticeAssigneeSummary } from "@/lib/types";
 
 /** Parameters for creating a jam reservation page in Notion. */
@@ -966,6 +972,9 @@ async function queryProfileLogPageIdsByGoogleEmail(
 /**
  * Sets presence fields on all profile-log rows for the given Google account.
  * No-ops when no matching pages exist.
+ *
+ * Reuses {@link getProfileLogPageIdsFromCache} after a Notion query so rapid
+ * presence pings skip repeat `dataSources.query` until TTL or invalidation.
  */
 export async function syncProfileLogPresenceToNotion(
   googleEmail: string,
@@ -977,11 +986,15 @@ export async function syncProfileLogPresenceToNotion(
   }
 
   const notion = getNotionClientForRealm("profile");
-  const pageIds = await queryProfileLogPageIdsByGoogleEmail(
-    notion,
-    dbId,
-    googleEmail,
-  );
+  let pageIds = getProfileLogPageIdsFromCache(dbId, googleEmail);
+  if (pageIds === undefined) {
+    pageIds = await queryProfileLogPageIdsByGoogleEmail(
+      notion,
+      dbId,
+      googleEmail,
+    );
+    setProfileLogPageIdsCache(dbId, googleEmail, pageIds);
+  }
   if (pageIds.length === 0) return;
 
   const when = new Date().toISOString();
@@ -1058,6 +1071,7 @@ export async function syncProfileCreationLogToNotion(
       typeof notion.pages.create
     >[0]["properties"],
   });
+  invalidateProfileLogPageIdsCache(dbId, params.googleEmail);
 }
 
 /** @see {@link syncProfileCreationLogToNotion} */

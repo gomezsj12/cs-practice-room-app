@@ -440,6 +440,7 @@ cs-practice-room-app/
 │   ├── google-calendar-webhook-delete.ts # Idempotent jam Calendar delete for Notion webhook (404-safe)
 │   ├── hold-helpers.ts            # Optimistic hold events, sessionStorage persistence, hold ID utils
 │   ├── notion.ts                  # Notion client singleton + reservation create/cancel helpers
+│   ├── profile-log-page-id-cache.ts # Short TTL in-memory cache: profile-log page ids by email (presence)
 │   ├── notion-calendar-webhook.ts # Jam Notion **Cancelled** → delete Google event
 │   ├── notion-sync-constants.ts   # **CSPR Cancel origin** property name + `calendar_app` value
 │   ├── practice-custom-event-id.ts # UTC **Custom Event ID** string for practice ↔ Notion row match
@@ -509,7 +510,7 @@ Path alias: `@/*` → project root (`tsconfig.json`).
 
 - Client wrapper: **`SessionProvider`** from `next-auth/react`.
 - Mounts **`AccountSetupModal`** globally so it appears over any page when profile setup is incomplete.
-- Mounts **`ProfilePresenceReporter`**, which runs **`useProfilePresence`**: authenticated clients POST **`/api/profile/presence`** so the Notion App Profile Creation Logs row gets **Is Active** and **Last Active At…** (foreground/hidden/`pagehide`, with one reconcile ping after a full reload so the checkbox does not stay false incorrectly).
+- Mounts **`ProfilePresenceReporter`**, which runs **`useProfilePresence`**: authenticated clients POST **`/api/profile/presence`** so the Notion App Profile Creation Logs row gets **Is Active** and **Last Active At…** (immediate first **active** on tab open / reload; **visibility** changes are **debounced ~400ms** and coalesced to the latest state; **`pagehide`** sends inactive immediately and cancels any pending debounce).
 
 ### `components/SiteHeader.tsx`
 
@@ -819,7 +820,16 @@ Admin-role helpers. `getAdminEmails()` parses the `ADMIN_EMAILS` env var into a 
 `getSupabaseAdmin()`: `SUPABASE_URL` + `SUPABASE_SERVICE_ROLE_KEY`, no session persistence (server-only). Lazy singleton. The service role key bypasses RLS, so all tables are accessible even though RLS is enabled with no permissive policies (see [Row-Level Security](#row-level-security-rls)).
 
 ### `lib/notion.ts` + `lib/notion-clients.ts`
-`getNotionClientForRealm("calendar" | "profile")` in [`lib/notion-clients.ts`](lib/notion-clients.ts): lazy singleton per realm, `NOTION_TOKEN_CALENDAR` / `NOTION_TOKEN_PROFILE` with `NOTION_TOKEN` fallback. `getNotionClient()` re-exports as **calendar** for legacy call sites. `createJamReservationInNotion`: `pages.create` with parent `data_source_id`. `markJamReservationCancelledInNotion` / `markPracticeBookingCancelledInNotionByCustomId`: set Cancelled + **CSPR Cancel origin** when the cancel originated in the app (practice: calendar → Notion only; Notion does not delete practice Google events). `processNotionCalendarCancellationWebhook` ([`lib/notion-calendar-webhook.ts`](lib/notion-calendar-webhook.ts)): jam only — Notion **Cancelled** → Google `events.delete`. `findNotionPersonByWWUEmail`: queries the people database by "Walla Walla Email" for profile setup/sync and returns page id, **Name** (as display name), departments, SJ band, and type. `syncProfileCreationLogToNotion` / `logProfileCreationToNotion`: upsert the profile-creation log by **Google Email**; **`ProfileLogSyncMode`** `metadataOnly` skips email properties on update (new rows always created with `full`). `syncProfileLogPresenceToNotion`: updates **Is Active** + **Last Active At…** only (fire-and-forget from `POST /api/profile/presence`).
+`getNotionClientForRealm("calendar" | "profile")` in [`lib/notion-clients.ts`](lib/notion-clients.ts): lazy singleton per realm, `NOTION_TOKEN_CALENDAR` / `NOTION_TOKEN_PROFILE` with `NOTION_TOKEN` fallback. `getNotionClient()` re-exports as **calendar** for legacy call sites. `createJamReservationInNotion`: `pages.create` with parent `data_source_id`. `markJamReservationCancelledInNotion` / `markPracticeBookingCancelledInNotionByCustomId`: set Cancelled + **CSPR Cancel origin** when the cancel originated in the app (practice: calendar → Notion only; Notion does not delete practice Google events). `processNotionCalendarCancellationWebhook` ([`lib/notion-calendar-webhook.ts`](lib/notion-calendar-webhook.ts)): jam only — Notion **Cancelled** → Google `events.delete`. `findNotionPersonByWWUEmail`: queries the people database by "Walla Walla Email" for profile setup/sync and returns page id, **Name** (as display name), departments, SJ band, and type. `syncProfileCreationLogToNotion` / `logProfileCreationToNotion`: upsert the profile-creation log by **Google Email**; **`ProfileLogSyncMode`** `metadataOnly` skips email properties on update (new rows always created with `full`). `syncProfileLogPresenceToNotion`: updates **Is Active** + **Last Active At…** only (fire-and-forget from `POST /api/profile/presence`); profile-log page ids for that email are cached in-memory with a short TTL in [`lib/profile-log-page-id-cache.ts`](lib/profile-log-page-id-cache.ts) to avoid repeat `dataSources.query` on rapid presence pings (invalidated when a **new** log row is created).
+
+### Notion API — optional scaling ideas (not implemented)
+
+If Notion **rate limits** or **delivery guarantees** become a problem at higher traffic, consider (in addition to the practice-session Supabase cache and dual calendar/profile tokens already in place):
+
+- **Global Notion gate** — shared serial queue or token bucket for SDK calls across routes, plus **429-aware retry with backoff** for both realms.
+- **Stronger `batch-statuses` pacing** — today backfill uses **concurrency 2**; optional delay between waves or coordination with a shared gate.
+- **Load testing** — scripted or manual concurrent calendar + presence sessions to tune intervals.
+- **Supabase outbox + cron** — enqueue presence (or other) writes for durable, smoothed delivery under spikes.
 
 ### `lib/pwaIcon.tsx`
 `ImageResponse` JSX: dark rounded square, "Room" / "Jam" typography.

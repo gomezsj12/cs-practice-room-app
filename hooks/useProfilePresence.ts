@@ -4,8 +4,9 @@
  * - First navigation in a tab: one `active: true` (sessionStorage avoids duplicate
  *   posts under React Strict Mode).
  * - Full reload: one reconcile `active: true` keyed by `PerformanceNavigationTiming.startTime`.
- * - Tab hidden / visible: inactive then active again.
- * - `pagehide`: best-effort inactive with `keepalive` fetch.
+ * - Tab hidden / visible: coalesced with a short trailing debounce so rapid toggles
+ *   produce one POST with the latest state.
+ * - `pagehide`: immediate inactive with `keepalive` fetch (clears any pending debounce).
  *
  * @see {@link @/app/api/profile/presence/route.ts}
  */
@@ -14,6 +15,9 @@ import { useEffect } from "react";
 import { useSession } from "next-auth/react";
 
 const TAB_OPEN_KEY = "cspr_profile_presence_tab";
+
+/** Trailing debounce for `visibilitychange` only — initial `active: true` stays immediate. */
+const VISIBILITY_DEBOUNCE_MS = 400;
 
 function postPresence(active: boolean) {
   void fetch("/api/profile/presence", {
@@ -51,15 +55,33 @@ export function useProfilePresence() {
       postPresence(true);
     }
 
+    let debounceTimer: ReturnType<typeof setTimeout> | null = null;
+
+    const clearDebounce = () => {
+      if (debounceTimer) {
+        clearTimeout(debounceTimer);
+        debounceTimer = null;
+      }
+    };
+
+    const scheduleVisibilityPresence = (active: boolean) => {
+      clearDebounce();
+      debounceTimer = setTimeout(() => {
+        debounceTimer = null;
+        postPresence(active);
+      }, VISIBILITY_DEBOUNCE_MS);
+    };
+
     const onVisibility = () => {
       if (document.visibilityState === "hidden") {
-        postPresence(false);
+        scheduleVisibilityPresence(false);
       } else {
-        postPresence(true);
+        scheduleVisibilityPresence(true);
       }
     };
 
     const onPageHide = () => {
+      clearDebounce();
       postPresence(false);
     };
 
@@ -69,6 +91,7 @@ export function useProfilePresence() {
     return () => {
       document.removeEventListener("visibilitychange", onVisibility);
       window.removeEventListener("pagehide", onPageHide);
+      clearDebounce();
     };
   }, [status, session?.user?.email]);
 }
