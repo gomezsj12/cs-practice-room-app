@@ -2,7 +2,8 @@
  * @file `POST /api/cron/presence-sweep` — marks stale Notion profile-log rows
  * as inactive (Is Active = false) when Last Active At is older than ~2 minutes.
  *
- * Called every 2 minutes by a Supabase pg_cron + pg_net job.
+ * Called every minute by a Supabase pg_cron + pg_net job (stale threshold stays
+ * 2 minutes so active users are not cleared between 60s heartbeats).
  * Authorized via `CRON_SECRET` Bearer token (same as quarter sync).
  */
 import { NextRequest, NextResponse } from "next/server";

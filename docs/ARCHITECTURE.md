@@ -510,7 +510,7 @@ Path alias: `@/*` → project root (`tsconfig.json`).
 
 - Client wrapper: **`SessionProvider`** from `next-auth/react`.
 - Mounts **`AccountSetupModal`** globally so it appears over any page when profile setup is incomplete.
-- Mounts **`ProfilePresenceReporter`**, which runs **`useProfilePresence`**: authenticated clients POST **`/api/profile/presence`** so the Notion App Profile Creation Logs row gets **Is Active** and **Last Active At…**. Uses a **heartbeat + idle timeout** model: heartbeat posts `active: true` every 60 s while the user interacts; after 60 s of no interaction (click / scroll / keypress / touch / pointer move) one `active: false` is sent and the heartbeat stops; any subsequent interaction or tab-visible event immediately resumes `active: true` + heartbeat. Interaction listeners are passive/capture and throttled (~2 s). No `pagehide` / `beforeunload` — avoids false inactive on refresh or navigation. **Server-side sweep:** Supabase `pg_cron` calls `POST /api/cron/presence-sweep` every 2 minutes via `pg_net`; the endpoint queries Notion for `Is Active = true` rows where `Last Active At` is older than 2 minutes and flips them to `false` — handles tab close (where the client can no longer send).
+- Mounts **`ProfilePresenceReporter`**, which runs **`useProfilePresence`**: authenticated clients POST **`/api/profile/presence`** so the Notion App Profile Creation Logs row gets **Is Active** and **Last Active At…**. Uses a **heartbeat + idle timeout** model: heartbeat posts `active: true` every 60 s while the user interacts; after 60 s of no interaction (click / scroll / keypress / touch / pointer move) one `active: false` is sent and the heartbeat stops; any subsequent interaction or tab-visible event immediately resumes `active: true` + heartbeat. Interaction listeners are passive/capture and throttled (~2 s). No `pagehide` / `beforeunload` — avoids false inactive on refresh or navigation. **Server-side sweep:** Supabase `pg_cron` calls `POST /api/cron/presence-sweep` every minute via `pg_net`; the endpoint queries Notion for `Is Active = true` rows where `Last Active At` is older than 2 minutes and flips them to `false` — handles tab close (where the client can no longer send).
 
 ### `components/SiteHeader.tsx`
 
@@ -767,7 +767,7 @@ Central orchestration:
 
 ### `POST app/api/cron/presence-sweep/route.ts`
 
-- Called every 2 minutes by **Supabase `pg_cron` + `pg_net`** (migration `20260422010000_pg_cron_presence_sweep.sql`).
+- Called every minute by **Supabase `pg_cron` + `pg_net`** (migrations `20260422010000_pg_cron_presence_sweep.sql`, `20260422130000_pg_cron_presence_sweep_every_minute.sql`).
 - Authorized via `CRON_SECRET` Bearer token (same as quarter sync).
 - Runs `sweepStalePresenceInNotion()` (`lib/notion.ts`): queries Notion profile-log data source for rows where `Is Active = true` and `Last Active At` is older than 2 minutes, then sets `Is Active = false`. Handles tab-close scenarios where the client can no longer send `active: false`.
 
