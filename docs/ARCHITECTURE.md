@@ -510,7 +510,7 @@ Path alias: `@/*` → project root (`tsconfig.json`).
 
 - Client wrapper: **`SessionProvider`** from `next-auth/react`.
 - Mounts **`AccountSetupModal`** globally so it appears over any page when profile setup is incomplete.
-- Mounts **`ProfilePresenceReporter`**, which runs **`useProfilePresence`**: authenticated clients POST **`/api/profile/presence`** so the Notion App Profile Creation Logs row gets **Is Active** and **Last Active At…** (immediate first **active** on tab open / reload; **visibility** changes are **debounced ~400ms** and coalesced to the latest state; **`pagehide`** sends inactive immediately and cancels any pending debounce).
+- Mounts **`ProfilePresenceReporter`**, which runs **`useProfilePresence`**: authenticated clients POST **`/api/profile/presence`** so the Notion App Profile Creation Logs row gets **Is Active** and **Last Active At…** (**Is Active** stays true while the tab remains open, including in the background; **`active: false`** only on real document unload — tab close / leave site — and **not** on full reload or tab switch). First open / reload: immediate **active**; returning to the tab: **~400ms debounced** active; **`pageshow` from bfcache**: immediate active.
 
 ### `components/SiteHeader.tsx`
 
