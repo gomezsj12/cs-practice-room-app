@@ -67,6 +67,18 @@ const allowed = new Set([
   "TELEGRAM_WEBHOOK_SECRET",
 ]);
 
+/** Same keys as `vercel-mark-env-sensitive.mjs` — Vercel Sensitive (dashboard-masked). */
+const vercelSensitiveKeys = new Set([
+  "AUTH_GOOGLE_SECRET",
+  "AUTH_SECRET",
+  "CRON_SECRET",
+  "GOOGLE_PRIVATE_KEY",
+  "NOTION_TOKEN",
+  "SUPABASE_SERVICE_ROLE_KEY",
+  "TELEGRAM_BOT_TOKEN",
+  "TELEGRAM_WEBHOOK_SECRET",
+]);
+
 /** Multi-environment row already includes preview + development */
 const skipKeys = new Set(["NOTION_WEBHOOK_VERIFICATION_TOKEN"]);
 
@@ -77,13 +89,16 @@ const skipKeys = new Set(["NOTION_WEBHOOK_VERIFICATION_TOKEN"]);
 const skipForNonProduction = new Set(["AUTH_URL"]);
 
 function addToTarget(key, value, target) {
+  /** Vercel does not allow Sensitive on the `development` target; preview/production only. */
+  const sensitive =
+    target !== "development" && vercelSensitiveKeys.has(key) ? " --sensitive" : "";
   if (target === "preview") {
     const tmp = join(tmpdir(), `vercel-env-${randomBytes(8).toString("hex")}.txt`);
     writeFileSync(tmp, value, "utf8");
     const tmpForSh = tmp.replace(/\\/g, "/");
     try {
       execSync(
-        `vercel env add ${shellQuote(key)} preview --yes --force "" < ${shellQuote(tmpForSh)}`,
+        `vercel env add ${shellQuote(key)} preview${sensitive} --yes --force "" < ${shellQuote(tmpForSh)}`,
         {
           cwd: root,
           shell: true,
@@ -110,7 +125,11 @@ function addToTarget(key, value, target) {
     return 0;
   }
 
-  const r = spawnSync("vercel", ["env", "add", key, target, "--yes", "--force"], {
+  const useSensitive = target !== "development" && vercelSensitiveKeys.has(key);
+  const addArgs = useSensitive
+    ? ["env", "add", key, target, "--sensitive", "--yes", "--force"]
+    : ["env", "add", key, target, "--yes", "--force"];
+  const r = spawnSync("vercel", addArgs, {
     shell: true,
     input: value,
     encoding: "utf8",

@@ -232,6 +232,42 @@ Next.js automatically loads environment variables from a file named **`.env.loca
 
 Values are **not** documented here—only **names** and what they are for. See `.env.example` for the full checklist.
 
+### Vercel: Sensitive vs plain (dashboard)
+
+Vercel distinguishes **Sensitive** variables (`type: "sensitive"` in `vercel env list --format json`) from older **encrypted** rows that still show “Needs Attention” when the value looks like a secret. **Sensitive** masks values in the dashboard for teammates who have project access; runtime/build injection is unchanged for server-side keys.
+
+**Platform limits (current Vercel behavior):**
+
+- **No Sensitive on `development`:** the **Development** environment (used by `vercel dev` / `vercel env pull` for local) cannot store variables as Sensitive. Secrets used only locally stay **encrypted** (or plain) on that target; `vercel-sync-env-targets.mjs` therefore adds `--sensitive` only for **Preview** (not when copying into **Development**).
+- **One binding cannot mix Sensitive with Development:** if a single variable row is attached to **Development + Preview** (or **Development + Production**) together, Vercel refuses to convert it to Sensitive. **Fix in the dashboard:** split into separate rows per environment (same name, same value on each target) so Preview and Production can be Sensitive while Development stays non-sensitive. Until then, `npm run vercel:mark-sensitive` skips those keys and prints a warning.
+
+- **Mark existing rows without rotating values:** from the repo root, with the CLI logged in and the project linked, run `npm run vercel:mark-sensitive` (see [`scripts/vercel-mark-env-sensitive.mjs`](../scripts/vercel-mark-env-sensitive.mjs)). It re-sends the current value with `--sensitive` for **Preview** and **Production** only, for the keys below (subject to the limits above).
+- **New adds via sync script:** [`scripts/vercel-sync-env-targets.mjs`](../scripts/vercel-sync-env-targets.mjs) passes `--sensitive` for the same subset on **Preview** only when copying production → preview/development.
+
+**Use Vercel Sensitive (bearer tokens, signing secrets, private keys):**
+
+| Variable |
+| --- |
+| `AUTH_GOOGLE_SECRET` |
+| `AUTH_SECRET` |
+| `CRON_SECRET` |
+| `GOOGLE_PRIVATE_KEY` |
+| `NOTION_TOKEN` |
+| `NOTION_TOKEN_CALENDAR` |
+| `NOTION_TOKEN_PROFILE` |
+| `NOTION_WEBHOOK_VERIFICATION_TOKEN` |
+| `NOTION_WEBHOOK_VERIFICATION_TOKEN_CALENDAR` |
+| `NOTION_WEBHOOK_VERIFICATION_TOKEN_PROFILE` |
+| `SUPABASE_SERVICE_ROLE_KEY` |
+| `TELEGRAM_BOT_TOKEN` |
+| `TELEGRAM_WEBHOOK_SECRET` |
+
+If `NOTION_WEBHOOK_VERIFICATION_TOKEN` (or any secret) is attached to **Development** in the **same** row as Preview/Production, Vercel keeps it non-Sensitive until you **duplicate** the variable per target in the dashboard (same name and value on each row). The mark-sensitive script skips those combined bindings and logs a warning.
+
+**Keep plain on Vercel (identifiers, public URLs, non-bearer config):** OAuth **client id** (`AUTH_GOOGLE_ID`), deployment URL (`AUTH_URL`), `GOOGLE_CLIENT_EMAIL`, `GOOGLE_PROJECT_ID`, calendar and Notion **IDs** (`PRACTICE_CALENDAR_ID`, `JAM_CALENDAR_ID`, `NOTION_*_ID` data source / database ids, `NOTION_WWU_QUARTERS_DATA_SOURCE_ID`), `SUPABASE_URL`, `ROOM_TIME_ZONE`, `ENABLE_TEMP_HOLDS`, `ADMIN_EMAIL`, `ADMIN_EMAILS`, `FILLOUT_URL`, `NEXT_PUBLIC_*`, `TELEGRAM_SUPPORT_ADMIN_CHAT_ID`, optional `NOTION_WEBHOOK_CALENDAR_DEBUG`, optional WWU quarter property overrides. **Never** put secrets in `NEXT_PUBLIC_*` (they ship in the browser bundle).
+
+Official reference: [Sensitive environment variables](https://vercel.com/docs/environment-variables/sensitive-environment-variables).
+
 ### Google Calendar (service account — server)
 
 Used by `lib/google.ts` so the **server** can read/write calendars without each user granting Calendar access.
@@ -423,7 +459,7 @@ cs-practice-room-app/
 │
 ├── docs/                          # Documentation
 │   ├── ARCHITECTURE.md            # This file
-│   ├── change-log.md              # Consolidated project history (old jam app + this repo)
+│   ├── change-log.md              # Consolidated project history (gitignored locally; see .githooks/README.md)
 │   ├── error-log.md               # Error history and prevention notes
 │   ├── BUILD_PHASES.md            # Original build plan for the portal fork
 │   ├── BROWSER_VERIFICATION.md    # Browser testing guide (Playwright + MCP)
@@ -917,7 +953,7 @@ Localhost "works" when all env vars and Google/Notion/Supabase credentials match
 
 ## Related documentation
 
-- **[change-log.md](./change-log.md)**: Full project history from the pre-Cursor ChatGPT thread through every commit in this repo. Git commit log with attribution, anti-regression table.
+- **[change-log.md](./change-log.md)**: Full project history from the pre-Cursor ChatGPT thread through every commit in this repo (file is **gitignored** per clone; `post-commit` appends Part 2 rows — see [`.githooks/README.md`](../.githooks/README.md)). Anti-regression table at the bottom of that file.
 - **[error-log.md](./error-log.md)**: Historical and ongoing error documentation with root causes and prevention notes.
 - **[BUILD_PHASES.md](./BUILD_PHASES.md)**: Original build plan for the portal fork from the standalone jam scheduler.
 - **[BROWSER_VERIFICATION.md](./BROWSER_VERIFICATION.md)**: Browser testing guide for Playwright and Cursor MCP.

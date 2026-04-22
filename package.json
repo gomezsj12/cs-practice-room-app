@@ -11,7 +11,8 @@
     "test:e2e": "playwright test",
     "test:e2e:headed": "playwright test --headed",
     "test:e2e:ui": "playwright test --ui",
-    "screenshots:guide": "playwright test e2e/guide-screenshots.spec.ts -c playwright.guide.config.ts"
+    "screenshots:guide": "playwright test e2e/guide-screenshots.spec.ts -c playwright.guide.config.ts",
+    "vercel:mark-sensitive": "node scripts/vercel-mark-env-sensitive.mjs"
   },
   "dependencies": {
     "@fullcalendar/core": "^6.1.20",
