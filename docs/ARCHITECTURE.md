@@ -349,7 +349,7 @@ Jam and Fillout master databases should include a **Text** property **`CSPR Canc
 | --- | --- |
 | `NOTION_WEBHOOK_VERIFICATION_TOKEN` | Set in **Production** and in **Preview** if Notion delivers webhooks to preview URLs. Same value as in the Notion integration. |
 | `TELEGRAM_WEBHOOK_SECRET` | Set in **Production** (enforced by the app). Set on **Preview** if Telegram posts to preview URLs. |
-| `CRON_SECRET` | Set wherever `GET`/`POST` `/api/cron/sync-quarters` is called (Vercel Cron uses `Authorization: Bearer ${CRON_SECRET}`). |
+| `CRON_SECRET` | Shared by Vercel Cron (`sync-quarters`) and Supabase `pg_cron` (`presence-sweep`). `Authorization: Bearer ${CRON_SECRET}`. If rotated, update both Vercel env and the `cron.job` command in Supabase. |
 
 ---
 
@@ -510,7 +510,7 @@ Path alias: `@/*` → project root (`tsconfig.json`).
 
 - Client wrapper: **`SessionProvider`** from `next-auth/react`.
 - Mounts **`AccountSetupModal`** globally so it appears over any page when profile setup is incomplete.
-- Mounts **`ProfilePresenceReporter`**, which runs **`useProfilePresence`**: authenticated clients POST **`/api/profile/presence`** so the Notion App Profile Creation Logs row gets **Is Active** and **Last Active At…**. Uses a **heartbeat + idle timeout** model: heartbeat posts `active: true` every 60 s while the user interacts; after 60 s of no interaction (click / scroll / keypress / touch / pointer move) one `active: false` is sent and the heartbeat stops; any subsequent interaction or tab-visible event immediately resumes `active: true` + heartbeat. Interaction listeners are passive/capture and throttled (~2 s). No `pagehide` / `beforeunload` — avoids false inactive on refresh or navigation.
+- Mounts **`ProfilePresenceReporter`**, which runs **`useProfilePresence`**: authenticated clients POST **`/api/profile/presence`** so the Notion App Profile Creation Logs row gets **Is Active** and **Last Active At…**. Uses a **heartbeat + idle timeout** model: heartbeat posts `active: true` every 60 s while the user interacts; after 60 s of no interaction (click / scroll / keypress / touch / pointer move) one `active: false` is sent and the heartbeat stops; any subsequent interaction or tab-visible event immediately resumes `active: true` + heartbeat. Interaction listeners are passive/capture and throttled (~2 s). No `pagehide` / `beforeunload` — avoids false inactive on refresh or navigation. **Server-side sweep:** Supabase `pg_cron` calls `POST /api/cron/presence-sweep` every 2 minutes via `pg_net`; the endpoint queries Notion for `Is Active = true` rows where `Last Active At` is older than 2 minutes and flips them to `false` — handles tab close (where the client can no longer send).
 
 ### `components/SiteHeader.tsx`
 
@@ -764,6 +764,12 @@ Central orchestration:
 - **Vercel Cron** (see repo `vercel.json`) calls **GET** `/api/cron/sync-quarters` once daily (`0 9 * * *` — 09:00 UTC) with `Authorization: Bearer ${CRON_SECRET}` when `CRON_SECRET` is set. (Vercel **Hobby** allows at most one cron invocation per day; use a higher-frequency schedule on Pro if needed.)
 - **POST** with the same header is supported for manual sync.
 - Runs `syncWwuQuartersFromNotion()` (`lib/notion-quarters-sync.ts`): paginated `dataSources.query` on `NOTION_WWU_QUARTERS_DATA_SOURCE_ID`, upserts into `wwu_quarters`, deletes Supabase rows removed from Notion.
+
+### `POST app/api/cron/presence-sweep/route.ts`
+
+- Called every 2 minutes by **Supabase `pg_cron` + `pg_net`** (migration `20260422010000_pg_cron_presence_sweep.sql`).
+- Authorized via `CRON_SECRET` Bearer token (same as quarter sync).
+- Runs `sweepStalePresenceInNotion()` (`lib/notion.ts`): queries Notion profile-log data source for rows where `Is Active = true` and `Last Active At` is older than 2 minutes, then sets `Is Active = false`. Handles tab-close scenarios where the client can no longer send `active: false`.
 
 ### `POST app/api/reserve/route.ts`
 

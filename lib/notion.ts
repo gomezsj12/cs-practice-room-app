@@ -1012,6 +1012,60 @@ export async function syncProfileLogPresenceToNotion(
 }
 
 /**
+ * Sweeps stale presence: queries all profile-log rows where `Is Active` is checked
+ * and `Last Active At` is older than `staleAfterMs`, then sets `Is Active = false`.
+ *
+ * Called by `POST /api/cron/presence-sweep` (Supabase pg_cron → pg_net).
+ * Returns the number of rows flipped.
+ */
+export async function sweepStalePresenceInNotion(
+  staleAfterMs = 120_000,
+): Promise<number> {
+  const dbId = process.env.NOTION_PROFILE_LOG_DB_ID;
+  if (!dbId) return 0;
+
+  const notion = getNotionClientForRealm("profile");
+  const cutoff = new Date(Date.now() - staleAfterMs).toISOString();
+
+  const stalePages: string[] = [];
+  let cursor: string | undefined;
+
+  for (;;) {
+    const res = await notion.dataSources.query({
+      data_source_id: dbId,
+      filter: {
+        and: [
+          { property: NOTION_PROFILE_LOG_IS_ACTIVE, checkbox: { equals: true } },
+          { property: NOTION_PROFILE_LOG_LAST_ACTIVE_AT, date: { before: cutoff } },
+        ],
+      },
+      page_size: 100,
+      ...(cursor ? { start_cursor: cursor } : {}),
+    });
+
+    for (const row of res.results) {
+      if (row && typeof row === "object" && "id" in row) {
+        stalePages.push((row as { id: string }).id);
+      }
+    }
+
+    if (!res.has_more || !res.next_cursor) break;
+    cursor = res.next_cursor;
+  }
+
+  for (const pageId of stalePages) {
+    await notion.pages.update({
+      page_id: pageId,
+      properties: {
+        [NOTION_PROFILE_LOG_IS_ACTIVE]: { checkbox: false },
+      } as Parameters<typeof notion.pages.update>[0]["properties"],
+    });
+  }
+
+  return stalePages.length;
+}
+
+/**
  * Upsert the Notion profile-creation log row for this Google account: query by
  * **Google Email**, update all matches, or create one if none exist.
  *
