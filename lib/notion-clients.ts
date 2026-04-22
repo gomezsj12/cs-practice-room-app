@@ -9,6 +9,10 @@
  */
 
 import { Client } from "@notionhq/client";
+import {
+  NOTION_TOKEN_CALENDAR,
+  NOTION_TOKEN_PROFILE,
+} from "@/lib/notion-dual-integration-env";
 
 /** Pinned Notion API version to avoid breaking changes from upstream. */
 const NOTION_VERSION = "2026-03-11";
@@ -20,9 +24,9 @@ const clients = new Map<NotionRealm, Client>();
 function tokenForRealm(realm: NotionRealm): string {
   const trimmed =
     realm === "calendar"
-      ? (process.env.NOTION_TOKEN_CALENDAR || process.env.NOTION_TOKEN || "")
+      ? (process.env[NOTION_TOKEN_CALENDAR] || process.env.NOTION_TOKEN || "")
           .trim()
-      : (process.env.NOTION_TOKEN_PROFILE || process.env.NOTION_TOKEN || "")
+      : (process.env[NOTION_TOKEN_PROFILE] || process.env.NOTION_TOKEN || "")
           .trim();
   return trimmed;
 }
@@ -38,8 +42,8 @@ export function getNotionClientForRealm(realm: NotionRealm): Client {
   if (!token) {
     throw new Error(
       realm === "calendar"
-        ? "Missing NOTION_TOKEN_CALENDAR (or NOTION_TOKEN fallback) environment variable."
-        : "Missing NOTION_TOKEN_PROFILE (or NOTION_TOKEN fallback) environment variable.",
+        ? `Missing ${NOTION_TOKEN_CALENDAR} (or NOTION_TOKEN fallback) environment variable.`
+        : `Missing ${NOTION_TOKEN_PROFILE} (or NOTION_TOKEN fallback) environment variable.`,
     );
   }
 

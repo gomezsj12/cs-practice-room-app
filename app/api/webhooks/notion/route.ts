@@ -34,6 +34,10 @@
 import { NextResponse } from "next/server";
 import { isEffectiveAppAdmin } from "@/lib/admin";
 import { getSupabaseAdmin } from "@/lib/supabase";
+import {
+  NOTION_WEBHOOK_VERIFICATION_TOKEN_CALENDAR,
+  NOTION_WEBHOOK_VERIFICATION_TOKEN_PROFILE,
+} from "@/lib/notion-dual-integration-env";
 import { matchNotionWebhookSignatureAndRealm } from "@/lib/notion-webhook-secrets";
 import { processNotionCalendarCancellationFromPage } from "@/lib/notion-calendar-webhook";
 import {
@@ -99,8 +103,8 @@ export async function POST(req: Request) {
 
   if (!webhookMatch) {
     const hasAnySecretHint =
-      (process.env.NOTION_WEBHOOK_VERIFICATION_TOKEN_CALENDAR?.trim() ?? "") ||
-      (process.env.NOTION_WEBHOOK_VERIFICATION_TOKEN_PROFILE?.trim() ?? "") ||
+      (process.env[NOTION_WEBHOOK_VERIFICATION_TOKEN_CALENDAR]?.trim() ?? "") ||
+      (process.env[NOTION_WEBHOOK_VERIFICATION_TOKEN_PROFILE]?.trim() ?? "") ||
       (process.env.NOTION_WEBHOOK_VERIFICATION_TOKEN?.trim() ?? "") ||
       bodyToken;
 
@@ -127,9 +131,9 @@ export async function POST(req: Request) {
 
   const { realm } = webhookMatch;
   const envCal =
-    process.env.NOTION_WEBHOOK_VERIFICATION_TOKEN_CALENDAR?.trim() ?? "";
+    process.env[NOTION_WEBHOOK_VERIFICATION_TOKEN_CALENDAR]?.trim() ?? "";
   const envProf =
-    process.env.NOTION_WEBHOOK_VERIFICATION_TOKEN_PROFILE?.trim() ?? "";
+    process.env[NOTION_WEBHOOK_VERIFICATION_TOKEN_PROFILE]?.trim() ?? "";
   const envLegacy = process.env.NOTION_WEBHOOK_VERIFICATION_TOKEN?.trim() ?? "";
 
   if (isSubscriptionVerify) {

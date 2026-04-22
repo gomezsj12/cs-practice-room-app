@@ -4,6 +4,10 @@
  */
 
 import type { NotionRealm } from "@/lib/notion-clients";
+import {
+  NOTION_WEBHOOK_VERIFICATION_TOKEN_CALENDAR,
+  NOTION_WEBHOOK_VERIFICATION_TOKEN_PROFILE,
+} from "@/lib/notion-dual-integration-env";
 import { verifyNotionWebhookSignature } from "@/lib/notion-webhook";
 
 export type NotionWebhookSignatureMatch = {
@@ -46,9 +50,9 @@ export function matchNotionWebhookSignatureAndRealm(
   isSubscriptionVerify: boolean,
 ): NotionWebhookSignatureMatch | null {
   const cal =
-    process.env.NOTION_WEBHOOK_VERIFICATION_TOKEN_CALENDAR?.trim() ?? "";
+    process.env[NOTION_WEBHOOK_VERIFICATION_TOKEN_CALENDAR]?.trim() ?? "";
   const prof =
-    process.env.NOTION_WEBHOOK_VERIFICATION_TOKEN_PROFILE?.trim() ?? "";
+    process.env[NOTION_WEBHOOK_VERIFICATION_TOKEN_PROFILE]?.trim() ?? "";
   const leg = process.env.NOTION_WEBHOOK_VERIFICATION_TOKEN?.trim() ?? "";
   const bodyTok = bodyVerificationToken.trim();
 
