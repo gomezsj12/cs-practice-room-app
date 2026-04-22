@@ -35,7 +35,7 @@ When you finish a change that should be verified in the browser, **explicitly pr
 
 Follow [`.cursor/rules/documentation-protocol.mdc`](./rules/documentation-protocol.mdc) after all substantive work.
 
-**MOST IMPORTANT — change-log:** You MUST update `docs/change-log.md` with a new row every time you create a git commit. Include it in the same commit. **Before each commit,** backfill the prior tip row’s `—` using `git rev-parse --short=7 HEAD`, then add exactly one new row with `—` for the commit you are about to make — never skip this rolling step or leave multiple placeholders. See [`.cursor/rules/change-log.mdc`](./rules/change-log.mdc). If Part 2 is behind `git log`, repair missing rows before continuing.
+**Change log:** `docs/change-log.md` is **gitignored**; the [`post-commit`](../.githooks/post-commit) hook appends a Part 2 row after each commit. After every `git commit`, verify that row exists (or add it manually if hooks/`--no-verify`). Refine summary or attribution when needed. See [`.cursor/rules/change-log.mdc`](./rules/change-log.mdc) and [`.githooks/README.md`](../.githooks/README.md).
 
 Other documentation updates:
 - **After error fixes**: Update `docs/error-log.md`

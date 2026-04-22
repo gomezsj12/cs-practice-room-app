@@ -16,17 +16,15 @@ When you change logic, APIs, types, data flow, or behavior in a source file, you
 
 If you add a **new** exported function, type, component, hook, or API route, it must have a JSDoc block before it is committed.
 
-## MANDATORY: Update change-log on every commit
+## MANDATORY: Change log stays current (local file)
 
-**This is not optional.** Every time you create a git commit, you MUST append a row to the **Part 2** commit log table in `docs/change-log.md` **in the same commit** (or immediately after if you forgot — never leave it for later). Include date, a bold summary, attribution, and **`—` in the Commit column for this new row** (the next commit backfills it). See `.cursor/rules/change-log.mdc` for the full hash workflow.
+`docs/change-log.md` is **gitignored**. The **`post-commit`** hook (see `.githooks/README.md`) appends a **Part 2** row after each successful `git commit` with the real short hash and subject.
 
-See the "How to maintain" section at the top of `docs/change-log.md` for the exact format. Only skip the entry if the commit is purely mechanical (format-only, single typo, dependency bump with no behavior change) — when in doubt, log it.
+**Agent checklist after `git commit`:** Confirm a new Part 2 row exists for `HEAD`. If hooks were off or `--no-verify` was used, append the row manually (`git rev-parse --short=7 HEAD`, `git log -1 --format=%s`). Refine the hook’s summary or attribution when the default line is insufficient.
 
-**Pre-commit checklist item:** Before running `git commit`, ask yourself: "Did I add a row to `docs/change-log.md`?" If not, add it now.
+See the "How to maintain" section at the top of `docs/change-log.md` for table format. When in doubt, log substantive work; purely mechanical churn can stay as the hook’s minimal line unless the owner wants more detail.
 
-**Rolling hash (mandatory):** Before committing, run `git rev-parse --short=7 HEAD`. If Part 2's **last** row still has `—`, **replace that cell** with that hash (it belongs to the *previous* tip commit). Then append **one** new row for *this* commit with `—`. **Never** stack multiple `—` rows or skip the backfill. Commit once—do **not** `git commit --amend` to inject the new hash (avoids amend/hash drift loops).
-
-**Drift repair:** If `main` contains commits with no Part 2 row, repair the table (chronological order, matching `git log`) in the same session before you treat the log as authoritative again.
+**Drift repair:** If your local Part 2 is behind `git log`, backfill rows in chronological order (matching `git log`) before relying on the file as a journal.
 
 ## After every error fix
 

@@ -6,12 +6,9 @@
   // Git terminal: use full permissions (all) for every git command — see rules/git-commands.mdc.
   //
   // - Code map: docs/ARCHITECTURE.md
-  // - Planning + git change log + regressions: docs/change-log.md
+  // - Planning + git change log + regressions: docs/change-log.md (gitignored; post-commit hook appends Part 2 — see .githooks/README.md)
   //
-  // When you finish work that is recorded as a SUBSTANTIVE git commit (after owner-approved commit):
-  // MANDATORY rolling hash: git rev-parse --short=7 HEAD → backfill last Part 2 "—" if present → append ONE new row with "—".
-  // Never skip backfill, never leave two "—" rows; if main is ahead of the table, repair Part 2 first.
-  // (skip typo-only / format-only churn unless asked). Attribution: Cursor agent vs Human per SETTINGS.md.
+  // After owner-approved commit: confirm Part 2 has a row for HEAD (hook or manual); refine summary/attribution if needed.
   "plugins": {
     "vercel": {
       "enabled": true

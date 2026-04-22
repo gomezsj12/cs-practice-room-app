@@ -5,7 +5,7 @@
 | File | Purpose |
 | --- | --- |
 | [ARCHITECTURE.md](./ARCHITECTURE.md) | Tech stack, file map, data flow, environment variables, system design, and notes for working on the project. |
-| [change-log.md](./change-log.md) | Full project history: pre-Cursor jam reservation app commits + CS Practice Room commits, with attribution and anti-regression table. |
+| [change-log.md](./change-log.md) | Full project history: pre-Cursor jam reservation app commits + CS Practice Room commits, with attribution and anti-regression table. **Gitignored** locally; enable [`.githooks/README.md`](../.githooks/README.md) so `post-commit` appends Part 2 rows. |
 | [error-log.md](./error-log.md) | Error history with root causes, fixes applied, and prevention notes. Add new entries when bugs are fixed. |
 | [ui-lookbook.md](./ui-lookbook.md) | Visual documentation of every UI page, state, and interaction. Desktop + mobile screenshots in `screenshots/`. |
 | [code-audit.md](./code-audit.md) | Code redundancy and efficiency findings with risk levels and implementation status. |
@@ -19,7 +19,7 @@
 
 Cursor agents follow the documentation protocol in `.cursor/rules/documentation-protocol.mdc`:
 
-- **After commits** → update `change-log.md`
+- **After commits** → `post-commit` updates local `change-log.md` (or append manually if hooks are off)
 - **After error fixes** → update `error-log.md`
 - **After UI changes** → update `ui-lookbook.md` + component comments
 - **After architecture changes** → update `ARCHITECTURE.md` + file-level JSDoc

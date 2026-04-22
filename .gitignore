@@ -53,5 +53,8 @@ yarn-error.log*
 *.tsbuildinfo
 next-env.d.ts
 
+# Local-only running history (post-commit hook appends Part 2 rows)
+docs/change-log.md
+
 .vercel
 .env*.local
