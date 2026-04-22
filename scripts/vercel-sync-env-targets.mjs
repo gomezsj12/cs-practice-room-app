@@ -3,6 +3,9 @@
  * Development targets. Run from repo root after:
  *   vercel env pull .env.vercel.pull --environment=production --yes
  *
+ * Bearer/signing secrets use `vercel env add … --sensitive` on **Preview** only;
+ * Vercel disallows Sensitive on the **Development** target.
+ *
  * Does not commit secrets; `.env*` is gitignored.
  */
 import { readFileSync, writeFileSync, unlinkSync } from "node:fs";
