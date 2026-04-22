@@ -19,7 +19,7 @@ This project is a new portal app for the CS Practice Room. It keeps the existing
 
 See **[docs/ARCHITECTURE.md](docs/ARCHITECTURE.md)** for the full variable list and the **Webhooks and cron** table.
 
-**Vercel dashboard:** for API keys, webhook secrets, and `GOOGLE_PRIVATE_KEY`, use **Sensitive** env vars so values stay masked for teammates ([ARCHITECTURE.md — Vercel: Sensitive vs plain](docs/ARCHITECTURE.md#vercel-sensitive-vs-plain-dashboard)). After linking the CLI, run `npm run vercel:mark-sensitive` once to upgrade existing rows without changing names or values.
+**Vercel dashboard:** for API keys, webhook secrets, and `GOOGLE_PRIVATE_KEY`, use **Sensitive** env vars so values stay masked for teammates ([ARCHITECTURE.md — Vercel: Sensitive vs plain](docs/ARCHITECTURE.md#vercel-sensitive-vs-plain-dashboard)). You can set that in **Settings → Environment Variables** for each key, or with the CLI run `npm run vercel:mark-sensitive` once (linked project) to upgrade existing Preview/Production rows without changing names or values.
 
 **Quarter sync:** Notion quarters are mirrored into Supabase table **`wwu_quarters`** by the cron route. Apply the migration in `supabase/migrations/`. On **Vercel Hobby**, `vercel.json` uses **one daily** cron (09:00 UTC); run a manual sync after Notion edits if you need immediate updates, or upgrade to Pro for more frequent schedules.
 3. Run the development server:

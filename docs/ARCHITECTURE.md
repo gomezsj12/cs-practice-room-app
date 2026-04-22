@@ -244,6 +244,8 @@ Vercel distinguishes **Sensitive** variables (`type: "sensitive"` in `vercel env
 - **Mark existing rows without rotating values:** from the repo root, with the CLI logged in and the project linked, run `npm run vercel:mark-sensitive` (see [`scripts/vercel-mark-env-sensitive.mjs`](../scripts/vercel-mark-env-sensitive.mjs)). It re-sends the current value with `--sensitive` for **Preview** and **Production** only, for the keys below (subject to the limits above).
 - **New adds via sync script:** [`scripts/vercel-sync-env-targets.mjs`](../scripts/vercel-sync-env-targets.mjs) passes `--sensitive` for the same subset on **Preview** only when copying production → preview/development.
 
+**In the Vercel dashboard (no CLI):** **Project** → **Settings** → **Environment Variables**. For each name in the Sensitive table below, edit the row and turn on **Sensitive** if the UI still shows the value or “Needs Attention.” If one row is attached to **Development** and Preview/Production together, split it into **separate rows per environment** (same name, same value on each), then mark **Sensitive** only on Preview and Production (Development cannot use Sensitive).
+
 **Use Vercel Sensitive (bearer tokens, signing secrets, private keys):**
 
 | Variable |
