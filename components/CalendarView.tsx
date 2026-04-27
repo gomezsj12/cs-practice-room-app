@@ -1117,6 +1117,8 @@ export default function CalendarView() {
 
     const SWIPE_MIN_PX = 50;
     const SWIPE_MAX_OFF_AXIS_PX = 80;
+    /** Vertical finger movement beyond this marks the gesture as a scroll, not a tap. */
+    const SCROLL_MIN_PX = 10;
     /** On session blocks, slightly tighter than empty grid (also drives delayed single-tap open). */
     const DOUBLE_TAP_MAX_MS_GRID = 550;
     const DOUBLE_TAP_MAX_MS_ON_EVENT = 160;
@@ -1131,6 +1133,8 @@ export default function CalendarView() {
     let startY = 0;
     let tracking = false;
     let swiping = false;
+    /** True once the current gesture has moved vertically past SCROLL_MIN_PX. */
+    let scrolling = false;
     /** True for the current finger-down if touchstart was on a FullCalendar event. */
     let gestureStartedOnEvent = false;
     let gestureStartedOnFridayRestriction = false;
@@ -1234,6 +1238,7 @@ export default function CalendarView() {
       gestureStartedOnEvent = touchStartsOnCalendarEvent(e.target);
       tracking = true;
       swiping = false;
+      scrolling = false;
       startX = t.clientX;
       startY = t.clientY;
       activeNavGestureTouchIdRef.current = t.identifier;
@@ -1263,10 +1268,16 @@ export default function CalendarView() {
 
       if (!swiping) {
         if (Math.abs(dx) < 10) {
+          // Predominantly vertical — if past threshold, latch as scroll
+          // so finalizeNavTouch won’t treat it as a tap on an event.
+          if (!scrolling && Math.abs(dy) > SCROLL_MIN_PX) {
+            scrolling = true;
+          }
           return;
         }
         // Only treat as swipe if it’s predominantly horizontal.
         if (Math.abs(dy) > SWIPE_MAX_OFF_AXIS_PX) {
+          scrolling = true;
           tracking = false;
           return;
         }
@@ -1309,6 +1320,17 @@ export default function CalendarView() {
           goToPrev();
         }
         swiping = false;
+        return;
+      }
+
+      // Vertical scroll detected — not a tap. Suppress any pending/delayed event open.
+      if (scrolling) {
+        clearDelayedEventOpen();
+        pendingFridayOpenDateStrRef.current = null;
+        if (gestureStartedOnEvent || gestureStartedOnFridayRestriction) {
+          suppressEventClickUntilMsRef.current = Date.now() + 450;
+        }
+        scrolling = false;
         return;
       }
 
