@@ -133,7 +133,7 @@ Same as the user guide: navigation **H / B / C / S**, **R** to refresh profile, 
 
 ## Touch and mobile
 
-Staff use the same **swipe** and **double-tap** gestures on the calendar as students. On **Support**, use the **back** arrow to move from a chat back to the full list on phones.
+Staff use the same **swipe**, **double-tap**, and **scroll** gestures on the calendar as students (scrolling over events won't accidentally open them). On **Support**, use the **back** arrow to move from a chat back to the full list on phones.
 
 ---
 

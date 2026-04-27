@@ -21,6 +21,9 @@
  * - Double-tap — jump to today
  *   (including over Friday restriction bands, blocked-off events, and other
  *   `data-calendar-gesture-passthrough` targets)
+ * - Vertical scroll — scrolls the time grid; a vertical movement > 10 px
+ *   latches a `scrolling` flag that suppresses the delayed event-click so
+ *   scrolling over an event never accidentally opens it
  *
  * Key hooks consumed:
  * - {@link useBookingFlow} — hold / reserve / cancel state machine

@@ -192,6 +192,7 @@ These letter shortcuts are **disabled** on smaller windows and on phones.
 | -------------------------------------- | ------------------------------------ |
 | **Swipe left / right** on the calendar | Move to the **previous or next day** |
 | **Double-tap** the calendar            | Jump to **today**                    |
+| **Scroll up / down** on the calendar   | Scroll to earlier or later times — won't accidentally open an event your finger passes over |
 
 
 ---
