@@ -768,6 +768,8 @@ Central orchestration:
 - `PUT` validates `eventType`, `googleEventId`, current event metadata, and a preset `tagKey`, then upserts one row in Supabase `admin_event_tags`.
 - `DELETE` removes that admin’s private tag row for the target event.
 - Tags are scoped by **admin email + event type + Google event id**, so they stay private to one admin and survive ordinary event time edits.
+- Current preset keys are `amber`, `rose`, `emerald`, `orange`, and `lime`; the UI also exposes a “no tag” state that clears the row.
+- On the calendar grid, tags render as a top strip, a subtle tint, and a small swatch without affecting FullCalendar’s timed-event height or placement.
 
 ### `GET` / `POST` `app/api/cron/sync-quarters/route.ts`
 

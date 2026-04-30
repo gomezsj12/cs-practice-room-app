@@ -221,8 +221,10 @@ Booking and calendar navigation live in the **header nav** (**Booking**, **Calen
 **Admin-only private tags:**
 - Practice and jam events may show a **small color swatch** in the top-right of the event block for the current admin only.
 - Tagged events also get a **thin colored top strip** and a subtle matching tint overlay.
-- These colors are drawn from a fixed preset and do **not** replace the shared practice/jam base colors.
+- These colors are drawn from a fixed preset: **Amber**, **Rose**, **Emerald**, **Orange**, and **Lime**.
+- The private tag decoration does **not** replace the shared practice/jam base colors.
 - Practice events can still show their separate **Session Status** outline at the same time.
+- Tagging must **not** change the event’s time-grid height, timespan, or placement; tagged events render across the same full duration as untagged events.
 
 **Event content** (inside each block):
 - Time range (e.g., "2:00 - 3:30 PM") — top line, smaller text
@@ -299,6 +301,7 @@ Opens when clicking on a calendar event (practice or jam).
 - **Practice events:** existing Session Status picker, Notion link, time editing, assignee picker, patchlist editor
 - **Practice and jam events:** separate **Private Calendar Tag** select with preset non-blue / non-grey colors
 - Private tag helper copy explains that the color is visible only on the current admin's calendar
+- The select includes a **No private tag** option that removes the decoration entirely
 
 **States:**
 - **Practice event (not owned)**: Description/details visible when present; no cancel button

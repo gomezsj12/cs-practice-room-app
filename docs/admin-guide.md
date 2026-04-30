@@ -109,9 +109,10 @@ Tap any event for details. **Admins** can cancel **jam** and **practice** events
 
 Admins can add a **private calendar tag** inside the event details popup for **practice** and **jam** events:
 
-- The tag uses a small preset color list.
+- The tag uses a fixed preset color list: **Amber**, **Rose**, **Emerald**, **Orange**, and **Lime**.
 - It is **only visible to the admin who set it**.
 - It does **not** change the booking itself, the public calendar, other admins' views, or the event's Google/Notion details.
+- It adds a small color marker and matching accent on that admin's calendar, but it does **not** change the event's time length or where it sits on the grid.
 
 This is meant for personal workflow cues such as follow-up, staffing, or internal reminders. It is separate from the practice **Session Status** control so the two meanings do not get mixed together.
 
