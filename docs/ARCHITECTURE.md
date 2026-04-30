@@ -22,6 +22,7 @@ Sam is **not an experienced developer**. When helping with this repo, assistants
 - **Public calendar**: Anyone can see practice-room availability: practice bookings (from one Google Calendar) and jam reservations (from another).
 - **Jam reservations**: Signed-in Google users can drag-select a time range, optionally get a short **temporary hold** in Supabase, then confirm with name and instrument. The server creates a Google Calendar event on the jam calendar and logs a row in **Notion**.
 - **Cancellation**: Jam creators can cancel their own events; an **admin email** (env) can cancel any jam. Practice bookers can cancel their own practice from the calendar only when their linked WWU email is an attendee and their name matches the title segment after the hyphen.
+- **Admin private tags**: Signed-in admins can assign a preset private color tag to practice and jam events. These tags are stored in Supabase per admin email and affect only that admin’s calendar rendering.
 - **PWA**: Install prompts, web app manifest, and a service worker cache an app shell for offline-friendly loading (not a full offline calendar sync).
 - **Support inbox**: Signed-in users can submit support requests and exchange messages with staff. Messages sync bidirectionally with a Telegram admin chat.
 - **Booking form**: An embedded Fillout form for longer practice-room bookings (separate from jam reservations).
@@ -736,7 +737,8 @@ Central orchestration:
 | File | Role |
 | --- | --- |
 | `components/ReserveModal.tsx` | Form: first name, instrument select (Drums / Piano / Other). Modes: securing, hold (countdown to `onExpire`), fallback. Disables submit while securing. |
-| `components/EventDetailsModal.tsx` | Shows practice vs jam, title, time range, cleaned description text; cancel button only when the current user owns the event and it has not ended. |
+| `components/EventDetailsModal.tsx` | Shows practice vs jam, title, time range, cleaned description text; cancel button only when the current user owns the event and it has not ended. Admins also get a separate private tag control for practice/jam events, distinct from the practice Session Status editor. |
+| `components/AdminEventTagSelect.tsx` | Admin-only shadcn-based select for private calendar tags with a fixed non-blue / non-grey preset palette. |
 | `components/ConfirmModal.tsx` | Generic confirm/cancel dialog (used for cancel confirmation). |
 | `components/Toast.tsx` | Fixed bottom-right toast (success / error / info), auto-dismiss ~3.5s from parent. |
 | `components/InstallPrompt.tsx` | `beforeinstallprompt` for Chromium install; iOS Safari hint; hides when standalone or dismissed. |
@@ -755,9 +757,17 @@ Central orchestration:
 - Loads **practice** and **jam** calendars via `getCalendarClient()` for the resolved window.
 - Loads the current user's Supabase profile when available so practice ownership can be evaluated against linked WWU email and display name.
 - Maps Google events to a unified JSON shape: `eventType` `practice` | `jam`, colors, cleaned `description`, normalized `attendees`, and `canCancel`.
+- When the current user is an admin, also loads matching rows from Supabase `admin_event_tags` and merges that admin’s private tag metadata into the returned practice/jam events only for that admin session.
 - Jam `canCancel`: owner email from `extendedProperties.private.ownerEmail` vs current user vs `ADMIN_EMAIL`, or `isAdmin` (from `ADMIN_EMAILS` env var).
 - Practice `canCancel`: linked WWU email must appear in attendees and the booker name in the title (after the hyphen) must match the current user, or `isAdmin`.
 - If `ENABLE_TEMP_HOLDS === "true"`, merges pending Supabase holds as `eventType: "hold"` with dashed styling class. Supabase errors are logged; events still return without holds.
+
+### `PUT` / `DELETE` `app/api/admin-event-tags/route.ts`
+
+- Requires a signed-in admin (`auth()` + `isAppAdmin`).
+- `PUT` validates `eventType`, `googleEventId`, current event metadata, and a preset `tagKey`, then upserts one row in Supabase `admin_event_tags`.
+- `DELETE` removes that admin’s private tag row for the target event.
+- Tags are scoped by **admin email + event type + Google event id**, so they stay private to one admin and survive ordinary event time edits.
 
 ### `GET` / `POST` `app/api/cron/sync-quarters/route.ts`
 
@@ -822,6 +832,9 @@ Builds JWT auth from `GOOGLE_CLIENT_EMAIL`, `GOOGLE_PRIVATE_KEY` (newline fix `r
 ### `lib/admin.ts`
 Admin-role helpers. `getAdminEmails()` parses the `ADMIN_EMAILS` env var into a `Set<string>`; `isAdminEmail(email)` checks membership. Used in `auth.ts` JWT callback, profile setup, cancel routes, and support routes.
 
+### `lib/admin-event-tags.ts`
+Defines the fixed private tag palette (`amber`, `rose`, `emerald`, `orange`, `lime`), validates tag keys and taggable event types, and wraps Supabase reads/writes for `admin_event_tags`. These tags are intentionally separate from Notion **Session Status** so private workflow color cues do not alter shared event meaning.
+
 ### `lib/supabase.ts`
 `getSupabaseAdmin()`: `SUPABASE_URL` + `SUPABASE_SERVICE_ROLE_KEY`, no session persistence (server-only). Lazy singleton. The service role key bypasses RLS, so all tables are accessible even though RLS is enabled with no permissive policies (see [Row-Level Security](#row-level-security-rls)).
 
@@ -844,7 +857,7 @@ If Notion **rate limits** or **delivery guarantees** become a problem at higher 
 Centralized app metadata: name, description, public URLs for Fillout, Telegram contact, and Telegram group. Reads from `NEXT_PUBLIC_*` env vars with fallback defaults.
 
 ### `lib/types.ts`
-Shared TypeScript types: `GoogleApiEvent`, `CalendarEventAttendee`, `HoldRow`, `WwuQuarterRow`, `ApiQuarterInfo`, `ApiCalendarEvent`, `CalendarEvent`, `PendingSelection`, `ToastState`, `DragMirrorState`, `ProfileRow` (includes `is_admin`), `SupportThreadRow`, `SupportMessageRow`.
+Shared TypeScript types: `GoogleApiEvent`, `CalendarEventAttendee`, `HoldRow`, `WwuQuarterRow`, `ApiQuarterInfo`, `ApiCalendarEvent`, `CalendarEvent`, `PendingSelection`, `ToastState`, `DragMirrorState`, `ProfileRow` (includes `is_admin`), `SupportThreadRow`, `SupportMessageRow`. Calendar event types also carry optional admin-private tag fields used only for the current admin’s rendering.
 
 ### `lib/quarter-window.ts`
 `getRoomTimeZone`, `calendarDateInZone`, `getActiveQuarterWindow` (Supabase quarter containing today), `getResolvedCalendarDataWindow` (quarter or fallback — shared by `/api/events` and booking routes), `bookingIntervalWithinDataWindow` (server-side parity for reserve / holds / blocked times), `rollingFallbackWindow` (legacy −7/+30), and `ymdBoundsToUtcDates` for Google `timeMin`/`timeMax`.
@@ -893,7 +906,7 @@ All public tables have **RLS enabled** with **no permissive policies**. The `ano
 - The app is unaffected because it exclusively uses the **service role key** via `getSupabaseAdmin()` in server-side API routes — the service role bypasses RLS entirely.
 - If the app ever introduces a client-side Supabase client (using the anon key), explicit RLS policies would need to be created for the tables it accesses.
 
-This was applied via the `enable_rls_on_all_tables` migration (2026-04-11). Newer tables **`wwu_quarters`** and **`friday_exceptions`** use the same pattern via [`supabase/migrations/20260416180000_rls_wwu_quarters_friday_exceptions.sql`](../supabase/migrations/20260416180000_rls_wwu_quarters_friday_exceptions.sql) (enable RLS, revoke `anon` / `authenticated` grants). **`practice_session_cache`** follows the same pattern via [`supabase/migrations/20260419120000_practice_session_cache.sql`](../supabase/migrations/20260419120000_practice_session_cache.sql).
+This was applied via the `enable_rls_on_all_tables` migration (2026-04-11). Newer tables **`wwu_quarters`** and **`friday_exceptions`** use the same pattern via [`supabase/migrations/20260416180000_rls_wwu_quarters_friday_exceptions.sql`](../supabase/migrations/20260416180000_rls_wwu_quarters_friday_exceptions.sql) (enable RLS, revoke `anon` / `authenticated` grants). **`practice_session_cache`** follows the same pattern via [`supabase/migrations/20260419120000_practice_session_cache.sql`](../supabase/migrations/20260419120000_practice_session_cache.sql), and **`admin_event_tags`** via [`supabase/migrations/20260429170000_admin_event_tags.sql`](../supabase/migrations/20260429170000_admin_event_tags.sql).
 
 **Dashboard verification (manual):** In the Supabase project → **Table editor** → each public table → confirm **RLS enabled**. Under **Authentication** → **Policies**, confirm there are no unintended `USING (true)` policies. Under **Database** → **Roles**, confirm `anon` and `authenticated` have no table privileges on app data tables if you rely on service-role-only access.
 
@@ -926,6 +939,23 @@ Read-through cache for **Notion Fillout / practice** row fields keyed by **Custo
 
 Index: `idx_psc_notion_page_id` on `notion_page_id` for webhook upserts by page id.
 
+### Table `admin_event_tags`
+
+Private per-admin color tags for shared calendar events. These rows never change Google Calendar or Notion; they only decorate the signed-in admin’s own calendar view.
+
+| Column | Type | Usage |
+| --- | --- | --- |
+| `id` | uuid | Row id |
+| `admin_email` | text | Lowercased Google email of the admin who owns the tag |
+| `event_type` | text | `practice` or `jam` |
+| `google_event_id` | text | Shared Google Calendar event id |
+| `event_title` | text | Last known title when the tag was saved |
+| `event_start` / `event_end` | timestamptz | Last known time range when the tag was saved |
+| `tag_key` | text | Preset color key: `amber`, `rose`, `emerald`, `orange`, `lime` |
+| `created_at` / `updated_at` | timestamptz | Audit timestamps |
+
+Unique constraint: `(admin_email, event_type, google_event_id)`
+
 ### Table `support_threads`
 
 See [Support system architecture](#support-system-architecture) above.
@@ -950,14 +980,14 @@ See [Support system architecture](#support-system-architecture) above.
 
 ## Request / data flow (summary)
 
-1. **Browse**: `GET /api/events` merges Google (practice + jam) + optional Supabase holds (no session required); UI assigns colors, cleaned descriptions, and owner-aware `canCancel` flags when a session is present.
+1. **Browse**: `GET /api/events` merges Google (practice + jam) + optional Supabase holds (no session required); UI assigns colors, cleaned descriptions, and owner-aware `canCancel` flags when a session is present. For admins, the same response may also include that admin’s private tag metadata for practice/jam events.
 2. **Select slot** (authenticated): `POST /api/holds/create` → optional 30-second hold, or fallback UI if disabled/fails.
 3. **Confirm**: `POST /api/reserve` → verify hold if any → overlap check → Google insert → Notion insert (best-effort) → delete hold.
 4. **Cancel**: `POST /api/cancel` → authorize by event type → Google delete → Notion status update for jams (Google Event ID) and practice (**Custom Event ID**, best-effort), stamping **CSPR Cancel origin** = `calendar_app`. **Notion → Google (jams only):** `POST /api/webhooks/notion` on `page.properties_updated` deletes the jam Calendar event when **Status** is **Cancelled** and origin is not `calendar_app`.
 5. **Support**: User submits via `/api/support/contact` → Supabase + Telegram. Admin replies via Telegram webhook or `/api/support/reply`.
-6. **Admin practice session (signed-in admin only):** `POST /api/practice-session/batch-statuses` loads Session Status outlines from **`practice_session_cache`** (bulk), backfilling Notion on miss. `GET /api/practice-session/details` serves modal fields from cache when fresh, unless **`revalidate=1`** (calendar always sends it so Notion is the source of truth while the modal is open). `GET /api/notion/people-directory` returns the People directory for the assignee picker (cached list server-side). `PATCH /api/practice-session` updates Google Calendar + Notion (including **Assignee(s)** relation), then upserts the cache. **Notion webhook:** for Fillout master data-source pages, upserts **`practice_session_cache`** when properties change (in addition to existing cancel/profile behavior).
+6. **Admin practice session (signed-in admin only):** `POST /api/practice-session/batch-statuses` loads Session Status outlines from **`practice_session_cache`** (bulk), backfilling Notion on miss. `GET /api/practice-session/details` serves modal fields from cache when fresh, unless **`revalidate=1`** (calendar always sends it so Notion is the source of truth while the modal is open). `GET /api/notion/people-directory` returns the People directory for the assignee picker (cached list server-side). `PATCH /api/practice-session` updates Google Calendar + Notion (including **Assignee(s)** relation), then upserts the cache. `PUT` / `DELETE /api/admin-event-tags` updates the admin’s private color tags in **`admin_event_tags`** without mutating shared event data. **Notion webhook:** for Fillout master data-source pages, upserts **`practice_session_cache`** when properties change (in addition to existing cancel/profile behavior).
 
-**Source of truth for "what is booked"** is **Google Calendar** (two calendars). **Notion** is a **log/audit** mirror. **Supabase** is **ephemeral coordination** for holds, **persistent storage** for support threads and quarter metadata, and a **read-through cache** for hot Notion-derived practice session fields (`practice_session_cache`).
+**Source of truth for "what is booked"** is **Google Calendar** (two calendars). **Notion** is a **log/audit** mirror. **Supabase** is **ephemeral coordination** for holds, **persistent storage** for support threads and quarter metadata, a **read-through cache** for hot Notion-derived practice session fields (`practice_session_cache`), and a **private admin decoration store** for calendar tags (`admin_event_tags`).
 
 ---
 

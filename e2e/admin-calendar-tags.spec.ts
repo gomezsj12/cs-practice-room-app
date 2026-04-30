@@ -140,6 +140,7 @@ test.describe("admin", () => {
       hasText: "Team Practice",
     });
     await expect(practiceEvent).toBeVisible();
+    const heightBeforeTag = (await practiceEvent.boundingBox())?.height;
     await practiceEvent.click();
 
     await expect(
@@ -152,6 +153,10 @@ test.describe("admin", () => {
     await expect(page.getByText("Private calendar tag saved.")).toBeVisible();
     await expect(practiceEvent).toHaveClass(/fc-admin-tagged-event/);
     await expect(practiceEvent.locator(".fc-admin-tag-swatch")).toBeVisible();
+    const heightAfterTag = (await practiceEvent.boundingBox())?.height;
+    expect(heightBeforeTag).toBeDefined();
+    expect(heightAfterTag).toBeDefined();
+    expect(Math.abs((heightAfterTag ?? 0) - (heightBeforeTag ?? 0))).toBeLessThanOrEqual(2);
     expect(mocks.getLastTagWriteBody()).toMatchObject({
       eventType: "practice",
       googleEventId: "practice-1",

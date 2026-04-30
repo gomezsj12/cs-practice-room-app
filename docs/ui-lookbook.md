@@ -218,6 +218,12 @@ Booking and calendar navigation live in the **header nav** (**Booking**, **Calen
 | **Temporary hold** | Semi-transparent white | 2px dashed | Glass-like backdrop blur |
 | **Past events** | Same base color, dimmed | opacity: 0.5, desaturated | |
 
+**Admin-only private tags:**
+- Practice and jam events may show a **small color swatch** in the top-right of the event block for the current admin only.
+- Tagged events also get a **thin colored top strip** and a subtle matching tint overlay.
+- These colors are drawn from a fixed preset and do **not** replace the shared practice/jam base colors.
+- Practice events can still show their separate **Session Status** outline at the same time.
+
 **Event content** (inside each block):
 - Time range (e.g., "2:00 - 3:30 PM") — top line, smaller text
 - Title (e.g., "Sam - Drums") — second line, bold
@@ -288,6 +294,11 @@ Opens when clicking on a calendar event (practice or jam).
 - Date/time range
 - Optional **Details** panel showing the cleaned Google Calendar description text
 - Cancel button only when the current user owns the event and it has not ended
+
+**Admin additions:**
+- **Practice events:** existing Session Status picker, Notion link, time editing, assignee picker, patchlist editor
+- **Practice and jam events:** separate **Private Calendar Tag** select with preset non-blue / non-grey colors
+- Private tag helper copy explains that the color is visible only on the current admin's calendar
 
 **States:**
 - **Practice event (not owned)**: Description/details visible when present; no cancel button
@@ -450,3 +461,4 @@ The "Support" link in the header shows an unread indicator (amber dot) when any 
 | 2026-04-09 | Initial look book created — baseline of all current UI states | (original screenshots) |
 | 2026-04-09 | Added desktop (1440×900) and mobile (390×844) screenshots with full-page scrolling for all pages | `desktop-*` and `mobile-*` in `docs/screenshots/` |
 | 2026-04-10 | Main nav labels: **Booking** / **Calendar**; calendar page info card copy and typography (heading, body, note); look book text aligned | (refresh screenshots when convenient) |
+| 2026-04-29 | Admin-only private event tags added to calendar event modal and event blocks; separate from practice Session Status | (refresh admin screenshots when convenient) |

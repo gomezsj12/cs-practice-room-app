@@ -14,6 +14,7 @@ This guide is for **student leaders and staff** who help run the practice room: 
 - **Cancel** calendar events when needed, even if the event belongs to someone else.
 - **Block off** time so nobody can book it, and **remove** those blocks later.
 - **Open** a **Friday afternoon** exception when the room should allow jams past the usual cutoff for a specific date.
+- Add a **private color tag** to a practice or jam event for their own admin calendar view only.
 
 Regular students see only their own support threads and can only cancel events the rules allow for their own bookings.
 
@@ -103,6 +104,16 @@ On **Fridays**, a red-tinted band may show **Practice Room Closed** for a time w
 ### Canceling events
 
 Tap any event for details. **Admins** can cancel **jam** and **practice** events when policy allows, including events created by others—useful when someone asks for help or a booking was made in error.
+
+### Private event color tags
+
+Admins can add a **private calendar tag** inside the event details popup for **practice** and **jam** events:
+
+- The tag uses a small preset color list.
+- It is **only visible to the admin who set it**.
+- It does **not** change the booking itself, the public calendar, other admins' views, or the event's Google/Notion details.
+
+This is meant for personal workflow cues such as follow-up, staffing, or internal reminders. It is separate from the practice **Session Status** control so the two meanings do not get mixed together.
 
 ---
 

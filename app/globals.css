@@ -326,7 +326,7 @@ body {
 }
 
 .fc .fc-timegrid-event-harness .fc-event.fc-admin-tagged-event {
-  position: relative;
+  position: absolute;
 }
 
 .fc .fc-timegrid-event-harness .fc-event.fc-admin-tagged-event::before {
