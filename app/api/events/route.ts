@@ -33,6 +33,12 @@
 
 import { NextResponse } from "next/server";
 import { auth } from "@/auth";
+import {
+  type AdminEventTaggableEventType,
+  getAdminEventTagLookupKey,
+  getAdminEventTagOption,
+  getAdminEventTagsForEvents,
+} from "@/lib/admin-event-tags";
 import { isEffectiveAppAdmin } from "@/lib/admin";
 import {
   canUserCancelJamEvent,
@@ -337,6 +343,68 @@ export async function GET() {
     const blockedEvents = blockedTimeRows.map((row) =>
       mapBlockedTimeToApiEvent(row, isAdmin),
     );
+
+    if (isAdmin && currentUserEmail) {
+      try {
+        const adminTaggableEvents = [...practiceEvents, ...jamEvents]
+          .filter(
+            (
+              event,
+            ): event is ApiCalendarEvent & {
+              googleEventId: string;
+              eventType: AdminEventTaggableEventType;
+            } =>
+              Boolean(
+                event.googleEventId &&
+                  (event.eventType === "practice" ||
+                    event.eventType === "jam"),
+              ),
+          )
+          .map((event) => ({
+            eventType: event.eventType,
+            googleEventId: event.googleEventId,
+          }));
+
+        const adminTagMap = await getAdminEventTagsForEvents(
+          currentUserEmail,
+          adminTaggableEvents,
+        );
+
+        const attachAdminTag = (event: ApiCalendarEvent): ApiCalendarEvent => {
+          if (
+            !event.googleEventId ||
+            (event.eventType !== "practice" && event.eventType !== "jam")
+          ) {
+            return event;
+          }
+
+          const tagRow = adminTagMap.get(
+            getAdminEventTagLookupKey(event.eventType, event.googleEventId),
+          );
+          const tagOption = getAdminEventTagOption(tagRow?.tag_key);
+          if (!tagOption) {
+            return event;
+          }
+
+          return {
+            ...event,
+            adminTagKey: tagOption.value,
+            adminTagLabel: tagOption.label,
+            adminTagColor: tagOption.color,
+            adminTagOverlayColor: tagOption.overlayColor,
+          };
+        };
+
+        for (let i = 0; i < practiceEvents.length; i += 1) {
+          practiceEvents[i] = attachAdminTag(practiceEvents[i]);
+        }
+        for (let i = 0; i < jamEvents.length; i += 1) {
+          jamEvents[i] = attachAdminTag(jamEvents[i]);
+        }
+      } catch (tagError) {
+        console.error("[events] Failed to load admin event tags:", tagError);
+      }
+    }
 
     return NextResponse.json({
       events: [

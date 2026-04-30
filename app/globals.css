@@ -325,6 +325,39 @@ body {
   border-style: solid !important;
 }
 
+.fc .fc-timegrid-event-harness .fc-event.fc-admin-tagged-event {
+  position: relative;
+}
+
+.fc .fc-timegrid-event-harness .fc-event.fc-admin-tagged-event::before {
+  content: "";
+  position: absolute;
+  inset: 0 0 auto 0;
+  height: 4px;
+  background: var(--fc-admin-tag-color, transparent);
+  pointer-events: none;
+  z-index: 1;
+}
+
+.fc .fc-timegrid-event-harness .fc-event.fc-admin-tagged-event::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background:
+    linear-gradient(
+      135deg,
+      var(--fc-admin-tag-overlay-color, transparent) 0%,
+      rgba(255, 255, 255, 0) 62%
+    );
+  pointer-events: none;
+  z-index: 0;
+}
+
+.fc .fc-timegrid-event-harness .fc-event.fc-admin-tagged-event .fc-event-main {
+  position: relative;
+  z-index: 2;
+}
+
 /* Ended events (entire block before current time): dim + desaturate */
 .fc .fc-timegrid-event-harness .fc-event.fc-event-past {
   opacity: 0.5;
@@ -360,6 +393,17 @@ body {
   font-size: 0.86rem;
   font-weight: 500;
   line-height: 1.1;
+}
+
+.fc-admin-tag-swatch {
+  display: inline-block;
+  width: 0.72rem;
+  height: 0.72rem;
+  flex-shrink: 0;
+  margin-top: 1px;
+  border-radius: 9999px;
+  border: 1px solid rgba(255, 255, 255, 0.22);
+  box-shadow: 0 0 0 1px rgba(0, 0, 0, 0.2);
 }
 
 .fc-custom-event-title {

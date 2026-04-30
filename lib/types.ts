@@ -93,6 +93,10 @@ export type ApiCalendarEvent = {
   textColor: string;
   canCancel: boolean;
   classNames?: string[];
+  adminTagKey?: string;
+  adminTagLabel?: string;
+  adminTagColor?: string;
+  adminTagOverlayColor?: string;
 };
 
 /**
@@ -114,6 +118,10 @@ export type CalendarEvent = {
   textColor?: string;
   canCancel?: boolean;
   classNames?: string[];
+  adminTagKey?: string;
+  adminTagLabel?: string;
+  adminTagColor?: string;
+  adminTagOverlayColor?: string;
 };
 
 /**

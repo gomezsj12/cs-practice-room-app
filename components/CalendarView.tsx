@@ -69,6 +69,10 @@ import {
   SLOT_MAX_STR,
   SLOT_MIN_STR,
 } from "@/lib/timeGridDragSelect";
+import {
+  getAdminEventTagOption,
+  type AdminEventTagKey,
+} from "@/lib/admin-event-tags";
 import type {
   CalendarEvent,
   PendingSelection,
@@ -263,6 +267,7 @@ export default function CalendarView() {
     useState<PracticeNotionDetails | null>(null);
   const [isLoadingNotionDetails, setIsLoadingNotionDetails] = useState(false);
   const [isApplyingChanges, setIsApplyingChanges] = useState(false);
+  const [isUpdatingAdminTag, setIsUpdatingAdminTag] = useState(false);
 
   /**
    * After backdrop-dismiss of the event modal (or a navigation gesture on top
@@ -317,7 +322,6 @@ export default function CalendarView() {
   // keeping open modals up-to-date without clearing the cache on every poll.
   useEffect(() => {
     notionDetailsCacheRef.current.clear();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [practiceEventsFingerprint]);
 
   // Fetch Notion statuses for all visible practice events (admin only)
@@ -380,15 +384,30 @@ export default function CalendarView() {
   // practiceStatusColors loads asynchronously, this memo recalculates and
   // FullCalendar re-renders the affected events with outlines immediately.
   const displayEvents = useMemo(() => {
-    if (!isAdmin || practiceStatusColors.size === 0) return events;
     return events.map((ev) => {
-      if (ev.eventType !== "practice" || !ev.googleEventId) return ev;
-      const outlineColor = practiceStatusColors.get(ev.googleEventId);
-      if (!outlineColor) return ev;
+      const classNames = new Set(ev.classNames ?? []);
+      let borderColor: string | undefined;
+
+      if (
+        isAdmin &&
+        ev.eventType === "practice" &&
+        ev.googleEventId
+      ) {
+        const outlineColor = practiceStatusColors.get(ev.googleEventId);
+        if (outlineColor) {
+          classNames.add("fc-practice-status-outline");
+          borderColor = outlineColor;
+        }
+      }
+
+      if (isAdmin && ev.adminTagColor && ev.adminTagOverlayColor) {
+        classNames.add("fc-admin-tagged-event");
+      }
+
       return {
         ...ev,
-        classNames: [...(ev.classNames ?? []), "fc-practice-status-outline"],
-        borderColor: outlineColor,
+        classNames: [...classNames],
+        ...(borderColor ? { borderColor } : {}),
       };
     });
   }, [events, isAdmin, practiceStatusColors]);
@@ -833,7 +852,6 @@ export default function CalendarView() {
     }, REFRESH_MS);
 
     return () => clearInterval(id);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [isAdmin, selectedEvent, isApplyingChanges]);
 
   async function handleApplyPracticeChanges(changes: PracticeSessionChanges) {
@@ -932,6 +950,105 @@ export default function CalendarView() {
       showToast("Failed to update practice session.", "error");
     } finally {
       setIsApplyingChanges(false);
+    }
+  }
+
+  async function handleUpdateAdminTag(tagKey: AdminEventTagKey | null) {
+    const targetEvent = selectedEvent;
+    if (
+      !targetEvent?.googleEventId ||
+      (targetEvent.eventType !== "practice" &&
+        targetEvent.eventType !== "jam")
+    ) {
+      return;
+    }
+
+    try {
+      setIsUpdatingAdminTag(true);
+
+      const response = await fetch("/api/admin-event-tags", {
+        method: tagKey ? "PUT" : "DELETE",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(
+          tagKey
+            ? {
+                eventType: targetEvent.eventType,
+                googleEventId: targetEvent.googleEventId,
+                eventTitle:
+                  targetEvent.title ||
+                  getCalendarEventKindLabel(targetEvent.eventType),
+                eventStart: targetEvent.start,
+                eventEnd: targetEvent.end,
+                tagKey,
+              }
+            : {
+                eventType: targetEvent.eventType,
+                googleEventId: targetEvent.googleEventId,
+              },
+        ),
+      });
+
+      if (!response.ok) {
+        const data = await response.json().catch(() => ({}));
+        showToast(
+          data.error ||
+            (tagKey
+              ? "Failed to save private tag."
+              : "Failed to clear private tag."),
+          "error",
+        );
+        return;
+      }
+
+      const option = getAdminEventTagOption(tagKey);
+
+      setEvents((prev) =>
+        prev.map((ev) => {
+          if (
+            ev.googleEventId !== targetEvent.googleEventId ||
+            ev.eventType !== targetEvent.eventType
+          ) {
+            return ev;
+          }
+          return {
+            ...ev,
+            adminTagKey: option?.value,
+            adminTagLabel: option?.label,
+            adminTagColor: option?.color,
+            adminTagOverlayColor: option?.overlayColor,
+          };
+        }),
+      );
+
+      setSelectedEvent((prev) => {
+        if (
+          !prev ||
+          prev.googleEventId !== targetEvent.googleEventId ||
+          prev.eventType !== targetEvent.eventType
+        ) {
+          return prev;
+        }
+        return {
+          ...prev,
+          adminTagKey: option?.value,
+          adminTagLabel: option?.label,
+          adminTagColor: option?.color,
+          adminTagOverlayColor: option?.overlayColor,
+        };
+      });
+
+      showToast(
+        tagKey ? "Private calendar tag saved." : "Private calendar tag cleared.",
+        "success",
+      );
+      loadEvents(true);
+    } catch {
+      showToast(
+        tagKey ? "Failed to save private tag." : "Failed to clear private tag.",
+        "error",
+      );
+    } finally {
+      setIsUpdatingAdminTag(false);
     }
   }
 
@@ -1103,6 +1220,7 @@ export default function CalendarView() {
     setSelectedEvent,
     setShowCancelConfirm,
     isApplyingChanges,
+    clearDragMirror,
   ]);
 
   // Mobile touch gestures: horizontal swipe for prev/next day,
@@ -1503,8 +1621,20 @@ export default function CalendarView() {
       | "hold"
       | "blocked"
       | undefined;
+    const root = (arg.el.closest("a.fc-event") ?? arg.el) as HTMLElement;
+    const adminTagColor = arg.event.extendedProps.adminTagColor as
+      | string
+      | undefined;
+    const adminTagOverlayColor = arg.event.extendedProps
+      .adminTagOverlayColor as string | undefined;
+    if (adminTagColor && adminTagOverlayColor) {
+      root.style.setProperty("--fc-admin-tag-color", adminTagColor);
+      root.style.setProperty(
+        "--fc-admin-tag-overlay-color",
+        adminTagOverlayColor,
+      );
+    }
     if (eventType === "blocked") {
-      const root = arg.el.closest("a.fc-event") ?? arg.el;
       root.setAttribute("data-calendar-gesture-passthrough", "");
     }
   }
@@ -1517,7 +1647,7 @@ export default function CalendarView() {
       | "blocked"
       | undefined;
     if (eventType === "blocked") {
-      const root = arg.el.closest("a.fc-event") ?? arg.el;
+      const root = (arg.el.closest("a.fc-event") ?? arg.el) as HTMLElement;
       root.removeAttribute("data-calendar-gesture-passthrough");
     }
   }
@@ -1529,6 +1659,12 @@ export default function CalendarView() {
       | "jam"
       | "hold"
       | "blocked"
+      | undefined;
+    const adminTagColor = arg.event.extendedProps.adminTagColor as
+      | string
+      | undefined;
+    const adminTagLabel = arg.event.extendedProps.adminTagLabel as
+      | string
       | undefined;
 
     if (eventType === "hold") {
@@ -1551,7 +1687,21 @@ export default function CalendarView() {
 
     return (
       <div className="fc-custom-event">
-        <div className="fc-custom-event-time">{timeText}</div>
+        <div className="flex items-start justify-between gap-2">
+          <div className="fc-custom-event-time">{timeText}</div>
+          {adminTagColor ? (
+            <span
+              aria-hidden
+              title={
+                adminTagLabel
+                  ? `Private tag: ${adminTagLabel}`
+                  : "Private calendar tag"
+              }
+              className="fc-admin-tag-swatch"
+              style={{ backgroundColor: adminTagColor }}
+            />
+          ) : null}
+        </div>
         <div className="fc-custom-event-title">{arg.event.title}</div>
       </div>
     );
@@ -1760,6 +1910,11 @@ export default function CalendarView() {
                   textColor: info.event.textColor,
                   canCancel: info.event.extendedProps.canCancel,
                   classNames: info.event.classNames,
+                  adminTagKey: info.event.extendedProps.adminTagKey,
+                  adminTagLabel: info.event.extendedProps.adminTagLabel,
+                  adminTagColor: info.event.extendedProps.adminTagColor,
+                  adminTagOverlayColor:
+                    info.event.extendedProps.adminTagOverlayColor,
                 };
                 setSelectedEvent(calEvent);
 
@@ -1928,6 +2083,11 @@ export default function CalendarView() {
       />
 
       <EventDetailsModal
+        key={
+          selectedEvent
+            ? `event-details-${selectedEvent.id}`
+            : "event-details-closed"
+        }
         isOpen={selectedEvent !== null}
         event={selectedEvent}
         isCancelling={isCancelling}
@@ -1946,7 +2106,9 @@ export default function CalendarView() {
         notionDetails={notionDetails}
         isLoadingNotionDetails={isLoadingNotionDetails}
         isApplying={isApplyingChanges}
+        isUpdatingAdminTag={isUpdatingAdminTag}
         onApplyChanges={handleApplyPracticeChanges}
+        onUpdateAdminTag={handleUpdateAdminTag}
       />
 
       <ConfirmModal

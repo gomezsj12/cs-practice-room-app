@@ -38,6 +38,8 @@ import {
   extractSessionAttendeesLine,
   sessionAttendeePillClass,
 } from "@/lib/session-attendees";
+import type { AdminEventTagKey } from "@/lib/admin-event-tags";
+import AdminEventTagSelect from "@/components/AdminEventTagSelect";
 import type {
   CalendarEvent,
   PracticeNotionDetails,
@@ -60,7 +62,9 @@ type EventDetailsModalProps = {
   notionDetails?: PracticeNotionDetails | null;
   isLoadingNotionDetails?: boolean;
   isApplying?: boolean;
+  isUpdatingAdminTag?: boolean;
   onApplyChanges?: (changes: PracticeSessionChanges) => void;
+  onUpdateAdminTag?: (tagKey: AdminEventTagKey | null) => void;
 };
 
 /** Convert an ISO datetime string to an `HH:mm` value for `<input type="time">`. */
@@ -100,7 +104,9 @@ export default function EventDetailsModal({
   notionDetails = null,
   isLoadingNotionDetails = false,
   isApplying = false,
+  isUpdatingAdminTag = false,
   onApplyChanges,
+  onUpdateAdminTag,
 }: EventDetailsModalProps) {
   const [nowMs, setNowMs] = useState(() => Date.now());
 
@@ -129,15 +135,6 @@ export default function EventDetailsModal({
     };
   }, [event, isOpen]);
 
-  // Reset draft state when modal opens/closes or the event changes
-  useEffect(() => {
-    setDraftStartTime(null);
-    setDraftEndTime(null);
-    setDraftStatus(null);
-    setDraftPatchlistLink(null);
-    setDraftAssigneePageIds(null);
-  }, [event?.id, isOpen]);
-
   if (!isOpen || !event) {
     return null;
   }
@@ -145,6 +142,8 @@ export default function EventDetailsModal({
   const isPractice = event.eventType === "practice";
   const isJam = event.eventType === "jam";
   const showAdminControls = isAdmin && isPractice;
+  const showAdminTagControl =
+    isAdmin && (isPractice || isJam) && Boolean(event.googleEventId);
   const eventKindLabel = getCalendarEventKindLabel(event.eventType);
   const start = new Date(event.start);
   const end = new Date(event.end);
@@ -248,7 +247,7 @@ export default function EventDetailsModal({
     ? getStatusColor(effectiveStatus)
     : undefined;
 
-  const busyState = isCancelling || isApplying;
+  const busyState = isCancelling || isApplying || isUpdatingAdminTag;
   const dismissFromBackdrop = onBackdropDismiss ?? onClose;
 
   function handleBackdropDismiss(e: SyntheticEvent<HTMLDivElement>) {
@@ -375,6 +374,16 @@ export default function EventDetailsModal({
             </div>
           </div>
         )}
+
+        {showAdminTagControl ? (
+          <div className="mt-4">
+            <AdminEventTagSelect
+              value={(event.adminTagKey as AdminEventTagKey | null) ?? null}
+              disabled={busyState}
+              onChange={(value) => onUpdateAdminTag?.(value)}
+            />
+          </div>
+        ) : null}
 
         {rawDescription ? (
           <div className="mt-5 rounded-2xl border border-white/10 bg-white/5 p-4">
@@ -528,13 +537,6 @@ function PatchlistLinkInline({
   const inputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
-    if (editing) {
-      setInputValue(value ?? "");
-      setTimeout(() => inputRef.current?.focus(), 0);
-    }
-  }, [editing, value]);
-
-  useEffect(() => {
     if (!editing) return;
 
     function handleClickOutside(e: MouseEvent) {
@@ -600,7 +602,11 @@ function PatchlistLinkInline({
         type="button"
         disabled={disabled}
         onClick={() => {
-          if (!editing) setEditing(true);
+          if (!editing) {
+            setInputValue(value ?? "");
+            setEditing(true);
+            setTimeout(() => inputRef.current?.focus(), 0);
+          }
         }}
         title={value ?? "Add patchlist link"}
         className={
