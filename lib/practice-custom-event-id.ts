@@ -1,22 +1,15 @@
 /**
- * Builds the **Custom Event ID** string stored in Notion (Fillout Form Master Database)
- * and matched on practice cancellation. Must stay in lockstep with how that value is
- * produced in Notion / Fillout.
+ * Builds the practice "Custom Event ID" stored in Notion and matched against
+ * Google Calendar practice events.
  *
- * ## Format (UTC wall clock, three hyphen-separated parts)
+ * Current format:
+ * `GOOGLECALidentifier-<startSegment>-<endSegment><phoneDigits><attendeeCount>`
  *
+ * Legacy format:
  * `GOOGLECALidentifier-<startSegment>-<endSegment>`
  *
- * Each segment is: **lowercase English full month** + **day** (1–31, no leading zero) +
- * **four-digit year** + **12-hour clock** + **`(utc)`**.
- *
- * 12-hour part: hour **1–12** (no leading zero) + **two-digit minutes** + **`am`** or **`pm`**
- * (lowercase). Examples: `700pm`, `730am`, `1200pm`, `1205am`.
- *
- * Instant source: `Date` in **UTC** (same wall time as Google Calendar API `dateTime`
- * when parsed to `Date`).
- *
- * @see {@link ../lib/calendar-helpers} — `getEventStart`, `getEventEnd`
+ * Each time segment is lowercase English month + day + year + 12-hour time +
+ * `(utc)`, for example: `may62026415am(utc)`.
  */
 import {
   getEventEnd,
@@ -24,10 +17,16 @@ import {
   getZonedCalendarParts,
   roomWallClockToUtc,
 } from "@/lib/calendar-helpers";
+import { extractSessionAttendeesLine } from "@/lib/session-attendees";
 import type { GoogleApiEvent } from "@/lib/types";
 
 /** Literal prefix; casing is fixed. */
 export const PRACTICE_CUSTOM_EVENT_ID_PREFIX = "GOOGLECALidentifier";
+
+type PracticeCustomEventIdMetadata = {
+  attendeeCount: number;
+  phoneDigits: string;
+};
 
 const LOWER_MONTHS = [
   "january",
@@ -43,6 +42,12 @@ const LOWER_MONTHS = [
   "november",
   "december",
 ] as const;
+
+const CUSTOM_EVENT_SEGMENT_RE =
+  /[a-z]+\d{1,2}\d{4}\d{1,2}\d{2}(?:am|pm)\(utc\)/i;
+
+const PHONE_RE =
+  /(?:\+\d{1,3}[\s.-]?)?(?:\(?\d{3}\)?[\s.-]?)\d{3}[\s.-]?\d{4}\b|\b\d{10}\b|\b\+?\d[\d().\s-]{8,14}\d\b/g;
 
 /**
  * Format one UTC instant as e.g. `april122026700pm(utc)`.
@@ -64,15 +69,13 @@ export function formatUtcInstantForPracticeCustomEventId(date: Date): string {
   }
   const ampm = isPm ? "pm" : "am";
   const minuteStr = String(minutes).padStart(2, "0");
-  const timeCore = `${h12}${minuteStr}${ampm}`;
 
-  return `${month}${day}${year}${timeCore}(utc)`;
+  return `${month}${day}${year}${h12}${minuteStr}${ampm}(utc)`;
 }
 
 /**
- * Same segment shape as {@link formatUtcInstantForPracticeCustomEventId}, but using
- * wall clock in `timeZone` (Fillout / Notion formulas often use room local time
- * while still suffixing `(utc)`).
+ * Same segment shape as {@link formatUtcInstantForPracticeCustomEventId}, but
+ * using wall clock time in `timeZone`.
  */
 export function formatWallClockInstantForPracticeCustomEventId(
   date: Date,
@@ -95,18 +98,76 @@ export function formatWallClockInstantForPracticeCustomEventId(
   }
   const ampm = isPm ? "pm" : "am";
   const minuteStr = String(minutes).padStart(2, "0");
-  const timeCore = `${h12}${minuteStr}${ampm}`;
 
-  return `${month}${day}${year}${timeCore}(utc)`;
+  return `${month}${day}${year}${h12}${minuteStr}${ampm}(utc)`;
 }
 
-/**
- * Returns the Custom Event ID for a Google Calendar practice event, or `null` if
- * start/end are missing, not parseable, or not timed (`dateTime` required).
- */
-export function buildPracticeCustomEventIdFromGoogleEvent(
-  event: GoogleApiEvent,
+function normalizePracticePhoneDigits(phone: string): string {
+  return phone.replace(/\D/g, "");
+}
+
+export function extractPracticeCustomEventIdMetadataFromDescription(
+  description?: string | null,
+): PracticeCustomEventIdMetadata | null {
+  const text = description?.replace(/\r\n/g, "\n").trim() ?? "";
+  if (!text) {
+    return null;
+  }
+
+  const attendeeCount = extractSessionAttendeesLine(text)?.count;
+  if (
+    attendeeCount === undefined ||
+    !Number.isInteger(attendeeCount) ||
+    attendeeCount < 0
+  ) {
+    return null;
+  }
+
+  const phoneMatches = text.match(PHONE_RE) ?? [];
+  for (const rawPhone of phoneMatches) {
+    const phoneDigits = normalizePracticePhoneDigits(rawPhone);
+    if (phoneDigits.length >= 10 && phoneDigits.length <= 15) {
+      return { attendeeCount, phoneDigits };
+    }
+  }
+
+  return null;
+}
+
+function buildPracticeCustomEventIdFromSegments(
+  startSeg: string,
+  endSeg: string,
+  metadata?: PracticeCustomEventIdMetadata | null,
+): string {
+  const suffix = metadata
+    ? `${metadata.phoneDigits}${metadata.attendeeCount}`
+    : "";
+  return `${PRACTICE_CUSTOM_EVENT_ID_PREFIX}-${startSeg}-${endSeg}${suffix}`;
+}
+
+function buildPracticeCustomEventIdFromDates(
+  start: Date,
+  end: Date,
+  formatInstant: (date: Date) => string,
+  metadata?: PracticeCustomEventIdMetadata | null,
 ): string | null {
+  if (Number.isNaN(start.getTime()) || Number.isNaN(end.getTime())) {
+    return null;
+  }
+
+  const startSeg = formatInstant(start);
+  const endSeg = formatInstant(end);
+  if (!startSeg || !endSeg) {
+    return null;
+  }
+
+  return buildPracticeCustomEventIdFromSegments(startSeg, endSeg, metadata);
+}
+
+function getTimedPracticeEventBounds(event: GoogleApiEvent): {
+  start: Date;
+  end: Date;
+} | null {
   const startRaw = getEventStart(event);
   const endRaw = getEventEnd(event);
   if (!startRaw || !endRaw) {
@@ -123,49 +184,153 @@ export function buildPracticeCustomEventIdFromGoogleEvent(
     return null;
   }
 
-  const startSeg = formatUtcInstantForPracticeCustomEventId(start);
-  const endSeg = formatUtcInstantForPracticeCustomEventId(end);
-  if (!startSeg || !endSeg) {
+  return { start, end };
+}
+
+export function buildLegacyPracticeCustomEventIdFromGoogleEvent(
+  event: GoogleApiEvent,
+): string | null {
+  const bounds = getTimedPracticeEventBounds(event);
+  if (!bounds) {
     return null;
   }
 
-  return `${PRACTICE_CUSTOM_EVENT_ID_PREFIX}-${startSeg}-${endSeg}`;
+  return buildPracticeCustomEventIdFromDates(
+    bounds.start,
+    bounds.end,
+    formatUtcInstantForPracticeCustomEventId,
+  );
+}
+
+export function buildLegacyPracticeCustomEventIdFromGoogleEventInTimeZone(
+  event: GoogleApiEvent,
+  timeZone: string,
+): string | null {
+  const bounds = getTimedPracticeEventBounds(event);
+  if (!bounds) {
+    return null;
+  }
+
+  return buildPracticeCustomEventIdFromDates(
+    bounds.start,
+    bounds.end,
+    (date) => formatWallClockInstantForPracticeCustomEventId(date, timeZone),
+  );
+}
+
+export function buildPracticeCustomEventIdCandidatesFromDateRange(input: {
+  start: Date;
+  end: Date;
+  timeZone: string;
+  description?: string | null;
+}): string[] {
+  const metadata = extractPracticeCustomEventIdMetadataFromDescription(
+    input.description,
+  );
+
+  const candidates = [
+    buildPracticeCustomEventIdFromDates(
+      input.start,
+      input.end,
+      formatUtcInstantForPracticeCustomEventId,
+      metadata,
+    ),
+    buildPracticeCustomEventIdFromDates(
+      input.start,
+      input.end,
+      (date) =>
+        formatWallClockInstantForPracticeCustomEventId(date, input.timeZone),
+      metadata,
+    ),
+    buildPracticeCustomEventIdFromDates(
+      input.start,
+      input.end,
+      formatUtcInstantForPracticeCustomEventId,
+    ),
+    buildPracticeCustomEventIdFromDates(
+      input.start,
+      input.end,
+      (date) =>
+        formatWallClockInstantForPracticeCustomEventId(date, input.timeZone),
+    ),
+  ];
+
+  return [...new Set(candidates.filter((id): id is string => Boolean(id)))];
+}
+
+export function buildPracticeCustomEventIdCandidatesFromGoogleEvent(
+  event: GoogleApiEvent,
+  timeZone: string,
+): string[] {
+  const bounds = getTimedPracticeEventBounds(event);
+  if (!bounds) {
+    return [];
+  }
+
+  return buildPracticeCustomEventIdCandidatesFromDateRange({
+    start: bounds.start,
+    end: bounds.end,
+    timeZone,
+    description: event.description,
+  });
 }
 
 /**
- * Same as {@link buildPracticeCustomEventIdFromGoogleEvent} but encodes start/end
- * using {@link formatWallClockInstantForPracticeCustomEventId} in `timeZone`.
+ * Returns the current canonical Custom Event ID for a Google Calendar practice
+ * event. When attendee/phone metadata is unavailable, this falls back to the
+ * legacy time-only format.
+ */
+export function buildPracticeCustomEventIdFromGoogleEvent(
+  event: GoogleApiEvent,
+): string | null {
+  const bounds = getTimedPracticeEventBounds(event);
+  if (!bounds) {
+    return null;
+  }
+
+  const metadata = extractPracticeCustomEventIdMetadataFromDescription(
+    event.description,
+  );
+
+  return (
+    buildPracticeCustomEventIdFromDates(
+      bounds.start,
+      bounds.end,
+      formatUtcInstantForPracticeCustomEventId,
+      metadata,
+    ) ?? buildLegacyPracticeCustomEventIdFromGoogleEvent(event)
+  );
+}
+
+/**
+ * Same as {@link buildPracticeCustomEventIdFromGoogleEvent} but encodes
+ * start/end using wall clock time in `timeZone`.
  */
 export function buildPracticeCustomEventIdFromGoogleEventInTimeZone(
   event: GoogleApiEvent,
   timeZone: string,
 ): string | null {
-  const startRaw = getEventStart(event);
-  const endRaw = getEventEnd(event);
-  if (!startRaw || !endRaw) {
+  const bounds = getTimedPracticeEventBounds(event);
+  if (!bounds) {
     return null;
   }
 
-  if (!event.start?.dateTime || !event.end?.dateTime) {
-    return null;
-  }
+  const metadata = extractPracticeCustomEventIdMetadataFromDescription(
+    event.description,
+  );
 
-  const start = new Date(startRaw);
-  const end = new Date(endRaw);
-  if (Number.isNaN(start.getTime()) || Number.isNaN(end.getTime())) {
-    return null;
-  }
-
-  const startSeg = formatWallClockInstantForPracticeCustomEventId(start, timeZone);
-  const endSeg = formatWallClockInstantForPracticeCustomEventId(end, timeZone);
-  if (!startSeg || !endSeg) {
-    return null;
-  }
-
-  return `${PRACTICE_CUSTOM_EVENT_ID_PREFIX}-${startSeg}-${endSeg}`;
+  return (
+    buildPracticeCustomEventIdFromDates(
+      bounds.start,
+      bounds.end,
+      (date) => formatWallClockInstantForPracticeCustomEventId(date, timeZone),
+      metadata,
+    ) ??
+    buildLegacyPracticeCustomEventIdFromGoogleEventInTimeZone(event, timeZone)
+  );
 }
 
-/** Case-insensitive equality for Custom Event IDs (Fillout / Notion may vary casing). */
+/** Case-insensitive equality for Custom Event IDs. */
 export function practiceCustomEventIdsMatch(a: string, b: string): boolean {
   return a.trim().toLowerCase() === b.trim().toLowerCase();
 }
@@ -174,27 +339,21 @@ function splitPracticeCustomEventSegments(
   customId: string,
 ): { startSeg: string; endSeg: string } | null {
   const trimmed = customId.trim();
-  const m = trimmed.match(/^GOOGLECALidentifier-(.*)$/i);
-  if (!m?.[1]) {
+  const m = trimmed.match(
+    new RegExp(
+      `^${PRACTICE_CUSTOM_EVENT_ID_PREFIX}-(${CUSTOM_EVENT_SEGMENT_RE.source})-(${CUSTOM_EVENT_SEGMENT_RE.source})(?:\\d+)?$`,
+      "i",
+    ),
+  );
+  if (!m?.[1] || !m[2]) {
     return null;
   }
-  const rest = m[1];
-  const firstHyphen = rest.indexOf("-");
-  if (firstHyphen <= 0) {
-    return null;
-  }
-  const startSeg = rest.slice(0, firstHyphen);
-  const endSeg = rest.slice(firstHyphen + 1);
-  if (!startSeg || !endSeg || endSeg.includes("-")) {
-    return null;
-  }
-  return { startSeg, endSeg };
+  return { startSeg: m[1], endSeg: m[2] };
 }
 
 /**
- * Parse a **Custom Event ID** string back to UTC start/end instants. Inverse of
- * {@link buildPracticeCustomEventIdFromGoogleEvent} when formatting matches
- * {@link formatUtcInstantForPracticeCustomEventId}.
+ * Parse a Custom Event ID string back to UTC start/end instants. Supports both
+ * the legacy time-only format and the newer attendee/phone suffix.
  */
 export function parsePracticeCustomEventId(
   customId: string,
@@ -214,8 +373,9 @@ export function parsePracticeCustomEventId(
 }
 
 /**
- * Interpret each `(utc)`-suffixed segment as **wall clock in `timeZone`**, not as UTC.
- * Matches Fillout-style IDs where local room time is encoded but labeled `(utc)`.
+ * Interpret each `(utc)`-suffixed segment as wall clock in `timeZone`, not as
+ * UTC. Supports both the legacy time-only format and the newer attendee/phone
+ * suffix.
  */
 export function parsePracticeCustomEventIdAsRoomWallClock(
   customId: string,
@@ -242,11 +402,12 @@ function parseUtcInstantSegment(segment: string): Date | null {
   }
   const body = segment.slice(0, -suffix.length);
 
-  for (let mi = 0; mi < LOWER_MONTHS.length; mi++) {
+  for (let mi = 0; mi < LOWER_MONTHS.length; mi += 1) {
     const monthName = LOWER_MONTHS[mi];
     if (!body.startsWith(monthName)) {
       continue;
     }
+
     const afterMonth = body.slice(monthName.length);
     const m = afterMonth.match(/^(\d{1,2})(\d{4})(\d{1,2})(\d{2})(am|pm)$/);
     if (!m) {
@@ -297,11 +458,12 @@ function parseUtcInstantSegmentAsRoomWallClock(
   }
   const body = segment.slice(0, -suffix.length);
 
-  for (let mi = 0; mi < LOWER_MONTHS.length; mi++) {
+  for (let mi = 0; mi < LOWER_MONTHS.length; mi += 1) {
     const monthName = LOWER_MONTHS[mi];
     if (!body.startsWith(monthName)) {
       continue;
     }
+
     const afterMonth = body.slice(monthName.length);
     const m = afterMonth.match(/^(\d{1,2})(\d{4})(\d{1,2})(\d{2})(am|pm)$/);
     if (!m) {

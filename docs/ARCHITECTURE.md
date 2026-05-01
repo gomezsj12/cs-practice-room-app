@@ -299,7 +299,7 @@ Used by `lib/google.ts` so the **server** can read/write calendars without each 
 | `NOTION_TOKEN_CALENDAR` | Internal integration secret for **calendar** realm: jam DS, Fillout master, quarters sync, people directory cache (assignee picker) |
 | `NOTION_TOKEN_PROFILE` | Internal integration secret for **profile** realm: people lookup, profile creation log, presence |
 | `NOTION_DATA_SOURCE_ID` | Data source id for jam reservation logging |
-| `NOTION_FILLOUT_MASTER_DATA_SOURCE_ID` | Data source id for Fillout Form Master Database (practice cancel → **Session Status** via **Custom Event ID**) |
+| `NOTION_FILLOUT_MASTER_DATA_SOURCE_ID` | Data source id for Fillout Form Master Database (practice cancel, details, cache, and admin edits resolve rows via **Custom Event ID**) |
 | `NOTION_PEOPLE_DB_ID` | Database ID for the people directory (user profile lookup) |
 | `NOTION_PROFILE_LOG_DB_ID` | Database ID for the profile-creation audit log |
 | `NOTION_WEBHOOK_VERIFICATION_TOKEN_CALENDAR` | Webhook verification secret for the **calendar** Notion integration (same value Notion uses for `X-Notion-Signature` on that subscription) |
@@ -309,7 +309,61 @@ Used by `lib/google.ts` so the **server** can read/write calendars without each 
 
 Jam and Fillout master databases should include a **Text** property **`CSPR Cancel origin`**. The app sets it to `calendar_app` when cancelling from the calendar UI first so the jam webhook skips a redundant Google delete.
 
-**Notion → Calendar cancel (jams + practice):** `NOTION_DATA_SOURCE_ID` must match a `data_source_id` or `database_id` on the page’s `parent`. Jam **Status** is read whether Notion stores it as **`select`** or **`status`**. When a practice page is marked **Cancelled** in Notion (and not stamped by the app), the webhook parses the **Custom Event ID** to find and delete the corresponding practice Google Calendar event. `NOTION_FILLOUT_MASTER_DATA_SOURCE_ID` must also match the page parent for this branch to activate.
+**Notion → Calendar cancel (jams + practice):** `NOTION_DATA_SOURCE_ID` must match a `data_source_id` or `database_id` on the page’s `parent`. Jam **Status** is read whether Notion stores it as **`select`** or **`status`**. When a practice page is marked **Cancelled** in Notion (and not stamped by the app), the webhook parses the **Custom Event ID** to find and delete the corresponding practice Google Calendar event. Practice matching now prefers the canonical ID that includes phone digits + attendee count and only falls back to older time-only IDs when needed. `NOTION_FILLOUT_MASTER_DATA_SOURCE_ID` must also match the page parent for this branch to activate.
+
+### Practice Custom Event ID
+
+Practice rows in the Fillout master database and practice Google Calendar events are linked by **Custom Event ID**.
+
+**Canonical format:**
+
+`GOOGLECALidentifier-<utcStartSegment>-<utcEndSegment><phoneDigits><sessionAttendeeCount>`
+
+Example:
+
+`GOOGLECALidentifier-may62026415am(utc)-may62026615am(utc)155555501006`
+
+That example corresponds to:
+
+- Phone: `+1 (555) 555-0100` → `15555550100`
+- Session attendees: `6`
+
+Notes:
+
+- `phoneDigits` comes from the Google Calendar event description / Notion rollup and strips `+`, spaces, parentheses, dashes, and other punctuation.
+- `sessionAttendeeCount` is appended **after** the phone digits.
+- The app still recognizes older legacy IDs that only encoded start/end times, plus the older room-wall-clock fallback variant, so historical rows continue to resolve.
+- New app-side lookups always try the canonical format first, then the legacy candidates.
+
+### Historical Notion Backfill
+
+One-off script:
+
+- [`scripts/backfill-practice-custom-event-ids.mjs`](../scripts/backfill-practice-custom-event-ids.mjs)
+
+Purpose:
+
+- Rewrites historical Fillout master rows so **Custom Event ID** uses the canonical `...<phoneDigits><sessionAttendeeCount>` suffix instead of the old time-only format.
+
+How it derives the new value:
+
+- `Start Date/Time`
+- `Session Length (hours)`
+- `Contact phone`
+- `# of Session Attendees`
+
+Usage:
+
+```bash
+node scripts/backfill-practice-custom-event-ids.mjs
+node scripts/backfill-practice-custom-event-ids.mjs --write
+```
+
+Behavior:
+
+- Dry-run mode prints rows that would change.
+- Write mode updates only rows with all required fields.
+- Rows missing those fields are skipped intentionally rather than guessed.
 
 ### Supabase (profiles, temporary holds + support)
 
@@ -444,7 +498,7 @@ cs-practice-room-app/
 │   ├── profile-log-page-id-cache.ts # Short TTL in-memory cache: profile-log page ids by email (presence)
 │   ├── notion-calendar-webhook.ts # Jam Notion **Cancelled** → delete Google event
 │   ├── notion-sync-constants.ts   # **CSPR Cancel origin** property name + `calendar_app` value
-│   ├── practice-custom-event-id.ts # UTC **Custom Event ID** string for practice ↔ Notion row match
+│   ├── practice-custom-event-id.ts # Practice ↔ Notion Custom Event ID builder/parser (canonical phone+attendee suffix + legacy fallbacks)
 │   ├── practice-session-cache.ts  # Supabase read-through cache for Notion practice row fields
 │   ├── practice-session-status.ts # Session Status labels, UI colors, calendar outline colors
 │   ├── pwaIcon.tsx                # createPwaIcon: JSX-based ImageResponse for PWA icons
@@ -800,7 +854,7 @@ Central orchestration:
 - Requires sign-in.
 - Accepts `googleEventId` plus `eventType`.
 - Jam cancellation: fetches event from jam calendar, reads `ownerEmail` from private extended properties, allows owner/admin, deletes the event, then best-effort updates Notion.
-- Practice cancellation: fetches event from the practice calendar, loads the current user's linked WWU profile, requires attendee email + title-name ownership match, then deletes the event, then best-effort updates Notion (Fillout master DB) by **Custom Event ID** built from UTC start/end (`lib/practice-custom-event-id.ts`).
+- Practice cancellation: fetches event from the practice calendar, loads the current user's linked WWU profile, requires attendee email + title-name ownership match, then deletes the event, then best-effort updates Notion (Fillout master DB) by **Custom Event ID**. The canonical ID is built from UTC start/end plus stripped phone digits plus session attendee count; legacy time-only IDs remain as fallbacks (`lib/practice-custom-event-id.ts`).
 - Both paths reject ended events before deletion.
 
 ### `POST app/api/holds/create/route.ts`
@@ -925,7 +979,7 @@ This was applied via the `enable_rls_on_all_tables` migration (2026-04-11). Newe
 
 ### Table `practice_session_cache`
 
-Read-through cache for **Notion Fillout / practice** row fields keyed by **Custom Event ID** (same string used to match Google Calendar practice events to Notion). Populated and refreshed by `POST /api/practice-session/batch-statuses` (Notion backfill on miss), `GET /api/practice-session/details` (miss or stale > 5 minutes), `PATCH /api/practice-session` (after Notion update), and `POST /api/webhooks/notion` (property updates on Fillout master rows). Warm-cache reads avoid Notion’s low rate limits on calendar load and modal open.
+Read-through cache for **Notion Fillout / practice** row fields keyed by **Custom Event ID** (same string used to match Google Calendar practice events to Notion). The preferred cache key is the canonical `...<phoneDigits><sessionAttendeeCount>` format, but reads still try legacy candidate IDs so older rows remain discoverable. Populated and refreshed by `POST /api/practice-session/batch-statuses` (Notion backfill on miss), `GET /api/practice-session/details` (miss or stale > 5 minutes), `PATCH /api/practice-session` (after Notion update), and `POST /api/webhooks/notion` (property updates on Fillout master rows). Warm-cache reads avoid Notion’s low rate limits on calendar load and modal open.
 
 **`GET /api/practice-session/details`** accepts **`revalidate=1`** (also `true` / `yes`). When set, the handler **always** re-reads Notion and upserts this table, even if `cached_at` is inside the 5-minute TTL. The calendar admin modal appends this flag on every fetch (including the 20s background poll) so **Assignee(s)** and other fields update soon after edits in Notion without a full page reload.
 
@@ -985,9 +1039,9 @@ See [Support system architecture](#support-system-architecture) above.
 1. **Browse**: `GET /api/events` merges Google (practice + jam) + optional Supabase holds (no session required); UI assigns colors, cleaned descriptions, and owner-aware `canCancel` flags when a session is present. For admins, the same response may also include that admin’s private tag metadata for practice/jam events.
 2. **Select slot** (authenticated): `POST /api/holds/create` → optional 30-second hold, or fallback UI if disabled/fails.
 3. **Confirm**: `POST /api/reserve` → verify hold if any → overlap check → Google insert → Notion insert (best-effort) → delete hold.
-4. **Cancel**: `POST /api/cancel` → authorize by event type → Google delete → Notion status update for jams (Google Event ID) and practice (**Custom Event ID**, best-effort), stamping **CSPR Cancel origin** = `calendar_app`. **Notion → Google (jams only):** `POST /api/webhooks/notion` on `page.properties_updated` deletes the jam Calendar event when **Status** is **Cancelled** and origin is not `calendar_app`.
+4. **Cancel**: `POST /api/cancel` → authorize by event type → Google delete → Notion status update for jams (Google Event ID) and practice (**Custom Event ID**, best-effort), stamping **CSPR Cancel origin** = `calendar_app`. Practice lookups try canonical phone+attendee IDs first, then legacy candidates. **Notion → Google (jams only):** `POST /api/webhooks/notion` on `page.properties_updated` deletes the jam Calendar event when **Status** is **Cancelled** and origin is not `calendar_app`.
 5. **Support**: User submits via `/api/support/contact` → Supabase + Telegram. Admin replies via Telegram webhook or `/api/support/reply`.
-6. **Admin practice session (signed-in admin only):** `POST /api/practice-session/batch-statuses` loads Session Status outlines from **`practice_session_cache`** (bulk), backfilling Notion on miss. `GET /api/practice-session/details` serves modal fields from cache when fresh, unless **`revalidate=1`** (calendar always sends it so Notion is the source of truth while the modal is open). `GET /api/notion/people-directory` returns the People directory for the assignee picker (cached list server-side). `PATCH /api/practice-session` updates Google Calendar + Notion (including **Assignee(s)** relation), then upserts the cache. `PUT` / `DELETE /api/admin-event-tags` updates the admin’s private color tags in **`admin_event_tags`** without mutating shared event data. **Notion webhook:** for Fillout master data-source pages, upserts **`practice_session_cache`** when properties change (in addition to existing cancel/profile behavior).
+6. **Admin practice session (signed-in admin only):** `POST /api/practice-session/batch-statuses` loads Session Status outlines from **`practice_session_cache`** (bulk), backfilling Notion on miss. It sends the Google event description too so the server can derive the canonical phone+attendee Custom Event ID candidate set. `GET /api/practice-session/details` serves modal fields from cache when fresh, unless **`revalidate=1`** (calendar always sends it so Notion is the source of truth while the modal is open). `GET /api/notion/people-directory` returns the People directory for the assignee picker (cached list server-side). `PATCH /api/practice-session` updates Google Calendar + Notion (including **Assignee(s)** relation), then upserts the cache. `PUT` / `DELETE /api/admin-event-tags` updates the admin’s private color tags in **`admin_event_tags`** without mutating shared event data. **Notion webhook:** for Fillout master data-source pages, upserts **`practice_session_cache`** when properties change (in addition to existing cancel/profile behavior).
 
 **Source of truth for "what is booked"** is **Google Calendar** (two calendars). **Notion** is a **log/audit** mirror. **Supabase** is **ephemeral coordination** for holds, **persistent storage** for support threads and quarter metadata, a **read-through cache** for hot Notion-derived practice session fields (`practice_session_cache`), and a **private admin decoration store** for calendar tags (`admin_event_tags`).
 

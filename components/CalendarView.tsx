@@ -350,6 +350,7 @@ export default function CalendarView() {
             googleEventId: ev.googleEventId,
             start: ev.start,
             end: ev.end,
+            description: ev.description,
           })),
         }),
       })

@@ -18,7 +18,7 @@ import { isAppAdmin } from "@/lib/admin";
 import { getEventEnd, getEventStart } from "@/lib/calendar-helpers";
 import { getCalendarClient } from "@/lib/google";
 import {
-  findPracticeNotionPage,
+  findPracticeNotionPageByCustomEventIds,
   hydratePracticeAssigneesFromPageIds,
 } from "@/lib/notion";
 import {
@@ -26,8 +26,7 @@ import {
   upsertCacheEntry,
 } from "@/lib/practice-session-cache";
 import {
-  buildPracticeCustomEventIdFromGoogleEvent,
-  buildPracticeCustomEventIdFromGoogleEventInTimeZone,
+  buildPracticeCustomEventIdCandidatesFromGoogleEvent,
 } from "@/lib/practice-custom-event-id";
 import type { GoogleApiEvent } from "@/lib/types";
 
@@ -82,8 +81,7 @@ export async function GET(request: NextRequest) {
     }
 
     const roomTz = process.env.ROOM_TIME_ZONE || "America/Los_Angeles";
-    const utcId = buildPracticeCustomEventIdFromGoogleEvent(event);
-    const wallId = buildPracticeCustomEventIdFromGoogleEventInTimeZone(
+    const candidateIds = buildPracticeCustomEventIdCandidatesFromGoogleEvent(
       event,
       roomTz,
     );
@@ -96,15 +94,11 @@ export async function GET(request: NextRequest) {
       revalidateParam.toLowerCase() === "yes";
 
     // Check Supabase cache first
-    const candidateIds = [
-      ...(utcId ? [utcId] : []),
-      ...(wallId && wallId !== utcId ? [wallId] : []),
-    ];
-
     if (candidateIds.length > 0) {
       const cached = await getCachedSessions(candidateIds);
-      const hit = (utcId ? cached.get(utcId) : undefined) ??
-        (wallId && wallId !== utcId ? cached.get(wallId) : undefined);
+      const hit = candidateIds
+        .map((id) => cached.get(id))
+        .find((row) => Boolean(row));
 
       if (hit && !forceRefresh) {
         const age = Date.now() - new Date(hit.cached_at).getTime();
@@ -121,27 +115,16 @@ export async function GET(request: NextRequest) {
     }
 
     // Cache miss or stale — query Notion
-    let customEventId = utcId;
-    let result = customEventId
-      ? await findPracticeNotionPage(customEventId)
-      : null;
+    const result = await findPracticeNotionPageByCustomEventIds(candidateIds);
 
-    let matchedId = customEventId;
-    if (!result?.notionPageId && customEventId) {
-      if (wallId && wallId !== customEventId) {
-        result = await findPracticeNotionPage(wallId);
-        if (result?.notionPageId) matchedId = wallId;
-      }
-    }
-
-    const assignees = result?.assigneePageIds?.length
+    const assignees = result.assigneePageIds.length
       ? await hydratePracticeAssigneesFromPageIds(result.assigneePageIds)
       : [];
 
     // Backfill cache
-    if (result && matchedId) {
+    if (result.notionPageId && result.matchedCustomEventId) {
       upsertCacheEntry({
-        custom_event_id: matchedId,
+        custom_event_id: result.matchedCustomEventId,
         notion_page_id: result.notionPageId,
         notion_page_url: result.notionPageUrl,
         session_status: result.currentStatus,
@@ -151,10 +134,10 @@ export async function GET(request: NextRequest) {
     }
 
     return NextResponse.json({
-      notionPageUrl: result?.notionPageUrl ?? null,
-      currentStatus: result?.currentStatus ?? null,
-      notionPageId: result?.notionPageId ?? null,
-      patchlistLink: result?.patchlistLink ?? null,
+      notionPageUrl: result.notionPageUrl,
+      currentStatus: result.currentStatus,
+      notionPageId: result.notionPageId,
+      patchlistLink: result.patchlistLink,
       assignees,
     });
   } catch (error) {

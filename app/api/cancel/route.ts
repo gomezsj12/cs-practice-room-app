@@ -28,12 +28,11 @@ import {
 import { getEventEnd } from "@/lib/calendar-helpers";
 import { getCalendarClient } from "@/lib/google";
 import {
-  buildPracticeCustomEventIdFromGoogleEvent,
-  buildPracticeCustomEventIdFromGoogleEventInTimeZone,
+  buildPracticeCustomEventIdCandidatesFromGoogleEvent,
 } from "@/lib/practice-custom-event-id";
 import {
   markJamReservationCancelledInNotion,
-  markPracticeBookingCancelledInNotionByCustomId,
+  markPracticeBookingCancelledInNotionByCustomEventIds,
 } from "@/lib/notion";
 import { getProfileByGoogleEmail } from "@/lib/profile-helpers";
 import type { GoogleApiEvent } from "@/lib/types";
@@ -152,10 +151,11 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    const practiceCustomEventId =
+    const roomTz = process.env.ROOM_TIME_ZONE || "America/Los_Angeles";
+    const practiceCustomEventIds =
       eventType === "practice"
-        ? buildPracticeCustomEventIdFromGoogleEvent(event)
-        : null;
+        ? buildPracticeCustomEventIdCandidatesFromGoogleEvent(event, roomTz)
+        : [];
 
     await calendar.events.delete({
       calendarId,
@@ -170,35 +170,22 @@ export async function POST(request: NextRequest) {
       }
     }
 
-    if (eventType === "practice" && practiceCustomEventId) {
+    if (eventType === "practice" && practiceCustomEventIds.length > 0) {
       try {
-        let notionPageId =
-          await markPracticeBookingCancelledInNotionByCustomId(
-            practiceCustomEventId,
+        const { notionPageId, matchedCustomEventId } =
+          await markPracticeBookingCancelledInNotionByCustomEventIds(
+            practiceCustomEventIds,
           );
-
-        if (!notionPageId) {
-          const roomTz = process.env.ROOM_TIME_ZONE || "America/Los_Angeles";
-          const wallClockId =
-            buildPracticeCustomEventIdFromGoogleEventInTimeZone(event, roomTz);
-          if (wallClockId && wallClockId !== practiceCustomEventId) {
-            console.info(
-              "[cancel] UTC Custom Event ID missed, retrying with wall-clock.",
-              { utcId: practiceCustomEventId, wallClockId, timeZone: roomTz },
-            );
-            notionPageId =
-              await markPracticeBookingCancelledInNotionByCustomId(wallClockId);
-          }
-        }
 
         if (notionPageId) {
           console.info("[cancel] Practice booking marked Cancelled in Notion.", {
             notionPageId,
+            matchedCustomEventId,
           });
         } else {
           console.warn(
             "[cancel] Practice booking Notion update returned no match.",
-            { practiceCustomEventId },
+            { practiceCustomEventIds },
           );
         }
       } catch (notionError) {

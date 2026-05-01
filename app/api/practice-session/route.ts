@@ -5,8 +5,8 @@
  *
  * Updates flow:
  * 1. Fetch the Google Calendar event to read current times.
- * 2. Build the OLD Custom Event ID from current times, query Notion for the page.
- * 3. If times changed: patch Google Calendar, build the NEW Custom Event ID.
+ * 2. Build current candidate Custom Event IDs and query Notion for the page.
+ * 3. If times changed: patch Google Calendar, build the NEW canonical Custom Event ID.
  * 4. Batch-update Notion properties (Start Date/Time, Session Length, Custom
  *    Event ID, Session Status) in a single `pages.update` call.
  *
@@ -20,21 +20,19 @@
 import { NextRequest, NextResponse } from "next/server";
 import { auth } from "@/auth";
 import { isAppAdmin } from "@/lib/admin";
-import { getEventEnd, getEventStart } from "@/lib/calendar-helpers";
+import { getEventEnd } from "@/lib/calendar-helpers";
 import { getCalendarClient } from "@/lib/google";
 import {
   assigneePageIdsAreInPeopleDirectory,
-  findPracticeNotionPage,
+  findPracticeNotionPageByCustomEventIds,
   getCachedPeopleDirectorySummaries,
   hydrateAssigneesFromOrderedIds,
   updatePracticeSessionInNotion,
 } from "@/lib/notion";
 import { upsertCacheEntry } from "@/lib/practice-session-cache";
 import {
+  buildPracticeCustomEventIdCandidatesFromGoogleEvent,
   buildPracticeCustomEventIdFromGoogleEvent,
-  buildPracticeCustomEventIdFromGoogleEventInTimeZone,
-  formatUtcInstantForPracticeCustomEventId,
-  PRACTICE_CUSTOM_EVENT_ID_PREFIX,
 } from "@/lib/practice-custom-event-id";
 import type { GoogleApiEvent } from "@/lib/types";
 
@@ -145,24 +143,13 @@ export async function PATCH(request: NextRequest) {
       );
     }
 
-    // Step 2: Build OLD Custom Event ID and look up Notion page
-    let customEventId = buildPracticeCustomEventIdFromGoogleEvent(event);
-    let notionResult = customEventId
-      ? await findPracticeNotionPage(customEventId)
-      : null;
-
-    if (!notionResult?.notionPageId && customEventId) {
-      const wallClockId =
-        buildPracticeCustomEventIdFromGoogleEventInTimeZone(
-          event,
-          roomTimeZone,
-        );
-      if (wallClockId && wallClockId !== customEventId) {
-        notionResult = await findPracticeNotionPage(wallClockId);
-      }
-    }
-
-    const notionPageId = notionResult?.notionPageId ?? null;
+    // Step 2: Build current candidate Custom Event IDs and look up Notion page
+    const currentCustomEventIdCandidates =
+      buildPracticeCustomEventIdCandidatesFromGoogleEvent(event, roomTimeZone);
+    const notionResult = await findPracticeNotionPageByCustomEventIds(
+      currentCustomEventIdCandidates,
+    );
+    const notionPageId = notionResult.notionPageId;
 
     // Step 3: Update Google Calendar if times changed
     let newCustomEventId: string | undefined;
@@ -177,16 +164,13 @@ export async function PATCH(request: NextRequest) {
         },
       });
 
-      const newStartDate = new Date(newStart);
-      const newEndDate = new Date(newEnd);
-      const startSeg =
-        formatUtcInstantForPracticeCustomEventId(newStartDate);
-      const endSeg =
-        formatUtcInstantForPracticeCustomEventId(newEndDate);
-
-      if (startSeg && endSeg) {
-        newCustomEventId = `${PRACTICE_CUSTOM_EVENT_ID_PREFIX}-${startSeg}-${endSeg}`;
-      }
+      const updatedEvent: GoogleApiEvent = {
+        ...event,
+        start: { ...(event.start ?? {}), dateTime: newStart },
+        end: { ...(event.end ?? {}), dateTime: newEnd },
+      };
+      newCustomEventId =
+        buildPracticeCustomEventIdFromGoogleEvent(updatedEvent) ?? undefined;
     }
 
     // Step 4: Update Notion
@@ -222,7 +206,10 @@ export async function PATCH(request: NextRequest) {
           );
 
       // Write updated values to Supabase cache so subsequent reads are instant
-      const cacheId = newCustomEventId ?? customEventId;
+      const cacheId =
+        newCustomEventId ??
+        notionResult.matchedCustomEventId ??
+        currentCustomEventIdCandidates[0];
       if (cacheId) {
         upsertCacheEntry({
           custom_event_id: cacheId,

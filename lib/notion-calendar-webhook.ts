@@ -19,8 +19,10 @@ import {
   NOTION_CSPR_CANCEL_ORIGIN_PROPERTY,
 } from "@/lib/notion-sync-constants";
 import {
+  buildPracticeCustomEventIdCandidatesFromGoogleEvent,
   parsePracticeCustomEventId,
   parsePracticeCustomEventIdAsRoomWallClock,
+  practiceCustomEventIdsMatch,
 } from "@/lib/practice-custom-event-id";
 import type { GoogleApiEvent } from "@/lib/types";
 
@@ -230,6 +232,8 @@ export async function processNotionCalendarCancellationFromPage(
         practiceCalendarId,
         parsed.start,
         parsed.end,
+        customEventId,
+        roomTz,
       );
       if (!matchedEventId) {
         console.warn(
@@ -274,6 +278,8 @@ async function findPracticeCalendarEventByTimeRange(
   calendarId: string,
   start: Date,
   end: Date,
+  customEventId: string,
+  roomTimeZone: string,
 ): Promise<string | null> {
   const calendar = getCalendarClient();
 
@@ -292,6 +298,7 @@ async function findPracticeCalendarEventByTimeRange(
   const events = response.data.items ?? [];
   const targetStartMs = start.getTime();
   const targetEndMs = end.getTime();
+  let timeOnlyFallbackEventId: string | null = null;
 
   for (const event of events) {
     const typed = event as GoogleApiEvent;
@@ -307,11 +314,22 @@ async function findPracticeCalendarEventByTimeRange(
       Math.abs(evStartMs - targetStartMs) < 90_000 &&
       Math.abs(evEndMs - targetEndMs) < 90_000
     ) {
-      return typed.id;
+      const candidateIds = buildPracticeCustomEventIdCandidatesFromGoogleEvent(
+        typed,
+        roomTimeZone,
+      );
+      if (
+        candidateIds.some((candidateId) =>
+          practiceCustomEventIdsMatch(candidateId, customEventId),
+        )
+      ) {
+        return typed.id;
+      }
+      timeOnlyFallbackEventId ??= typed.id;
     }
   }
 
-  return null;
+  return timeOnlyFallbackEventId;
 }
 
 /**

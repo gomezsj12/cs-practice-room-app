@@ -178,6 +178,94 @@ const NOTION_PRACTICE_CUSTOM_EVENT_ID_PROP = "Custom Event ID";
 /** Notion relation column on Fillout practice rows (People directory). */
 export const NOTION_PRACTICE_ASSIGNEES_PROP = "Assignee(s)";
 
+type PracticeNotionPageResult = {
+  notionPageId: string | null;
+  currentStatus: string | null;
+  notionPageUrl: string | null;
+  patchlistLink: string | null;
+  assigneePageIds: string[];
+};
+
+type PracticeNotionPageMatchResult = PracticeNotionPageResult & {
+  matchedCustomEventId: string | null;
+};
+
+function emptyPracticeNotionPageResult(): PracticeNotionPageResult {
+  return {
+    notionPageId: null,
+    currentStatus: null,
+    notionPageUrl: null,
+    patchlistLink: null,
+    assigneePageIds: [],
+  };
+}
+
+function uniqueNonEmptyCustomEventIds(customEventIds: string[]): string[] {
+  return [...new Set(customEventIds.map((id) => id.trim()).filter(Boolean))];
+}
+
+async function queryPracticePageByCustomEventId(
+  notion: Client,
+  dataSourceId: string,
+  customEventId: string,
+) {
+  const queryData = await notion.dataSources.query({
+    data_source_id: dataSourceId,
+    filter: {
+      property: NOTION_PRACTICE_CUSTOM_EVENT_ID_PROP,
+      rich_text: {
+        equals: customEventId,
+      },
+    },
+    page_size: 1,
+  });
+
+  return queryData.results?.[0] ?? null;
+}
+
+function mapPracticePageResult(
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any -- Notion SDK page result shape is broad.
+  page: any,
+): PracticeNotionPageResult {
+  if (!page) {
+    return emptyPracticeNotionPageResult();
+  }
+
+  const pageId = page.id;
+  let currentStatus: string | null = null;
+  let patchlistLink: string | null = null;
+  let assigneePageIds: string[] = [];
+
+  if ("properties" in page) {
+    const props = page.properties as Record<string, PracticePageProp>;
+    assigneePageIds = extractAssigneePageIdsFromPracticeProperties(props);
+
+    const statusProp = props["Session Status"];
+    if (statusProp?.type === "status") {
+      currentStatus = statusProp.status?.name?.trim() ?? null;
+    }
+
+    const linkProp = props["Link to Patchlist"];
+    if (linkProp?.type === "url") {
+      patchlistLink = linkProp.url?.trim() || null;
+    } else if (linkProp?.type === "rich_text") {
+      patchlistLink =
+        (linkProp.rich_text ?? [])
+          .map((c) => c.plain_text ?? "")
+          .join("")
+          .trim() || null;
+    }
+  }
+
+  return {
+    notionPageId: pageId,
+    currentStatus,
+    notionPageUrl: `https://notion.so/${pageId.replace(/-/g, "")}`,
+    patchlistLink,
+    assigneePageIds,
+  };
+}
+
 /**
  * Find a practice-booking row by **Custom Event ID** and set **Session Status** to
  * **Cancelled**. Returns the page ID on success, or `null` if none matched.
@@ -199,23 +287,17 @@ export async function markPracticeBookingCancelledInNotionByCustomId(
   }
 
   const notion = getNotionClientForRealm("calendar");
-
-  const queryData = await notion.dataSources.query({
-    data_source_id: dataSourceId,
-    filter: {
-      property: NOTION_PRACTICE_CUSTOM_EVENT_ID_PROP,
-      rich_text: {
-        equals: customEventId,
-      },
-    },
-  });
-
-  const pageId = queryData.results?.[0]?.id;
+  const page = await queryPracticePageByCustomEventId(
+    notion,
+    dataSourceId,
+    customEventId,
+  );
+  const pageId = page?.id ?? null;
 
   if (!pageId) {
     console.warn(
       "[notion] Practice cancel: no Notion page matched Custom Event ID.",
-      { customEventId, dataSourceId, resultCount: queryData.results?.length ?? 0 },
+      { customEventId, dataSourceId },
     );
     return null;
   }
@@ -246,6 +328,20 @@ export async function markPracticeBookingCancelledInNotionByCustomId(
   });
 
   return pageId;
+}
+
+export async function markPracticeBookingCancelledInNotionByCustomEventIds(
+  customEventIds: string[],
+): Promise<{ notionPageId: string | null; matchedCustomEventId: string | null }> {
+  const candidates = uniqueNonEmptyCustomEventIds(customEventIds);
+  for (const candidate of candidates) {
+    const notionPageId =
+      await markPracticeBookingCancelledInNotionByCustomId(candidate);
+    if (notionPageId) {
+      return { notionPageId, matchedCustomEventId: candidate };
+    }
+  }
+  return { notionPageId: null, matchedCustomEventId: null };
 }
 
 /* ------------------------------------------------------------------ */
@@ -285,13 +381,7 @@ export function extractAssigneePageIdsFromPracticeProperties(
  */
 export async function findPracticeNotionPage(
   customEventId: string,
-): Promise<{
-  notionPageId: string | null;
-  currentStatus: string | null;
-  notionPageUrl: string | null;
-  patchlistLink: string | null;
-  assigneePageIds: string[];
-}> {
+): Promise<PracticeNotionPageResult> {
   const dataSourceId =
     process.env.NOTION_FILLOUT_MASTER_DATA_SOURCE_ID?.trim();
 
@@ -302,63 +392,27 @@ export async function findPracticeNotionPage(
   }
 
   const notion = getNotionClientForRealm("calendar");
+  const page = await queryPracticePageByCustomEventId(
+    notion,
+    dataSourceId,
+    customEventId,
+  );
+  return mapPracticePageResult(page);
+}
 
-  const queryData = await notion.dataSources.query({
-    data_source_id: dataSourceId,
-    filter: {
-      property: NOTION_PRACTICE_CUSTOM_EVENT_ID_PROP,
-      rich_text: {
-        equals: customEventId,
-      },
-    },
-    page_size: 1,
-  });
-
-  const page = queryData.results?.[0];
-  if (!page) {
-    return {
-      notionPageId: null,
-      currentStatus: null,
-      notionPageUrl: null,
-      patchlistLink: null,
-      assigneePageIds: [],
-    };
-  }
-
-  const pageId = page.id;
-  let currentStatus: string | null = null;
-  let patchlistLink: string | null = null;
-  let assigneePageIds: string[] = [];
-
-  if ("properties" in page) {
-    const props = page.properties as Record<string, PracticePageProp>;
-    assigneePageIds = extractAssigneePageIdsFromPracticeProperties(props);
-
-    const statusProp = props["Session Status"];
-    if (statusProp?.type === "status") {
-      currentStatus = statusProp.status?.name?.trim() ?? null;
-    }
-
-    const linkProp = props["Link to Patchlist"];
-    if (linkProp?.type === "url") {
-      patchlistLink = linkProp.url?.trim() || null;
-    } else if (linkProp?.type === "rich_text") {
-      patchlistLink =
-        (linkProp.rich_text ?? [])
-          .map((c) => c.plain_text ?? "")
-          .join("")
-          .trim() || null;
+export async function findPracticeNotionPageByCustomEventIds(
+  customEventIds: string[],
+): Promise<PracticeNotionPageMatchResult> {
+  const candidates = uniqueNonEmptyCustomEventIds(customEventIds);
+  for (const candidate of candidates) {
+    const result = await findPracticeNotionPage(candidate);
+    if (result.notionPageId) {
+      return { ...result, matchedCustomEventId: candidate };
     }
   }
-
-  const notionPageUrl = `https://notion.so/${pageId.replace(/-/g, "")}`;
-
   return {
-    notionPageId: pageId,
-    currentStatus,
-    notionPageUrl,
-    patchlistLink,
-    assigneePageIds,
+    ...emptyPracticeNotionPageResult(),
+    matchedCustomEventId: null,
   };
 }
 
