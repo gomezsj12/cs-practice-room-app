@@ -91,14 +91,14 @@ export default function PracticeStatusDropdown({
         onClick={toggle}
         disabled={disabled}
         title={disabled ? "No Notion page linked" : `Status: ${currentStatus ?? "Unknown"}`}
-        className={`inline-flex h-7 w-7 items-center justify-center rounded-full ${
+        className={`group inline-flex h-7 w-7 items-center justify-center rounded-full transition-all ${
           disabled
             ? "cursor-not-allowed opacity-40"
             : "cursor-pointer"
         }`}
       >
         <span
-          className="inline-block h-4 w-4 rounded-full"
+          className="inline-block h-4 w-4 rounded-full transition-all group-hover:scale-110 group-hover:brightness-125"
           style={{ backgroundColor: dotColor }}
         />
       </button>

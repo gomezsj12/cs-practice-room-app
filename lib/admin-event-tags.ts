@@ -9,22 +9,10 @@ import { getSupabaseAdmin } from "@/lib/supabase";
 
 export const ADMIN_EVENT_TAG_OPTIONS = [
   {
-    value: "amber",
-    label: "Amber",
-    color: "#f59e0b",
-    overlayColor: "rgba(245, 158, 11, 0.18)",
-  },
-  {
     value: "rose",
     label: "Rose",
     color: "#fb7185",
     overlayColor: "rgba(251, 113, 133, 0.18)",
-  },
-  {
-    value: "emerald",
-    label: "Emerald",
-    color: "#34d399",
-    overlayColor: "rgba(52, 211, 153, 0.18)",
   },
   {
     value: "orange",
@@ -33,10 +21,28 @@ export const ADMIN_EVENT_TAG_OPTIONS = [
     overlayColor: "rgba(249, 115, 22, 0.18)",
   },
   {
-    value: "lime",
-    label: "Lime",
-    color: "#a3e635",
-    overlayColor: "rgba(163, 230, 53, 0.18)",
+    value: "yellow",
+    label: "Yellow",
+    color: "#facc15",
+    overlayColor: "rgba(250, 204, 21, 0.18)",
+  },
+  {
+    value: "emerald",
+    label: "Emerald",
+    color: "#34d399",
+    overlayColor: "rgba(52, 211, 153, 0.18)",
+  },
+  {
+    value: "sky",
+    label: "Sky",
+    color: "#38bdf8",
+    overlayColor: "rgba(56, 189, 248, 0.18)",
+  },
+  {
+    value: "violet",
+    label: "Violet",
+    color: "#a78bfa",
+    overlayColor: "rgba(167, 139, 250, 0.18)",
   },
 ] as const;
 

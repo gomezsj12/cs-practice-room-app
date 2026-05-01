@@ -8,7 +8,8 @@
  * current user owns — a cancel button (gated behind a {@link ConfirmModal}).
  *
  * **Admin controls** (practice events only, when `isAdmin` is true):
- * - Notion icon button that opens the linked Notion page
+ * - Hover/tap title context overlay with "Open in Notion" link
+ * - Tag icon dropdown for private calendar tags (replaces the old card-style selector)
  * - Editable start/end times (same-day only)
  * - Status dropdown matching Notion's Session Status options
  * - Assignee(s) multi-select (People directory) beside the time pickers
@@ -27,6 +28,7 @@
  */
 
 import { useEffect, useRef, useState, type SyntheticEvent } from "react";
+import { motion, AnimatePresence } from "framer-motion";
 import {
   getCalendarEventKindLabel,
   stripPracticeContactPersonLabel,
@@ -39,7 +41,7 @@ import {
   sessionAttendeePillClass,
 } from "@/lib/session-attendees";
 import type { AdminEventTagKey } from "@/lib/admin-event-tags";
-import AdminEventTagSelect from "@/components/AdminEventTagSelect";
+import AdminTagIconDropdown from "@/components/AdminTagIconDropdown";
 import type {
   CalendarEvent,
   PracticeNotionDetails,
@@ -265,8 +267,8 @@ export default function EventDetailsModal({
       onTouchStart={handleBackdropDismiss}
     >
       <div className="w-full max-w-md rounded-3xl border border-neutral-800 bg-[#121212] p-6 text-white shadow-2xl">
-        {/* Title row: items-start keeps the Notion control top-right when the title wraps */}
-        <div className="mb-3 -ml-0.5 flex items-start gap-2">
+        {/* Title row — all interactive controls sit outside the hover zone */}
+        <div className="mb-1 -ml-0.5 flex items-start gap-2">
           <div className="flex min-w-0 flex-1 items-start gap-1">
             {showAdminControls ? (
               <PracticeStatusDropdown
@@ -298,14 +300,21 @@ export default function EventDetailsModal({
             </h2>
           </div>
 
-          {/* Notion icon button (admin + practice only) */}
-          {showAdminControls && (
-            <NotionLinkButton
-              url={notionDetails?.notionPageUrl ?? null}
-              loading={isLoadingNotionDetails}
+          {/* Tag icon dropdown (admin + practice/jam only) */}
+          {showAdminTagControl && (
+            <AdminTagIconDropdown
+              value={(event.adminTagKey as AdminEventTagKey | null) ?? null}
+              disabled={busyState}
+              onChange={(value) => onUpdateAdminTag?.(value)}
             />
           )}
         </div>
+
+        {/* Notion context overlay — hover zone is only the wedge area below the title */}
+        <TitleContextOverlay
+          notionUrl={showAdminControls ? (notionDetails?.notionPageUrl ?? null) : null}
+          loading={showAdminControls ? isLoadingNotionDetails : false}
+        />
 
         {/* Time range and attendee info */}
         <div className="mt-1 flex flex-wrap items-center gap-x-3 gap-y-1">
@@ -375,16 +384,6 @@ export default function EventDetailsModal({
           </div>
         )}
 
-        {showAdminTagControl ? (
-          <div className="mt-4">
-            <AdminEventTagSelect
-              value={(event.adminTagKey as AdminEventTagKey | null) ?? null}
-              disabled={busyState}
-              onChange={(value) => onUpdateAdminTag?.(value)}
-            />
-          </div>
-        ) : null}
-
         {rawDescription ? (
           <div className="mt-5 rounded-2xl border border-white/10 bg-white/5 p-4">
             {detailsSectionTitle ? (
@@ -449,53 +448,200 @@ export default function EventDetailsModal({
   );
 }
 
-/** Small Notion "N" icon button that opens the linked page in a new tab. */
-function NotionLinkButton({
-  url,
+/** Cached hover-capability check — only runs once per page load. */
+let _deviceHasHover: boolean | null = null;
+function deviceHasHover(): boolean {
+  if (_deviceHasHover === null) {
+    _deviceHasHover =
+      typeof window !== "undefined" &&
+      window.matchMedia("(hover: hover)").matches;
+  }
+  return _deviceHasHover;
+}
+
+/**
+ * Standalone wedge + overlay for the "Open in Notion" context action.
+ *
+ * Renders a small centered wedge arrow. Hovering (desktop) or tapping (mobile)
+ * the wedge area reveals a translucent gradient overlay with the Notion link.
+ * The hover zone is only the wedge itself — not the title or any other control.
+ *
+ * Returns null when no Notion URL is available and not loading.
+ */
+function TitleContextOverlay({
+  notionUrl,
   loading,
 }: {
-  url: string | null;
+  notionUrl: string | null;
   loading: boolean;
 }) {
-  if (loading) {
-    return (
-      <span className="mt-0.5 inline-flex h-7 w-7 shrink-0 animate-pulse items-center justify-center rounded-md bg-neutral-700" />
-    );
+  const [open, setOpen] = useState(false);
+  const containerRef = useRef<HTMLDivElement>(null);
+  const leaveTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const hasHover = deviceHasHover();
+
+  // Close on click-outside or Escape
+  useEffect(() => {
+    if (!open) return;
+
+    function handleClickOutside(e: MouseEvent) {
+      if (
+        containerRef.current &&
+        !containerRef.current.contains(e.target as Node)
+      ) {
+        setOpen(false);
+      }
+    }
+
+    function handleEscape(e: KeyboardEvent) {
+      if (e.key === "Escape") {
+        e.stopPropagation();
+        setOpen(false);
+      }
+    }
+
+    document.addEventListener("mousedown", handleClickOutside);
+    document.addEventListener("keydown", handleEscape, true);
+    return () => {
+      document.removeEventListener("mousedown", handleClickOutside);
+      document.removeEventListener("keydown", handleEscape, true);
+    };
+  }, [open]);
+
+  // Cleanup leave timer on unmount
+  useEffect(
+    () => () => {
+      if (leaveTimerRef.current) clearTimeout(leaveTimerRef.current);
+    },
+    [],
+  );
+
+  // Nothing to show
+  if (!notionUrl && !loading) {
+    return null;
   }
 
-  if (!url) return null;
-
   return (
-    <a
-      href={url}
-      target="_blank"
-      rel="noopener noreferrer"
-      title="Open in Notion"
-      className="mt-0.5 inline-flex h-7 w-7 shrink-0 items-center justify-center rounded-md border border-neutral-700 bg-neutral-800 transition-colors hover:border-neutral-500 hover:bg-neutral-700"
-    >
-      <svg
-        width="16"
-        height="16"
-        viewBox="0 0 100 100"
-        fill="none"
-        xmlns="http://www.w3.org/2000/svg"
+    <div ref={containerRef} className="relative mb-2">
+      {/* Subtle animated wedge — narrow centered hover/click target */}
+      <div
+        className="mx-auto flex w-10 cursor-pointer justify-center py-0.5"
+        onClick={() => {
+          if (!hasHover) setOpen((prev) => !prev);
+        }}
+        onMouseEnter={
+          hasHover
+            ? () => {
+                if (leaveTimerRef.current) {
+                  clearTimeout(leaveTimerRef.current);
+                  leaveTimerRef.current = null;
+                }
+                setOpen(true);
+              }
+            : undefined
+        }
+        onMouseLeave={
+          hasHover
+            ? () => {
+                leaveTimerRef.current = setTimeout(() => setOpen(false), 120);
+              }
+            : undefined
+        }
       >
-        <path
-          d="M6.017 4.313l55.333-4.087c6.797-.583 8.543-.19 12.817 2.917l17.663 12.443c2.913 2.14 3.883 2.723 3.883 5.053v68.243c0 4.277-1.553 6.807-6.99 7.193L24.467 99.967c-4.08.193-6.023-.39-8.16-3.113L3.3 79.94c-2.333-3.113-3.3-5.443-3.3-8.167V11.113c0-3.497 1.553-6.413 6.017-6.8z"
-          fill="currentColor"
-        />
-        <path
-          d="M61.35.227l-55.333 4.087C1.553 4.7 0 7.617 0 11.113v60.66c0 2.723.967 5.053 3.3 8.167l12.813 16.913c2.137 2.723 4.08 3.307 8.16 3.113L88.723 96.08c5.437-.387 6.99-2.917 6.99-7.193V20.64c0-2.21-.81-2.893-3.443-4.733L74.167 3.143C69.893.04 68.147-.357 61.35.227zM25.723 19.01c-5.163.39-6.35.477-9.3-1.947L8.927 10.917c-.78-.78-.39-1.75 1.553-1.947l51.053-3.693c4.47-.387 6.797 1.167 8.543 2.527l9.107 6.607c.39.193 1.36 1.36.193 1.36l-52.867 3.043-.787.193z"
-          fill="currentColor"
-        />
-        <path
-          fillRule="evenodd"
-          clipRule="evenodd"
-          d="M19.803 88.3V30.367c0-2.53.78-3.697 3.113-3.89l56.887-3.3c2.14-.193 3.107 1.167 3.107 3.693V84.81c0 2.53-.39 4.67-3.883 4.863l-54.36 3.107c-3.5.193-4.863-1.007-4.863-4.48zm55.14-55.14c.39 1.553 0 3.107-1.553 3.3l-2.72.58v40.25c-2.333 1.167-4.47 1.75-6.217 1.75-2.913 0-3.69-.97-5.83-3.5L40.49 47.527v25.667l5.83 1.363s0 3.107-4.277 3.107l-11.83.58c-.39-.78 0-1.947 1.007-2.14l3.107-.78V38.34l-4.277-.39c-.39-1.553.583-3.89 3.107-4.08l12.613-.78L65.667 61.31V37.56l-4.857-.58c-.39-1.943 1.007-3.307 2.917-3.5l12.017-.31z"
-          fill="#262626"
-        />
-      </svg>
-    </a>
+        <svg
+          width="14"
+          height="7"
+          viewBox="0 0 14 7"
+          className="transition-all duration-200"
+          style={{
+            color: open ? "rgba(163,163,163,0.55)" : "rgba(163,163,163,0.22)",
+            transform: open ? "scaleY(-1)" : "scaleY(1)",
+          }}
+        >
+          <path d="M1 1 L7 6 L13 1" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" fill="none" />
+        </svg>
+      </div>
+
+      {/* Overlay — translucent gradient, opaque at top fading to transparent */}
+      <AnimatePresence>
+        {open && (
+          <motion.div
+            className="absolute left-0 right-0 top-full z-[60] px-3.5 pb-5 pt-1"
+            style={{
+              background:
+                "linear-gradient(180deg, rgba(18, 18, 18, 0.92) 0%, rgba(18, 18, 18, 0.82) 40%, rgba(18, 18, 18, 0.5) 75%, transparent 100%)",
+            }}
+            initial={{ opacity: 0, y: -4 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: -4 }}
+            transition={{ type: "spring", duration: 0.08, bounce: 0 }}
+            onMouseEnter={
+              hasHover
+                ? () => {
+                    if (leaveTimerRef.current) {
+                      clearTimeout(leaveTimerRef.current);
+                      leaveTimerRef.current = null;
+                    }
+                  }
+                : undefined
+            }
+            onMouseLeave={
+              hasHover
+                ? () => {
+                    leaveTimerRef.current = setTimeout(
+                      () => setOpen(false),
+                      120,
+                    );
+                  }
+                : undefined
+            }
+          >
+            {loading ? (
+              <span className="inline-block h-4 w-24 animate-pulse rounded bg-neutral-700/50" />
+            ) : notionUrl ? (
+              <a
+                href={notionUrl}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="flex items-center gap-2.5 text-sm text-neutral-300 transition-colors hover:text-white"
+              >
+                <NotionIcon />
+                <span>Open in Notion</span>
+              </a>
+            ) : null}
+          </motion.div>
+        )}
+      </AnimatePresence>
+    </div>
+  );
+}
+
+/** Notion "N" logo SVG, sized for inline use. */
+function NotionIcon() {
+  return (
+    <svg
+      width="16"
+      height="16"
+      viewBox="0 0 100 100"
+      fill="none"
+      xmlns="http://www.w3.org/2000/svg"
+      className="shrink-0"
+    >
+      <path
+        d="M6.017 4.313l55.333-4.087c6.797-.583 8.543-.19 12.817 2.917l17.663 12.443c2.913 2.14 3.883 2.723 3.883 5.053v68.243c0 4.277-1.553 6.807-6.99 7.193L24.467 99.967c-4.08.193-6.023-.39-8.16-3.113L3.3 79.94c-2.333-3.113-3.3-5.443-3.3-8.167V11.113c0-3.497 1.553-6.413 6.017-6.8z"
+        fill="currentColor"
+      />
+      <path
+        d="M61.35.227l-55.333 4.087C1.553 4.7 0 7.617 0 11.113v60.66c0 2.723.967 5.053 3.3 8.167l12.813 16.913c2.137 2.723 4.08 3.307 8.16 3.113L88.723 96.08c5.437-.387 6.99-2.917 6.99-7.193V20.64c0-2.21-.81-2.893-3.443-4.733L74.167 3.143C69.893.04 68.147-.357 61.35.227zM25.723 19.01c-5.163.39-6.35.477-9.3-1.947L8.927 10.917c-.78-.78-.39-1.75 1.553-1.947l51.053-3.693c4.47-.387 6.797 1.167 8.543 2.527l9.107 6.607c.39.193 1.36 1.36.193 1.36l-52.867 3.043-.787.193z"
+        fill="currentColor"
+      />
+      <path
+        fillRule="evenodd"
+        clipRule="evenodd"
+        d="M19.803 88.3V30.367c0-2.53.78-3.697 3.113-3.89l56.887-3.3c2.14-.193 3.107 1.167 3.107 3.693V84.81c0 2.53-.39 4.67-3.883 4.863l-54.36 3.107c-3.5.193-4.863-1.007-4.863-4.48zm55.14-55.14c.39 1.553 0 3.107-1.553 3.3l-2.72.58v40.25c-2.333 1.167-4.47 1.75-6.217 1.75-2.913 0-3.69-.97-5.83-3.5L40.49 47.527v25.667l5.83 1.363s0 3.107-4.277 3.107l-11.83.58c-.39-.78 0-1.947 1.007-2.14l3.107-.78V38.34l-4.277-.39c-.39-1.553.583-3.89 3.107-4.08l12.613-.78L65.667 61.31V37.56l-4.857-.58c-.39-1.943 1.007-3.307 2.917-3.5l12.017-.31z"
+        fill="#262626"
+      />
+    </svg>
   );
 }
 

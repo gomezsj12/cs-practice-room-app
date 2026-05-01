@@ -143,12 +143,15 @@ test.describe("admin", () => {
     const heightBeforeTag = (await practiceEvent.boundingBox())?.height;
     await practiceEvent.click();
 
-    await expect(
-      page.getByRole("combobox", { name: "Private calendar tag" }),
-    ).toBeVisible();
+    // Tag icon should be visible in the modal title row
+    const tagButton = page.getByRole("button", {
+      name: "Private calendar tag",
+    });
+    await expect(tagButton).toBeVisible();
 
-    await page.getByRole("combobox", { name: "Private calendar tag" }).click();
-    await page.getByRole("option", { name: "Rose" }).click();
+    // Open the tag dropdown and select Rose
+    await tagButton.click();
+    await page.getByRole("button", { name: "Tag: Rose" }).click();
 
     await expect(page.getByText("Private calendar tag saved.")).toBeVisible();
     await expect(practiceEvent).toHaveClass(/fc-admin-tagged-event/);
@@ -156,23 +159,54 @@ test.describe("admin", () => {
     const heightAfterTag = (await practiceEvent.boundingBox())?.height;
     expect(heightBeforeTag).toBeDefined();
     expect(heightAfterTag).toBeDefined();
-    expect(Math.abs((heightAfterTag ?? 0) - (heightBeforeTag ?? 0))).toBeLessThanOrEqual(2);
+    expect(
+      Math.abs((heightAfterTag ?? 0) - (heightBeforeTag ?? 0)),
+    ).toBeLessThanOrEqual(2);
     expect(mocks.getLastTagWriteBody()).toMatchObject({
       eventType: "practice",
       googleEventId: "practice-1",
       tagKey: "rose",
     });
 
-    await page.getByRole("combobox", { name: "Private calendar tag" }).click();
-    await page.getByRole("option", { name: "No private tag" }).click();
+    // Clear the tag
+    await tagButton.click();
+    await page.getByRole("button", { name: "No tag" }).click();
 
-    await expect(page.getByText("Private calendar tag cleared.")).toBeVisible();
+    await expect(
+      page.getByText("Private calendar tag cleared."),
+    ).toBeVisible();
     await expect(practiceEvent).not.toHaveClass(/fc-admin-tagged-event/);
 
     await page.getByRole("button", { name: "Close" }).first().click();
-    await expect(
-      page.getByRole("combobox", { name: "Private calendar tag" }),
-    ).toHaveCount(0);
+    await expect(tagButton).toHaveCount(0);
+  });
+
+  test("title context overlay shows Notion link on hover", async ({
+    page,
+  }) => {
+    await mockCalendarPage(page, {});
+    await page.goto("/calendar");
+
+    const practiceEvent = page.locator(".fc-event", {
+      hasText: "Team Practice",
+    });
+    await expect(practiceEvent).toBeVisible();
+    await practiceEvent.click();
+
+    // The "Open in Notion" link should appear in the context overlay
+    // On desktop, hover triggers it; in test we can click the title area
+    const notionLink = page.getByRole("link", { name: "Open in Notion" });
+
+    // The link should not be immediately visible (hidden in overlay)
+    await expect(notionLink).toHaveCount(0);
+
+    // Click the title area to toggle the overlay (works on both mobile and desktop)
+    await page.locator("h2", { hasText: "Team Practice" }).click();
+    await expect(notionLink).toBeVisible();
+    await expect(notionLink).toHaveAttribute(
+      "href",
+      "https://www.notion.so/example",
+    );
   });
 });
 
@@ -191,7 +225,7 @@ test.describe("non-admin", () => {
     await practiceEvent.click();
 
     await expect(
-      page.getByRole("combobox", { name: "Private calendar tag" }),
+      page.getByRole("button", { name: "Private calendar tag" }),
     ).toHaveCount(0);
   });
 });
