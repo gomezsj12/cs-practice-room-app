@@ -16,6 +16,7 @@
  */
 
 import Link from "next/link";
+import { auth } from "@/auth";
 import ContactSupportForm from "@/components/ContactSupportForm";
 import { siteConfig } from "@/lib/siteConfig";
 
@@ -45,6 +46,35 @@ function HelpQuestionIcon() {
     >
       ?
     </span>
+  );
+}
+
+/** Spreadsheet/grid icon — Patchlist Generator link. */
+function SpreadsheetIcon() {
+  return (
+    <svg
+      aria-hidden="true"
+      viewBox="0 0 24 24"
+      className="h-5 w-5 shrink-0 text-violet-100"
+      fill="none"
+      xmlns="http://www.w3.org/2000/svg"
+    >
+      <rect
+        x="3.5"
+        y="4"
+        width="17"
+        height="16"
+        rx="2.5"
+        stroke="currentColor"
+        strokeWidth="1.5"
+      />
+      <path
+        d="M3.5 9.5h17M9 9.5V20M15 9.5V20M3.5 14.75h17"
+        stroke="currentColor"
+        strokeWidth="1.5"
+        strokeLinecap="round"
+      />
+    </svg>
   );
 }
 
@@ -123,7 +153,10 @@ function MeetWithUsIcon() {
 }
 
 /** Homepage server component. */
-export default function Home() {
+export default async function Home() {
+  const session = await auth();
+  const isAdmin = !!session?.isAdmin;
+
   return (
     <main className="px-4 pb-8 pt-5 text-white">
       <div className="mx-auto flex max-w-7xl flex-col gap-6">
@@ -171,7 +204,7 @@ export default function Home() {
                     >
                       Calendar
                     </Link>{" "}
-                    the menu bar (you don't need to be logged in to view the
+                    the menu bar (you don&apos;t need to be logged in to view the
                     calendar).
                   </li>
                 </ul>
@@ -219,7 +252,7 @@ export default function Home() {
                   className="inline-flex items-center gap-2 rounded-2xl border border-[#2AABEE]/45 bg-[#2AABEE]/10 px-4 py-4 text-sm font-medium text-[#9DDCFF] transition hover:border-[#2AABEE]/70 hover:bg-[#2AABEE]/15"
                 >
                   <TelegramIcon />
-                  <span>CS Practice Room group chat</span>
+                  <span>Telegram group chat</span>
                 </a>
               ) : (
                 <div className="rounded-2xl border border-dashed border-white/10 bg-black/20 px-4 py-4 text-sm text-neutral-400">
@@ -227,15 +260,27 @@ export default function Home() {
                   `NEXT_PUBLIC_TELEGRAM_GROUP_URL`.
                 </div>
               )}
-              <a
-                href="https://cspracticeroom.notion.site/CS-Practice-Room-App-User-Guide-340ded29cbc680cbbd42dcb834cce589"
-                target="_blank"
-                rel="noreferrer"
-                className="inline-flex items-center gap-2 rounded-2xl border border-red-500/50 bg-red-600/20 px-4 py-4 text-sm font-medium text-red-100 transition hover:border-red-400/70 hover:bg-red-600/30 hover:text-white"
-              >
-                <HelpQuestionIcon />
-                <span>How to use this app</span>
-              </a>
+              {isAdmin ? (
+                <a
+                  href="https://patchlist.wwu-cspr.app/"
+                  target="_blank"
+                  rel="noreferrer"
+                  className="inline-flex items-center gap-2 rounded-2xl border border-violet-500/50 bg-violet-600/20 px-4 py-4 text-sm font-medium text-violet-100 transition hover:border-violet-400/70 hover:bg-violet-600/30 hover:text-white"
+                >
+                  <SpreadsheetIcon />
+                  <span>Patchlist Generator</span>
+                </a>
+              ) : (
+                <a
+                  href="https://cspracticeroom.notion.site/CS-Practice-Room-App-User-Guide-340ded29cbc680cbbd42dcb834cce589"
+                  target="_blank"
+                  rel="noreferrer"
+                  className="inline-flex items-center gap-2 rounded-2xl border border-red-500/50 bg-red-600/20 px-4 py-4 text-sm font-medium text-red-100 transition hover:border-red-400/70 hover:bg-red-600/30 hover:text-white"
+                >
+                  <HelpQuestionIcon />
+                  <span>How to use this app</span>
+                </a>
+              )}
               <a
                 href="https://cspracticeroom.fillout.com/terms_and_conditions"
                 target="_blank"
