@@ -204,6 +204,7 @@ This file is the **single source of truth** for the full project history — fro
 | `8a95f39` | 2026-05-01       | **Refine admin tag and Notion event controls** | post-commit hook |
 | `d1cfd59` | 2026-05-01       | **Practice Custom Event ID hardening: canonical suffix now uses stripped contact phone + session attendee count; all practice lookups prefer canonical IDs then fall back to legacy time-only variants.** Added a focused Vitest file for ID derivation/parsing, a Notion-side historical backfill script for Fillout master rows, and architecture docs covering the canonical format and migration workflow. | Cursor agent |
 | `3797f05` | 2026-05-01       | **Document practice custom event ID migration** | post-commit hook |
+| `fab9cd1` | 2026-05-02       | **Show patchlist generator for admins** | post-commit hook |
 
 ---
 
