@@ -206,6 +206,7 @@ This file is the **single source of truth** for the full project history — fro
 | `3797f05` | 2026-05-01       | **Document practice custom event ID migration** | post-commit hook |
 | `fab9cd1` | 2026-05-02       | **Show patchlist generator for admins** | post-commit hook |
 | `fe17b1b` | 2026-05-03       | **Update admin event tag color constraint** | post-commit hook |
+| `1afc7fd` | 2026-05-03       | **Migrate removed admin event tag colors** | post-commit hook |
 
 ---
 
