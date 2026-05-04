@@ -10,6 +10,13 @@
  *
  * Each time segment is lowercase English month + day + year + 12-hour time +
  * `(utc)`, for example: `may62026415am(utc)`.
+ *
+ * Lookup uses two modes (see {@link PracticeCustomEventIdCandidate}):
+ * - `equals` for the canonical full ID (fast, unambiguous).
+ * - `starts_with` for the time-only prefix as a robust fallback. This catches
+ *   both legacy stored-as-no-metadata rows AND newer rows whose suffix can't
+ *   be re-derived from the calendar description (e.g. short / international
+ *   phone numbers that don't match the strict `PHONE_RE` length rules).
  */
 import {
   getEventEnd,
@@ -218,50 +225,91 @@ export function buildLegacyPracticeCustomEventIdFromGoogleEventInTimeZone(
   );
 }
 
+/**
+ * Match mode for {@link PracticeCustomEventIdCandidate}.
+ *
+ * - `equals`: exact match. Used for the canonical ID (with phone+attendee
+ *   suffix). When this matches, we know the Notion row is the right one
+ *   without any further verification.
+ * - `starts_with`: prefix match against the time-only ID. Required because
+ *   the canonical phone+attendee suffix sometimes can't be re-derived from
+ *   the calendar event description (e.g. a contact's phone has 9 digits and
+ *   doesn't match `PHONE_RE`'s 10+ digit requirement, or the description was
+ *   edited after creation). The Notion row's stored ID may include a suffix
+ *   that we can't reproduce — `starts_with` catches the row anyway.
+ */
+export type CustomEventIdMatchMode = "equals" | "starts_with";
+
+/** A Custom Event ID lookup candidate: the value to match plus how to match it. */
+export type PracticeCustomEventIdCandidate = {
+  id: string;
+  matchMode: CustomEventIdMatchMode;
+};
+
 export function buildPracticeCustomEventIdCandidatesFromDateRange(input: {
   start: Date;
   end: Date;
   timeZone: string;
   description?: string | null;
-}): string[] {
+}): PracticeCustomEventIdCandidate[] {
   const metadata = extractPracticeCustomEventIdMetadataFromDescription(
     input.description,
   );
 
-  const candidates = [
-    buildPracticeCustomEventIdFromDates(
-      input.start,
-      input.end,
-      formatUtcInstantForPracticeCustomEventId,
-      metadata,
-    ),
-    buildPracticeCustomEventIdFromDates(
-      input.start,
-      input.end,
-      (date) =>
-        formatWallClockInstantForPracticeCustomEventId(date, input.timeZone),
-      metadata,
-    ),
-    buildPracticeCustomEventIdFromDates(
-      input.start,
-      input.end,
-      formatUtcInstantForPracticeCustomEventId,
-    ),
-    buildPracticeCustomEventIdFromDates(
-      input.start,
-      input.end,
-      (date) =>
-        formatWallClockInstantForPracticeCustomEventId(date, input.timeZone),
-    ),
-  ];
+  const utcExact = metadata
+    ? buildPracticeCustomEventIdFromDates(
+        input.start,
+        input.end,
+        formatUtcInstantForPracticeCustomEventId,
+        metadata,
+      )
+    : null;
+  const wallExact = metadata
+    ? buildPracticeCustomEventIdFromDates(
+        input.start,
+        input.end,
+        (date) =>
+          formatWallClockInstantForPracticeCustomEventId(date, input.timeZone),
+        metadata,
+      )
+    : null;
 
-  return [...new Set(candidates.filter((id): id is string => Boolean(id)))];
+  // Time-only IDs are used as `starts_with` filters — they catch both the
+  // legacy time-only format AND new rows whose suffix we couldn't compute.
+  const utcPrefix = buildPracticeCustomEventIdFromDates(
+    input.start,
+    input.end,
+    formatUtcInstantForPracticeCustomEventId,
+  );
+  const wallPrefix = buildPracticeCustomEventIdFromDates(
+    input.start,
+    input.end,
+    (date) =>
+      formatWallClockInstantForPracticeCustomEventId(date, input.timeZone),
+  );
+
+  const ordered: PracticeCustomEventIdCandidate[] = [];
+  if (utcExact) ordered.push({ id: utcExact, matchMode: "equals" });
+  if (wallExact) ordered.push({ id: wallExact, matchMode: "equals" });
+  if (utcPrefix) ordered.push({ id: utcPrefix, matchMode: "starts_with" });
+  if (wallPrefix) ordered.push({ id: wallPrefix, matchMode: "starts_with" });
+
+  // Deduplicate by (matchMode, id). Different match modes on the same id are
+  // intentionally distinct (an exact equals query is faster than a prefix scan
+  // when the suffix is known).
+  const seen = new Set<string>();
+  return ordered.filter((c) => {
+    const key = `${c.matchMode} ${c.id}`;
+    if (seen.has(key)) return false;
+    seen.add(key);
+    return true;
+  });
 }
 
 export function buildPracticeCustomEventIdCandidatesFromGoogleEvent(
   event: GoogleApiEvent,
   timeZone: string,
-): string[] {
+): PracticeCustomEventIdCandidate[] {
   const bounds = getTimedPracticeEventBounds(event);
   if (!bounds) {
     return [];
@@ -272,6 +320,44 @@ export function buildPracticeCustomEventIdCandidatesFromGoogleEvent(
     end: bounds.end,
     timeZone,
     description: event.description,
+  });
+}
+
+/** Convenience: extract just the candidate ID strings (for cache keys, etc.). */
+export function customEventIdCandidateStrings(
+  candidates: PracticeCustomEventIdCandidate[],
+): string[] {
+  const seen = new Set<string>();
+  const out: string[] = [];
+  for (const c of candidates) {
+    if (!seen.has(c.id)) {
+      seen.add(c.id);
+      out.push(c.id);
+    }
+  }
+  return out;
+}
+
+/**
+ * True when a stored Notion Custom Event ID is selected by ANY of the given
+ * candidates. Used by webhook code that has already loaded both sides and
+ * needs to verify a calendar event matches a Notion page.
+ *
+ * - `equals` candidates use case-insensitive equality.
+ * - `starts_with` candidates use case-insensitive prefix matching.
+ */
+export function notionCustomEventIdMatchesAnyCandidate(
+  storedNotionCustomEventId: string,
+  candidates: PracticeCustomEventIdCandidate[],
+): boolean {
+  const stored = storedNotionCustomEventId.trim().toLowerCase();
+  if (!stored) return false;
+  return candidates.some((c) => {
+    const cid = c.id.trim().toLowerCase();
+    if (!cid) return false;
+    return c.matchMode === "starts_with"
+      ? stored.startsWith(cid)
+      : stored === cid;
   });
 }
 

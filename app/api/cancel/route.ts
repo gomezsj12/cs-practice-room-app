@@ -185,7 +185,12 @@ export async function POST(request: NextRequest) {
         } else {
           console.warn(
             "[cancel] Practice booking Notion update returned no match.",
-            { practiceCustomEventIds },
+            {
+              candidates: practiceCustomEventIds.map((c) => ({
+                id: c.id,
+                matchMode: c.matchMode,
+              })),
+            },
           );
         }
       } catch (notionError) {

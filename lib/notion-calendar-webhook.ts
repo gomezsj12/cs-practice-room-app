@@ -20,9 +20,9 @@ import {
 } from "@/lib/notion-sync-constants";
 import {
   buildPracticeCustomEventIdCandidatesFromGoogleEvent,
+  notionCustomEventIdMatchesAnyCandidate,
   parsePracticeCustomEventId,
   parsePracticeCustomEventIdAsRoomWallClock,
-  practiceCustomEventIdsMatch,
 } from "@/lib/practice-custom-event-id";
 import type { GoogleApiEvent } from "@/lib/types";
 
@@ -314,15 +314,15 @@ async function findPracticeCalendarEventByTimeRange(
       Math.abs(evStartMs - targetStartMs) < 90_000 &&
       Math.abs(evEndMs - targetEndMs) < 90_000
     ) {
-      const candidateIds = buildPracticeCustomEventIdCandidatesFromGoogleEvent(
+      const candidates = buildPracticeCustomEventIdCandidatesFromGoogleEvent(
         typed,
         roomTimeZone,
       );
-      if (
-        candidateIds.some((candidateId) =>
-          practiceCustomEventIdsMatch(candidateId, customEventId),
-        )
-      ) {
+      // Use prefix-aware matching so a Notion-stored ID like
+      // `GOOGLECALidentifier-...5555501009` is still matched by a calendar
+      // event whose description-derived candidates only include the time-only
+      // prefix (because the contact phone is too short for `PHONE_RE`).
+      if (notionCustomEventIdMatchesAnyCandidate(customEventId, candidates)) {
         return typed.id;
       }
       timeOnlyFallbackEventId ??= typed.id;

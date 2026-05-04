@@ -33,6 +33,7 @@ import { upsertCacheEntry } from "@/lib/practice-session-cache";
 import {
   buildPracticeCustomEventIdCandidatesFromGoogleEvent,
   buildPracticeCustomEventIdFromGoogleEvent,
+  customEventIdCandidateStrings,
 } from "@/lib/practice-custom-event-id";
 import type { GoogleApiEvent } from "@/lib/types";
 
@@ -146,6 +147,9 @@ export async function PATCH(request: NextRequest) {
     // Step 2: Build current candidate Custom Event IDs and look up Notion page
     const currentCustomEventIdCandidates =
       buildPracticeCustomEventIdCandidatesFromGoogleEvent(event, roomTimeZone);
+    const currentCustomEventIdStrings = customEventIdCandidateStrings(
+      currentCustomEventIdCandidates,
+    );
     const notionResult = await findPracticeNotionPageByCustomEventIds(
       currentCustomEventIdCandidates,
     );
@@ -209,7 +213,7 @@ export async function PATCH(request: NextRequest) {
       const cacheId =
         newCustomEventId ??
         notionResult.matchedCustomEventId ??
-        currentCustomEventIdCandidates[0];
+        currentCustomEventIdStrings[0];
       if (cacheId) {
         upsertCacheEntry({
           custom_event_id: cacheId,

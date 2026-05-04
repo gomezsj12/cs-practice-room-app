@@ -29,6 +29,7 @@ import {
   invalidateProfileLogPageIdsCache,
   setProfileLogPageIdsCache,
 } from "@/lib/profile-log-page-id-cache";
+import type { PracticeCustomEventIdCandidate } from "@/lib/practice-custom-event-id";
 import type { PracticeAssigneeSummary } from "@/lib/types";
 
 /** Parameters for creating a jam reservation page in Notion. */
@@ -200,8 +201,20 @@ function emptyPracticeNotionPageResult(): PracticeNotionPageResult {
   };
 }
 
-function uniqueNonEmptyCustomEventIds(customEventIds: string[]): string[] {
-  return [...new Set(customEventIds.map((id) => id.trim()).filter(Boolean))];
+function uniqueNonEmptyCandidates(
+  candidates: PracticeCustomEventIdCandidate[],
+): PracticeCustomEventIdCandidate[] {
+  const seen = new Set<string>();
+  const out: PracticeCustomEventIdCandidate[] = [];
+  for (const c of candidates) {
+    const id = c.id.trim();
+    if (!id) continue;
+    const key = `${c.matchMode} ${id}`;
+    if (seen.has(key)) continue;
+    seen.add(key);
+    out.push({ id, matchMode: c.matchMode });
+  }
+  return out;
 }
 
 async function queryPracticePageByCustomEventId(
@@ -221,6 +234,68 @@ async function queryPracticePageByCustomEventId(
   });
 
   return queryData.results?.[0] ?? null;
+}
+
+/**
+ * Run a single Custom Event ID candidate against Notion.
+ *
+ * - `equals` candidates use the existing exact-match query (1 row).
+ * - `starts_with` candidates fetch up to 5 rows and prefer one whose
+ *   Session Status is NOT cancelled, so a cancelled-then-replaced page
+ *   doesn't shadow the active page when both share the same time prefix.
+ *
+ * Returns the chosen Notion page (raw API row) or `null` when nothing matches.
+ */
+async function queryPracticePageByCandidate(
+  notion: Client,
+  dataSourceId: string,
+  candidate: PracticeCustomEventIdCandidate,
+) {
+  if (candidate.matchMode === "equals") {
+    return queryPracticePageByCustomEventId(notion, dataSourceId, candidate.id);
+  }
+
+  const queryData = await notion.dataSources.query({
+    data_source_id: dataSourceId,
+    filter: {
+      property: NOTION_PRACTICE_CUSTOM_EVENT_ID_PROP,
+      rich_text: { starts_with: candidate.id },
+    },
+    page_size: 5,
+  });
+
+  const pages = queryData.results ?? [];
+  if (pages.length === 0) {
+    return null;
+  }
+
+  if (pages.length > 1) {
+    // Two practice rows with the same start+end times is a real edge case
+    // (a duplicate booking, or a cancelled row not yet cleaned up). Prefer
+    // an active row. Log a warning so it's visible in runtime logs.
+    console.warn(
+      "[notion] Practice prefix lookup returned multiple matches; preferring non-cancelled.",
+      {
+        candidate: candidate.id,
+        matchCount: pages.length,
+        pageIds: pages.map((p) => ("id" in p ? p.id : null)).filter(Boolean),
+      },
+    );
+  }
+
+  const nonCancelled = pages.find((p) => !isPracticePageCancelled(p));
+  return nonCancelled ?? pages[0];
+}
+
+// eslint-disable-next-line @typescript-eslint/no-explicit-any -- Notion SDK page result shape is broad.
+function isPracticePageCancelled(page: any): boolean {
+  if (!page || !("properties" in page)) return false;
+  const statusProp = (page.properties as Record<string, PracticePageProp>)[
+    "Session Status"
+  ];
+  if (statusProp?.type !== "status") return false;
+  const name = statusProp.status?.name?.trim().toLowerCase() ?? "";
+  return name === "cancelled" || name === "canceled";
 }
 
 function mapPracticePageResult(
@@ -278,6 +353,15 @@ function mapPracticePageResult(
 export async function markPracticeBookingCancelledInNotionByCustomId(
   customEventId: string,
 ) {
+  return markPracticeBookingCancelledInNotionByCandidate({
+    id: customEventId,
+    matchMode: "equals",
+  });
+}
+
+async function markPracticeBookingCancelledInNotionByCandidate(
+  candidate: PracticeCustomEventIdCandidate,
+): Promise<string | null> {
   const dataSourceId = process.env.NOTION_FILLOUT_MASTER_DATA_SOURCE_ID?.trim();
 
   if (!dataSourceId) {
@@ -287,24 +371,29 @@ export async function markPracticeBookingCancelledInNotionByCustomId(
   }
 
   const notion = getNotionClientForRealm("calendar");
-  const page = await queryPracticePageByCustomEventId(
+  const page = await queryPracticePageByCandidate(
     notion,
     dataSourceId,
-    customEventId,
+    candidate,
   );
-  const pageId = page?.id ?? null;
+  const pageId = page && "id" in page ? page.id : null;
 
   if (!pageId) {
     console.warn(
       "[notion] Practice cancel: no Notion page matched Custom Event ID.",
-      { customEventId, dataSourceId },
+      {
+        customEventId: candidate.id,
+        matchMode: candidate.matchMode,
+        dataSourceId,
+      },
     );
     return null;
   }
 
   console.info("[notion] Practice cancel: matched Notion page, updating.", {
     pageId,
-    customEventId,
+    customEventId: candidate.id,
+    matchMode: candidate.matchMode,
   });
 
   await notion.pages.update({
@@ -331,14 +420,14 @@ export async function markPracticeBookingCancelledInNotionByCustomId(
 }
 
 export async function markPracticeBookingCancelledInNotionByCustomEventIds(
-  customEventIds: string[],
+  candidates: PracticeCustomEventIdCandidate[],
 ): Promise<{ notionPageId: string | null; matchedCustomEventId: string | null }> {
-  const candidates = uniqueNonEmptyCustomEventIds(customEventIds);
-  for (const candidate of candidates) {
+  const deduped = uniqueNonEmptyCandidates(candidates);
+  for (const candidate of deduped) {
     const notionPageId =
-      await markPracticeBookingCancelledInNotionByCustomId(candidate);
+      await markPracticeBookingCancelledInNotionByCandidate(candidate);
     if (notionPageId) {
-      return { notionPageId, matchedCustomEventId: candidate };
+      return { notionPageId, matchedCustomEventId: candidate.id };
     }
   }
   return { notionPageId: null, matchedCustomEventId: null };
@@ -382,6 +471,15 @@ export function extractAssigneePageIdsFromPracticeProperties(
 export async function findPracticeNotionPage(
   customEventId: string,
 ): Promise<PracticeNotionPageResult> {
+  return findPracticeNotionPageByCandidate({
+    id: customEventId,
+    matchMode: "equals",
+  });
+}
+
+async function findPracticeNotionPageByCandidate(
+  candidate: PracticeCustomEventIdCandidate,
+): Promise<PracticeNotionPageResult> {
   const dataSourceId =
     process.env.NOTION_FILLOUT_MASTER_DATA_SOURCE_ID?.trim();
 
@@ -392,22 +490,32 @@ export async function findPracticeNotionPage(
   }
 
   const notion = getNotionClientForRealm("calendar");
-  const page = await queryPracticePageByCustomEventId(
+  const page = await queryPracticePageByCandidate(
     notion,
     dataSourceId,
-    customEventId,
+    candidate,
   );
   return mapPracticePageResult(page);
 }
 
+/**
+ * Try each Custom Event ID candidate in order. Returns the first match.
+ *
+ * Candidates with `matchMode: "equals"` are queried via Notion's `equals`
+ * filter (fast, exact). Candidates with `matchMode: "starts_with"` use
+ * Notion's `starts_with` filter, which catches Notion rows whose stored ID
+ * has a phone+attendee suffix that we couldn't reproduce from the calendar
+ * description (e.g. short / international phone numbers). This is the
+ * critical fallback that prevents silent unlinking.
+ */
 export async function findPracticeNotionPageByCustomEventIds(
-  customEventIds: string[],
+  candidates: PracticeCustomEventIdCandidate[],
 ): Promise<PracticeNotionPageMatchResult> {
-  const candidates = uniqueNonEmptyCustomEventIds(customEventIds);
-  for (const candidate of candidates) {
-    const result = await findPracticeNotionPage(candidate);
+  const deduped = uniqueNonEmptyCandidates(candidates);
+  for (const candidate of deduped) {
+    const result = await findPracticeNotionPageByCandidate(candidate);
     if (result.notionPageId) {
-      return { ...result, matchedCustomEventId: candidate };
+      return { ...result, matchedCustomEventId: candidate.id };
     }
   }
   return {

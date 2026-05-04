@@ -26,7 +26,11 @@ import {
   getCachedSessions,
   upsertCacheEntry,
 } from "@/lib/practice-session-cache";
-import { buildPracticeCustomEventIdCandidatesFromDateRange } from "@/lib/practice-custom-event-id";
+import {
+  buildPracticeCustomEventIdCandidatesFromDateRange,
+  customEventIdCandidateStrings,
+  type PracticeCustomEventIdCandidate,
+} from "@/lib/practice-custom-event-id";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -40,7 +44,8 @@ type EventInput = {
 
 type ResolvedEvent = {
   googleEventId: string;
-  candidateIds: string[];
+  candidates: PracticeCustomEventIdCandidate[];
+  cacheKeys: string[];
 };
 
 export async function POST(request: NextRequest) {
@@ -68,40 +73,46 @@ export async function POST(request: NextRequest) {
         Number.isNaN(startDate.getTime()) ||
         Number.isNaN(endDate.getTime())
       ) {
-        return { googleEventId: ev.googleEventId, candidateIds: [] };
+        return {
+          googleEventId: ev.googleEventId,
+          candidates: [],
+          cacheKeys: [],
+        };
       }
 
+      const candidates = buildPracticeCustomEventIdCandidatesFromDateRange({
+        start: startDate,
+        end: endDate,
+        timeZone: roomTz,
+        description: ev.description,
+      });
       return {
         googleEventId: ev.googleEventId,
-        candidateIds: buildPracticeCustomEventIdCandidatesFromDateRange({
-          start: startDate,
-          end: endDate,
-          timeZone: roomTz,
-          description: ev.description,
-        }),
+        candidates,
+        cacheKeys: customEventIdCandidateStrings(candidates),
       };
     });
 
-    const allCandidateIds = new Set<string>();
+    const allCacheKeys = new Set<string>();
     for (const r of resolved) {
-      for (const candidateId of r.candidateIds) {
-        allCandidateIds.add(candidateId);
+      for (const cacheKey of r.cacheKeys) {
+        allCacheKeys.add(cacheKey);
       }
     }
 
-    const cached = await getCachedSessions([...allCandidateIds]);
+    const cached = await getCachedSessions([...allCacheKeys]);
 
     const statuses: Record<string, string | null> = {};
     const misses: ResolvedEvent[] = [];
 
     for (const r of resolved) {
-      const hit = r.candidateIds
+      const hit = r.cacheKeys
         .map((id) => cached.get(id))
         .find((row) => Boolean(row));
 
       if (hit) {
         statuses[r.googleEventId] = hit.session_status;
-      } else if (r.candidateIds.length > 0) {
+      } else if (r.candidates.length > 0) {
         misses.push(r);
       }
     }
@@ -114,7 +125,7 @@ export async function POST(request: NextRequest) {
         const results = await Promise.allSettled(
           batch.map(async (r) => {
             const result = await findPracticeNotionPageByCustomEventIds(
-              r.candidateIds,
+              r.candidates,
             );
 
             if (result.notionPageId && result.matchedCustomEventId) {

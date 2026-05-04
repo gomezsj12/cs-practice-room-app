@@ -334,6 +334,7 @@ Notes:
 - `sessionAttendeeCount` is appended **after** the phone digits.
 - The app still recognizes older legacy IDs that only encoded start/end times, plus the older room-wall-clock fallback variant, so historical rows continue to resolve.
 - New app-side lookups always try the canonical format first, then the legacy candidates.
+- **Lookup match modes (`lib/practice-custom-event-id.ts` → `PracticeCustomEventIdCandidate`):** the candidate list now mixes `equals` (exact match against the canonical suffix) with `starts_with` (prefix match against the time-only ID). The prefix mode catches Notion rows whose stored ID has a suffix the app can't reproduce from the calendar description — for example contacts whose phone is shorter than 10 digits and therefore doesn't satisfy `PHONE_RE`'s length rules. Without this fallback the modal silently shows no Notion link for those bookings even though the row exists in Notion. When a prefix match returns more than one row (a true duplicate, or a cancelled-then-replaced page), the lookup prefers a row whose **Session Status** is not `Cancelled` and logs a warning.
 
 ### Historical Notion Backfill
 

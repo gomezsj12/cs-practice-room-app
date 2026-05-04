@@ -27,6 +27,7 @@ import {
 } from "@/lib/practice-session-cache";
 import {
   buildPracticeCustomEventIdCandidatesFromGoogleEvent,
+  customEventIdCandidateStrings,
 } from "@/lib/practice-custom-event-id";
 import type { GoogleApiEvent } from "@/lib/types";
 
@@ -81,10 +82,11 @@ export async function GET(request: NextRequest) {
     }
 
     const roomTz = process.env.ROOM_TIME_ZONE || "America/Los_Angeles";
-    const candidateIds = buildPracticeCustomEventIdCandidatesFromGoogleEvent(
+    const candidates = buildPracticeCustomEventIdCandidatesFromGoogleEvent(
       event,
       roomTz,
     );
+    const cacheKeys = customEventIdCandidateStrings(candidates);
 
     const revalidateParam =
       request.nextUrl.searchParams.get("revalidate") ?? "";
@@ -94,9 +96,9 @@ export async function GET(request: NextRequest) {
       revalidateParam.toLowerCase() === "yes";
 
     // Check Supabase cache first
-    if (candidateIds.length > 0) {
-      const cached = await getCachedSessions(candidateIds);
-      const hit = candidateIds
+    if (cacheKeys.length > 0) {
+      const cached = await getCachedSessions(cacheKeys);
+      const hit = cacheKeys
         .map((id) => cached.get(id))
         .find((row) => Boolean(row));
 
@@ -115,7 +117,7 @@ export async function GET(request: NextRequest) {
     }
 
     // Cache miss or stale — query Notion
-    const result = await findPracticeNotionPageByCustomEventIds(candidateIds);
+    const result = await findPracticeNotionPageByCustomEventIds(candidates);
 
     const assignees = result.assigneePageIds.length
       ? await hydratePracticeAssigneesFromPageIds(result.assigneePageIds)
