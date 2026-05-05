@@ -55,7 +55,6 @@ The main **dependencies** tell you what powers the app:
   "@fullcalendar/timegrid": "^6.1.20",
   "@notionhq/client": "^5.16.0",
   "@vercel/analytics": "^2.0.1",
-  "@vercel/speed-insights": "^2.0.0",
   "date-fns": "^4.1.0",
   "date-fns-tz": "^3.2.0"
 }
@@ -123,7 +122,6 @@ Desktop home with header
 // app/layout.tsx
 import type { Metadata, Viewport } from "next";
 import { Analytics } from "@vercel/analytics/next";
-import { SpeedInsights } from "@vercel/speed-insights/next";
 import { auth } from "@/auth";
 import AuthProvider from "@/components/AuthProvider";
 import InstallPrompt from "@/components/InstallPrompt";
@@ -162,7 +160,6 @@ export default async function RootLayout({
           <ServiceWorkerRegistration />
           <InstallPrompt />
           <Analytics />
-          <SpeedInsights />
         </AuthProvider>
       </body>
     </html>
@@ -453,7 +450,7 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
 
 **Hosting:** `next build` → deploy. **Secrets** (`SUPABASE_`*, Google creds, OAuth client secrets, …) live in the Vercel project’s environment settings.
 
-`**@vercel/analytics` / `@vercel/speed-insights`:** Optional traffic and performance telemetry (wired in `app/layout.tsx`).
+`**@vercel/analytics`:** Optional traffic telemetry (wired in `app/layout.tsx`).
 
 ---
 
