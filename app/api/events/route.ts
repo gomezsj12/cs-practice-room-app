@@ -39,7 +39,7 @@ import {
   getAdminEventTagOption,
   getAdminEventTagsForEvents,
 } from "@/lib/admin-event-tags";
-import { isEffectiveAppAdmin } from "@/lib/admin";
+import { isAdminEmail, isEffectiveAppAdmin } from "@/lib/admin";
 import {
   canUserCancelJamEvent,
   canUserCancelPracticeEvent,
@@ -159,6 +159,27 @@ function mapBlockedTimeToApiEvent(
 }
 
 /**
+ * Resolves the bridge-auth identity: when a trusted sister app
+ * (e.g., dalin.calendar) presents `Authorization: Bearer
+ * <CALENDAR_BRIDGE_SECRET>` together with an `adminEmail` query
+ * param, treat that email as the requesting user IF it appears in
+ * `ADMIN_EMAILS`. Returns the resolved email or `null` if the
+ * request is not a valid bridge call.
+ *
+ * Notion-Leadership admins are intentionally NOT honored via the
+ * bridge — only env-listed admins, to keep the trust path simple.
+ */
+function resolveBridgeAdminEmail(request: Request): string | null {
+  const secret = process.env.CALENDAR_BRIDGE_SECRET;
+  if (!secret) return null;
+  const authHeader = request.headers.get("authorization");
+  if (authHeader !== `Bearer ${secret}`) return null;
+  const claimed = new URL(request.url).searchParams.get("adminEmail");
+  if (!claimed || !isAdminEmail(claimed)) return null;
+  return claimed.trim().toLowerCase();
+}
+
+/**
  * Handles `GET /api/events`.
  *
  * Fetches practice events, jam events, pending holds, and blocked times
@@ -166,10 +187,12 @@ function mapBlockedTimeToApiEvent(
  * the merged list. The window is the active WWU quarter when configured,
  * else `now − 7 days` → `now + 30 days`.
  */
-export async function GET() {
+export async function GET(request: Request) {
   try {
-    const session = await auth();
-    const currentUserEmail = session?.user?.email || undefined;
+    const bridgeEmail = resolveBridgeAdminEmail(request);
+    const session = bridgeEmail ? null : await auth();
+    const currentUserEmail =
+      bridgeEmail || session?.user?.email || undefined;
     const currentUserName = session?.user?.name || undefined;
     const adminEmail = process.env.ADMIN_EMAIL;
 
