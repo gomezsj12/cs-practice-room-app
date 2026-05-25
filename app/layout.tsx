@@ -19,9 +19,11 @@ import { Analytics } from "@vercel/analytics/next";
 import { auth } from "@/auth";
 import AuthProvider from "@/components/AuthProvider";
 import InstallPrompt from "@/components/InstallPrompt";
+import QuarterClosedScreen from "@/components/QuarterClosedScreen";
 import ServiceWorkerRegistration from "@/components/ServiceWorkerRegistration";
 import SiteHeader from "@/components/SiteHeader";
 import StickyNavPills from "@/components/StickyNavPills";
+import { getQuarterGateStatus } from "@/lib/quarter-window";
 import { siteConfig } from "@/lib/siteConfig";
 import "./globals.css";
 
@@ -50,16 +52,34 @@ export default async function RootLayout({
   children: React.ReactNode;
 }>) {
   const session = await auth();
+  const isAdmin = !!session?.isAdmin;
+  const previewClosed =
+    process.env.NODE_ENV !== "production" &&
+    process.env.PREVIEW_QUARTER_CLOSED === "1";
+  const shouldCheckGate = previewClosed || !isAdmin;
+  const gate = shouldCheckGate ? await getQuarterGateStatus() : null;
+  const gateNextStart =
+    gate?.status === "closed" ? (gate.nextQuarter?.startDate ?? null) : null;
+  const closedNextStart =
+    process.env.PREVIEW_QUARTER_NEXT_START?.trim() || gateNextStart;
+  const showClosedScreen =
+    previewClosed || (!isAdmin && gate?.status === "closed");
 
   return (
     <html lang="en" className="h-full antialiased">
       <body className="flex min-h-dvh flex-col bg-[#030303] text-white">
         <AuthProvider session={session}>
-          <SiteHeader />
-          <StickyNavPills />
-          <div className="flex min-h-0 flex-1 flex-col">{children}</div>
-          <ServiceWorkerRegistration />
-          <InstallPrompt />
+          {showClosedScreen ? (
+            <QuarterClosedScreen nextStartDate={closedNextStart} />
+          ) : (
+            <>
+              <SiteHeader />
+              <StickyNavPills />
+              <div className="flex min-h-0 flex-1 flex-col">{children}</div>
+              <ServiceWorkerRegistration />
+              <InstallPrompt />
+            </>
+          )}
           <Analytics />
         </AuthProvider>
       </body>

@@ -149,3 +149,78 @@ export async function getActiveQuarterWindow(): Promise<ActiveQuarterResult | nu
     return null;
   }
 }
+
+/**
+ * Gate status used by the root layout to decide whether to show the app or
+ * a "closed until next quarter" screen for non-admin users.
+ *
+ * - `open`: today falls inside a `wwu_quarters` row.
+ * - `closed`: no row covers today. `nextQuarter` is the next future row, if any.
+ * - `unknown`: query failed or Supabase isn't configured — fail open so the
+ *   app stays usable for everyone.
+ */
+export type QuarterGateStatus =
+  | { status: "open"; quarter: ApiQuarterInfo }
+  | { status: "closed"; nextQuarter: ApiQuarterInfo | null }
+  | { status: "unknown" };
+
+export async function getQuarterGateStatus(): Promise<QuarterGateStatus> {
+  const tz = getRoomTimeZone();
+  const todayStr = calendarDateInZone(new Date(), tz);
+
+  try {
+    const supabase = getSupabaseAdmin();
+
+    const { data: activeData, error: activeError } = await supabase
+      .from("wwu_quarters")
+      .select("name, start_date, end_date")
+      .lte("start_date", todayStr)
+      .gte("end_date", todayStr)
+      .order("start_date", { ascending: false })
+      .limit(1);
+
+    if (activeError) {
+      console.error("[quarter-window] gate active query failed:", activeError);
+      return { status: "unknown" };
+    }
+
+    const activeRow = activeData?.[0];
+    if (activeRow) {
+      return {
+        status: "open",
+        quarter: {
+          name: activeRow.name,
+          startDate: activeRow.start_date,
+          endDate: activeRow.end_date,
+        },
+      };
+    }
+
+    const { data: nextData, error: nextError } = await supabase
+      .from("wwu_quarters")
+      .select("name, start_date, end_date")
+      .gt("start_date", todayStr)
+      .order("start_date", { ascending: true })
+      .limit(1);
+
+    if (nextError) {
+      console.error("[quarter-window] gate next query failed:", nextError);
+      return { status: "unknown" };
+    }
+
+    const nextRow = nextData?.[0];
+    return {
+      status: "closed",
+      nextQuarter: nextRow
+        ? {
+            name: nextRow.name,
+            startDate: nextRow.start_date,
+            endDate: nextRow.end_date,
+          }
+        : null,
+    };
+  } catch (e) {
+    console.error("[quarter-window] gate unexpected error:", e);
+    return { status: "unknown" };
+  }
+}
