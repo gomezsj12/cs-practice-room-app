@@ -68,7 +68,15 @@ export function matchNotionWebhookSignatureAndRealm(
   push(cal, "calendar");
   push(prof, "profile");
   push(leg, "profile");
-  push(bodyTok, null);
+  // SEC-04: the body-supplied `verification_token` is attacker-controllable —
+  // a forger can put any token in the body AND compute a matching
+  // `X-Notion-Signature` with it, self-signing the request. So it must only be
+  // honored for the one-time subscription-verify handshake (which has no side
+  // effects). For real event deliveries (`page.*`), require a match against an
+  // env-configured secret; never accept the body token as a signing key.
+  if (isSubscriptionVerify) {
+    push(bodyTok, null);
+  }
 
   for (const { secret, realm } of ordered) {
     if (!verifyNotionWebhookSignature(rawBody, signatureHeader, secret)) {

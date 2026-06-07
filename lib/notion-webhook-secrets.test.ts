@@ -51,6 +51,19 @@ describe("matchNotionWebhookSignatureAndRealm", () => {
     expect(m?.realm).toBe("calendar");
   });
 
+  it("does NOT accept a self-signed body verification_token for real (non-verify) deliveries (SEC-04)", () => {
+    // Attacker supplies their own token in the body AND signs the body with it.
+    const attackerTok = "attacker-chosen-token";
+    const raw = JSON.stringify({
+      type: "page.properties_updated",
+      verification_token: attackerTok,
+    });
+    const sig = sign(attackerTok, raw);
+    // isSubscriptionVerify = false → body token must be ignored → no match.
+    const m = matchNotionWebhookSignatureAndRealm(raw, sig, attackerTok, false);
+    expect(m).toBeNull();
+  });
+
   it("returns null when signature wrong", () => {
     process.env[NOTION_WEBHOOK_VERIFICATION_TOKEN_CALENDAR] = "cal-secret";
     const raw = JSON.stringify({ type: "page.properties_updated" });

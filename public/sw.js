@@ -2,17 +2,20 @@
  * Service worker for the CS Practice Room PWA.
  *
  * Caching strategy:
- *   - Install: precaches the app shell (root page, manifest, PWA icons).
+ *   - Install: precaches static shell assets (manifest, PWA icons) only.
  *   - Activate: purges old caches and immediately claims all open clients.
  *   - Fetch:
  *       • Non-GET, cross-origin, and /api/* requests (except pwa-icon) bypass the cache entirely.
- *       • Navigation requests use network-first with cache fallback (offline support).
- *       • Other same-origin GET requests use cache-first, falling back to network on miss.
+ *       • Navigation requests are network-ONLY and never cached. The server-rendered
+ *         HTML embeds the signed-in user's session (email, name, isAdmin), so caching
+ *         it could serve one user's page to another on a shared device (SEC-05).
+ *       • Other same-origin GET requests (static assets) use cache-first.
  */
 
-const CACHE_NAME = "jam-scheduler-shell-v1";
+// Bumped to v2 so the activate handler purges any v1 cache that may hold
+// previously-cached authenticated navigation HTML (SEC-05).
+const CACHE_NAME = "jam-scheduler-shell-v2";
 const APP_SHELL = [
-  "/",
   "/manifest.webmanifest",
   "/api/pwa-icon?size=192",
   "/api/pwa-icon?size=512",
@@ -61,25 +64,12 @@ self.addEventListener("fetch", (event) => {
     return;
   }
 
-  // Network-first for navigations: show the latest server-rendered page,
-  // fall back to cached shell if offline.
+  // SEC-05: navigations are network-ONLY and are never cached. The
+  // server-rendered HTML embeds the signed-in user's session, so storing it (or
+  // serving a cached copy) could leak one user's identity to another on a shared
+  // device. We deliberately do not provide a cached HTML offline fallback.
   if (request.mode === "navigate") {
-    event.respondWith(
-      fetch(request)
-        .then((response) => {
-          const responseClone = response.clone();
-
-          caches.open(CACHE_NAME).then((cache) => {
-            cache.put(request, responseClone);
-          });
-
-          return response;
-        })
-        .catch(async () => {
-          return (await caches.match(request)) || caches.match("/");
-        }),
-    );
-
+    event.respondWith(fetch(request));
     return;
   }
 
