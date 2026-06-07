@@ -4,7 +4,7 @@ This file keeps the original phased build plan in the repository so it stays eas
 
 ## Recommendation
 
-Create a new repo and new deployment by copying the current project at `<old-repo>`, while leaving the current Jam Reservation repo and deployment untouched.
+Create a new repo and new deployment by copying the current project at `<old-repo>` (the original Jam Reservation app), while leaving the current Jam Reservation repo and deployment untouched.
 
 This should be treated as a product fork, not a quick feature branch. The safest default is:
 

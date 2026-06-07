@@ -2,7 +2,7 @@
 description: Stop existing dev servers for this project on new prompts.
 ---
 
-# Dev server cleanup (practice-room-jam-scheduler)
+# Dev server cleanup (cs-practice-room-app)
 
 When a **new user prompt** arrives for this project, **check for an already-running dev server** (or any long-running `next dev` / `npm run dev` process) and **stop it before starting new work**.
 

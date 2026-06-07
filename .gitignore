@@ -58,3 +58,8 @@ docs/change-log.md
 
 .vercel
 .env*.local
+
+# Local-only security/audit findings — keep these out of the public repo
+# (they enumerate specific findings/fixes that could aid an attacker).
+docs/SECURITY_AUDIT.md
+docs/code-audit.md

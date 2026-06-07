@@ -8,8 +8,7 @@
 | [change-log.md](./change-log.md) | Full project history: pre-Cursor jam reservation app commits + CS Practice Room commits, with attribution and anti-regression table. **Gitignored** locally; enable [`.githooks/README.md`](../.githooks/README.md) so `post-commit` appends Part 2 rows. |
 | [error-log.md](./error-log.md) | Error history with root causes, fixes applied, and prevention notes. Add new entries when bugs are fixed. |
 | [ui-lookbook.md](./ui-lookbook.md) | Visual documentation of every UI page, state, and interaction. Desktop + mobile screenshots in `screenshots/`. |
-| [code-audit.md](./code-audit.md) | Code redundancy and efficiency findings with risk levels and implementation status. |
-| [CODE_REVIEW.md](./CODE_REVIEW.md) | Code review process, checklists, anti-patterns, and session records. Start here if you are a code reviewer. |
+| [CODE_REVIEW.md](./CODE_REVIEW.md) | Code review process, checklists, and anti-patterns. Start here if you are a code reviewer. |
 | [user-guide.md](./user-guide.md) | End-user guide covering all four app pages with annotated screenshots in `guide-screenshots/`. |
 | [admin-guide.md](./admin-guide.md) | Staff/admin guide covering admin-only features and Telegram integration. |
 | [BUILD_PHASES.md](./BUILD_PHASES.md) | Original build plan for forking the jam scheduler into the portal app (historical reference). |

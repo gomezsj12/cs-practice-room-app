@@ -16,7 +16,7 @@ describe("practice custom event ids", () => {
       "Contact Person:",
       "Example Booker",
       "+1 (555) 555-0100",
-      "example@wallawalla.edu",
+      "example@example.com",
       "",
       "Session Attendees: 6",
     ].join("\n"),
@@ -91,10 +91,10 @@ describe("practice custom event ids", () => {
   });
 
   describe("description without a 10+ digit phone", () => {
-    // This is the real-world case that broke the live UI: a contact phone
-    // that is only 9 digits (e.g. "555550100") doesn't satisfy `PHONE_RE`'s
-    // 10+ digit requirement, so metadata extraction returns null and the app
-    // can only build the time-only candidate strings.
+    // Regression case from the live UI: a contact phone that is only 9 digits
+    // (e.g. "555550100") doesn't satisfy `PHONE_RE`'s 10+ digit requirement,
+    // so metadata extraction returns null and the app can only build the
+    // time-only candidate strings.
     //
     // BUT the Notion-side ID generation (Fillout / backfill script) appends
     // the rollup phone + attendee count without any length guard, so the
@@ -107,7 +107,7 @@ describe("practice custom event ids", () => {
         "Contact Person:",
         "",
         "Example Booker",
-        "example@example.com",
+        "example.booker@example.com",
         "555550100",
         "https://t.me/example/",
         "",
