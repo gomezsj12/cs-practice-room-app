@@ -12,10 +12,10 @@
  * jams by Google Event ID; practice bookings by **Custom Event ID** derived from
  * UTC start/end. Notion failures are logged but don't affect the HTTP response.
  *
- * @see {@link @/lib/calendar-helpers} — `getEventEnd`
- * @see {@link @/lib/notion} — `markJamReservationCancelledInNotion`,
+ * @see {@link @/lib/calendar-helpers}: `getEventEnd`
+ * @see {@link @/lib/notion}: `markJamReservationCancelledInNotion`,
  *   `markPracticeBookingCancelledInNotionByCustomId`
- * @see {@link @/lib/practice-custom-event-id} — `buildPracticeCustomEventIdFromGoogleEvent`
+ * @see {@link @/lib/practice-custom-event-id}: `buildPracticeCustomEventIdFromGoogleEvent`
  */
 
 import { NextRequest, NextResponse } from "next/server";

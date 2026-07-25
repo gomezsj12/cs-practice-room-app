@@ -7,8 +7,8 @@
  * callback applies the same rule. `profiles.is_admin` is a mirror of this for
  * Supabase visibility and is updated on profile sync.
  *
- * @see {@link @/auth} — JWT callback that sets `token.isAdmin`
- * @see {@link @/lib/profile-access} — Notion type constants and booking access
+ * @see {@link @/auth}: JWT callback that sets `token.isAdmin`
+ * @see {@link @/lib/profile-access}: Notion type constants and booking access
  */
 
 import { notionTypeGrantsLeadershipAdmin } from "@/lib/profile-access";

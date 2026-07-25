@@ -13,7 +13,7 @@
  * When `ENABLE_TEMP_HOLDS` is not `"true"`, the route short-circuits with
  * a success response because there's nothing to release.
  *
- * @see {@link @/app/api/holds/create/route} — creates the hold
+ * @see {@link @/app/api/holds/create/route}: creates the hold
  */
 
 import { NextRequest, NextResponse } from "next/server";

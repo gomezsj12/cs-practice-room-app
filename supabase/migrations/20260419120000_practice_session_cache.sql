@@ -14,7 +14,7 @@ CREATE TABLE practice_session_cache (
 
 ALTER TABLE practice_session_cache ENABLE ROW LEVEL SECURITY;
 
--- No policies granted to anon/authenticated — only the service-role key
+-- No policies granted to anon/authenticated: only the service-role key
 -- (which bypasses RLS) can read/write this table.
 
 CREATE INDEX idx_psc_notion_page_id ON practice_session_cache (notion_page_id);

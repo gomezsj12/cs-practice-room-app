@@ -53,7 +53,7 @@ This file documents **errors encountered during development and production**, th
 - **Fix applied:** Ensured env parity between `.env.local` and Vercel project settings.
 - **Prevention:** Use `.env.example` as a checklist. Before deploying, verify all required env vars are set in the Vercel dashboard (both Production and Preview environments if using previews).
 
-### ERR-010: Vercel build failed — Edge Function `/api/pwa-icon` over 1 MB
+### ERR-010: Vercel build failed, Edge Function `/api/pwa-icon` over 1 MB
 
 - **Date:** 2026-04-19
 - **Category:** Deploy
@@ -92,7 +92,7 @@ This file documents **errors encountered during development and production**, th
 - **Severity:** High
 - **Commit(s):** `65f2549`, `7b0fda9` (old repo)
 - **Symptom:** Two users could book the same time slot simultaneously, resulting in overlapping jam reservations.
-- **Root cause:** No server-side locking or hold mechanism. The overlap check and event creation were not atomic — a gap between check and insert allowed concurrent bookings.
+- **Root cause:** No server-side locking or hold mechanism. The overlap check and event creation were not atomic, so a gap between check and insert allowed concurrent bookings.
 - **Fix applied:** Added Supabase temporary holds (`reservation_holds` table) with 30-second TTL. The flow is now: check overlap → create hold → show modal → confirm booking. Server-side overlap check runs again at reserve time.
 - **Prevention:** Never remove the hold-based flow without replacing it with an equivalent concurrency guard. The `ENABLE_TEMP_HOLDS` flag can disable holds, but the server-side overlap check in `/api/reserve` still runs.
 
@@ -102,10 +102,10 @@ This file documents **errors encountered during development and production**, th
 - **Category:** UI/UX
 - **Severity:** Medium
 - **Commit(s):** `d300dee` (old repo)
-- **Symptom:** Drag-select on mobile devices was unreliable — sometimes it would not register, and sometimes scrolling would interfere.
+- **Symptom:** Drag-select on mobile devices was unreliable. Sometimes it would not register, and sometimes scrolling would interfere.
 - **Root cause:** FullCalendar's built-in selection relies on pointer events, which conflict with touch scrolling on mobile browsers (especially iOS Safari). The browser cannot distinguish between a scroll gesture and a selection gesture.
 - **Fix applied:** Implemented a dedicated touch listener system with long-press arming (220ms delay). Movement >10px before arming cancels the drag and allows normal scrolling. Once armed, `touch-action: none` prevents scroll interference.
-- **Prevention:** Any changes to `useDragSelect.ts` must be tested on both iOS Safari and Android Chrome. The long-press threshold (220ms) and cancel distance (10px) are tuned — do not change without mobile testing.
+- **Prevention:** Any changes to `useDragSelect.ts` must be tested on both iOS Safari and Android Chrome. The long-press threshold (220ms) and cancel distance (10px) are tuned, so do not change them without mobile testing.
 
 ### ERR-006: Drag selection could overlap busy blocks (upward drag)
 
@@ -125,7 +125,7 @@ This file documents **errors encountered during development and production**, th
 - **Severity:** Medium
 - **Commit(s):** `f20cf8a` (old repo)
 - **Symptom:** On mobile, completing a drag-select sometimes created two temporary holds for the same time slot.
-- **Root cause:** Both the pointer event path and the touch event path were active on mobile — the touch gesture completed through both code paths.
+- **Root cause:** Both the pointer event path and the touch event path were active on mobile, so the touch gesture completed through both code paths.
 - **Fix applied:** Added an early return in `onPointerDown` when `pointerType === "touch"`, ensuring touch gestures only go through the dedicated touch listeners.
 - **Prevention:** The pointer and touch paths in `useDragSelect.ts` must remain mutually exclusive. Do not remove the touch-type guard in `onPointerDown`.
 

@@ -4,18 +4,18 @@
  * Creates a new support thread with the user's first message, then forwards
  * the message to the admin's Telegram chat. Steps:
  *
- * 1. **Auth** — requires a signed-in session.
- * 2. **Rate limit** — in-memory per-email window (`RATE_LIMIT_WINDOW_MS`).
- * 3. **Validation** — message length between 10 and 1 200 characters.
- * 4. **Supabase insert** — creates a `support_threads` row + first
+ * 1. **Auth**: requires a signed-in session.
+ * 2. **Rate limit**: in-memory per-email window (`RATE_LIMIT_WINDOW_MS`).
+ * 3. **Validation**: message length between 10 and 1 200 characters.
+ * 4. **Supabase insert**: creates a `support_threads` row + first
  *    `support_messages` row (author_type = "user").
- * 5. **Telegram topic** — creates a forum topic named like the support
+ * 5. **Telegram topic**: creates a forum topic named like the support
  *    inbox row (`formatSupportConversationName` from `created_at`), then
  *    sends the notification into that topic. Persists topic ID, message id,
  *    and chat id on success.
  *
- * @see {@link @/lib/support} — `toSupportThreadKey` (human-readable thread ID)
- * @see {@link @/app/api/support/telegram-webhook/route} — inbound Telegram replies
+ * @see {@link @/lib/support}: `toSupportThreadKey` (human-readable thread ID)
+ * @see {@link @/app/api/support/telegram-webhook/route}: inbound Telegram replies
  */
 
 import { NextRequest, NextResponse } from "next/server";

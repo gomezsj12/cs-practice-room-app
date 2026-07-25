@@ -1,12 +1,12 @@
 {
-  // Agent context — full policy: .cursor/SETTINGS.md
+  // Agent context. Full policy: .cursor/SETTINGS.md
   //
   // After code changes: run npm run dev (see SETTINGS.md + dev-server-cleanup rule); prompt owner for feedback.
   // Git: Do NOT commit (or push) until the project owner has tested on localhost and asked you to.
-  // Git terminal: use full permissions (all) for every git command — see rules/git-commands.mdc.
+  // Git terminal: use full permissions (all) for every git command. See rules/git-commands.mdc.
   //
   // - Code map: docs/ARCHITECTURE.md
-  // - Planning + git change log + regressions: docs/change-log.md (gitignored; post-commit hook appends Part 2 — see .githooks/README.md)
+  // - Planning + git change log + regressions: docs/change-log.md (gitignored; post-commit hook appends Part 2, see .githooks/README.md)
   //
   // After owner-approved commit: confirm Part 2 has a row for HEAD (hook or manual); refine summary/attribution if needed.
   "plugins": {

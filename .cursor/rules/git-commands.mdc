@@ -3,9 +3,9 @@ description: Run git via terminal with full permissions (sandbox off)
 alwaysApply: true
 ---
 
-# Git commands — use full permissions
+# Git commands: use full permissions
 
-When using the **terminal / shell tool** for **any** git operation (`git add`, `git commit`, `git push`, `git pull`, `git fetch`, `git status`, `git log`, `git diff`, etc.), **always** request **full permissions** (run outside the sandbox — in Cursor, pass the equivalent of `required_permissions: ["all"]` for that command).
+When using the **terminal / shell tool** for **any** git operation (`git add`, `git commit`, `git push`, `git pull`, `git fetch`, `git status`, `git log`, `git diff`, etc.), **always** request **full permissions** (run outside the sandbox; in Cursor, pass the equivalent of `required_permissions: ["all"]` for that command).
 
 **Why:** Sandboxed or restricted runs can produce **empty or misleading output**, skip **hooks**, block **network** (breaking `push` / `fetch`), or interfere with **credential helpers**. If a git command appears to do nothing or `main` stays ahead of `origin` after `push`, **retry once with full permissions** before reporting failure.
 

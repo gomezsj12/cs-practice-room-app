@@ -1,7 +1,7 @@
 /**
  * Notion API client, jam-reservation, and user-profile helpers.
  *
- * Uses dual Notion integrations via {@link getNotionClientForRealm} — calendar
+ * Uses dual Notion integrations via {@link getNotionClientForRealm}: calendar
  * (jam, practice) vs profile (people, profile log). Exposes helpers to:
  * - Create and cancel jam reservations in the Notion data source.
  * - Mark practice bookings cancelled in the Fillout Form Master Database (Custom Event ID +
@@ -11,8 +11,8 @@
  *   (`full` vs `metadataOnly` modes; presence fields via `syncProfileLogPresenceToNotion`,
  *   with profile-log page id TTL cache for presence).
  *
- * @see {@link ../lib/google.ts}  — Google Calendar side of the same booking flow.
- * @see {@link ../lib/types.ts}   — shared type definitions.
+ * @see {@link ../lib/google.ts} : Google Calendar side of the same booking flow.
+ * @see {@link ../lib/types.ts}  : shared type definitions.
  */
 import type { Client } from "@notionhq/client";
 import { unstable_cache } from "next/cache";
@@ -1037,12 +1037,12 @@ export type ProfileLogSyncParams = {
 };
 
 /**
- * `full` — writes Google + WWU email (setup, manual profile edit).
- * `metadataOnly` — skips email columns (background Notion sync / people webhook).
+ * `full`: writes Google + WWU email (setup, manual profile edit).
+ * `metadataOnly`: skips email columns (background Notion sync / people webhook).
  */
 export type ProfileLogSyncMode = "full" | "metadataOnly";
 
-/** App Profile Creation Logs — presence columns (titles must match the Notion data source). */
+/** App Profile Creation Logs: presence columns (titles must match the Notion data source). */
 export const NOTION_PROFILE_LOG_IS_ACTIVE = "Is Active";
 export const NOTION_PROFILE_LOG_LAST_ACTIVE_AT = "Last Active At...";
 
@@ -1234,7 +1234,7 @@ export async function sweepStalePresenceInNotion(
  * When a people-DB match exists, links it via the "CSPR Notion Profile"
  * relation property. On update, an empty relation clears that link in Notion.
  *
- * Intended to be called fire-and-forget after Supabase profile writes — a
+ * Intended to be called fire-and-forget after Supabase profile writes. A
  * failure here should never block the primary flow.
  *
  * New rows are always created with {@link ProfileLogSyncMode} `full` (both

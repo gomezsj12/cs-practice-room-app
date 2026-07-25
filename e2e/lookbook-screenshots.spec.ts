@@ -47,7 +47,7 @@ async function shot(
 }
 
 for (const [vpName, viewport] of Object.entries(VIEWPORTS)) {
-  test.describe(`Lookbook — ${vpName} (${viewport.width}×${viewport.height})`, () => {
+  test.describe(`Lookbook: ${vpName} (${viewport.width}×${viewport.height})`, () => {
     for (const pg of PAGES) {
       test(`${pg.name}`, async ({ browser, browserName }) => {
         const isMobile = viewport.width < 768;

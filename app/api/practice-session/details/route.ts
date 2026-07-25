@@ -116,7 +116,7 @@ export async function GET(request: NextRequest) {
       }
     }
 
-    // Cache miss or stale — query Notion
+    // Cache miss or stale: query Notion
     const result = await findPracticeNotionPageByCustomEventIds(candidates);
 
     const assignees = result.assigneePageIds.length

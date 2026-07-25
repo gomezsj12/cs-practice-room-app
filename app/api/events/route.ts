@@ -2,14 +2,14 @@
  * @file Calendar events API route (`GET /api/events`).
  *
  * Merges data sources into a unified response for the calendar UI:
- * 1. **Practice bookings** — events from the practice Google Calendar with
+ * 1. **Practice bookings**: events from the practice Google Calendar with
  *    cleaned description text and owner-only cancellation eligibility.
- * 2. **Jam reservations** — events from the jam Google Calendar (cancellable by owner/admin).
- * 3. **Temporary holds** — pending rows from Supabase `reservation_holds`
+ * 2. **Jam reservations**: events from the jam Google Calendar (cancellable by owner/admin).
+ * 3. **Temporary holds**: pending rows from Supabase `reservation_holds`
  *    (only when `ENABLE_TEMP_HOLDS=true`).
- * 4. **Blocked times** — admin-created blocked periods from Supabase
+ * 4. **Blocked times**: admin-created blocked periods from Supabase
  *    `blocked_times`, rendered as red overlay events.
- * 5. **Friday exceptions** — dates from Supabase `friday_exceptions` where
+ * 5. **Friday exceptions**: dates from Supabase `friday_exceptions` where
  *    the hard-coded Friday afternoon restriction is lifted.
  *
  * Returns `{ events, fridayExceptions, quarter? }`. When a Supabase quarter
@@ -26,9 +26,9 @@
  * data the calendar UI shows). Tamper-sensitive actions (book, cancel,
  * holds, admin blocks) stay on separate `POST` routes that require `auth()`.
  *
- * @see {@link @/lib/google} — Google Calendar service-account client
- * @see {@link @/lib/supabase} — Supabase admin client
- * @see {@link @/lib/types} — `ApiCalendarEvent`, `GoogleApiEvent`, `HoldRow`
+ * @see {@link @/lib/google}: Google Calendar service-account client
+ * @see {@link @/lib/supabase}: Supabase admin client
+ * @see {@link @/lib/types}: `ApiCalendarEvent`, `GoogleApiEvent`, `HoldRow`
  */
 
 import { NextResponse } from "next/server";
@@ -70,7 +70,7 @@ function isNotNull<T>(value: T | null): value is T {
  * callers can filter them out safely.
  *
  * @param event - Raw event from the Google Calendar API.
- * @param eventType - `"practice"` or `"jam"` — determines colour and cancel eligibility.
+ * @param eventType - `"practice"` or `"jam"`. Determines colour and cancel eligibility.
  * @param context - Signed-in user information used to compute cancel permissions.
  */
 function mapGoogleEventToApiEvent(
@@ -167,7 +167,7 @@ function mapBlockedTimeToApiEvent(
  * request is not a valid bridge call.
  *
  * Notion-Leadership admins are intentionally NOT honored via the
- * bridge — only env-listed admins, to keep the trust path simple.
+ * bridge. Only env-listed admins are, to keep the trust path simple.
  */
 function resolveBridgeAdminEmail(request: Request): string | null {
   const secret = process.env.CALENDAR_BRIDGE_SECRET;

@@ -5,8 +5,8 @@
  * favicon at build time via `createPwaIcon`. Browsers that support higher-res
  * favicons (e.g. Chrome tab previews) get a crisp icon without a static file.
  *
- * @see {@link @/lib/pwaIcon} — shared icon renderer (uses `next/og` ImageResponse)
- * @see {@link @/app/apple-icon} — same pattern at 180×180 for iOS
+ * @see {@link @/lib/pwaIcon}: shared icon renderer (uses `next/og` ImageResponse)
+ * @see {@link @/app/apple-icon}: same pattern at 180×180 for iOS
  */
 
 import { createPwaIcon } from "@/lib/pwaIcon";

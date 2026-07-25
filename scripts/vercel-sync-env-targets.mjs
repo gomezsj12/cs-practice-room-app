@@ -70,7 +70,7 @@ const allowed = new Set([
   "TELEGRAM_WEBHOOK_SECRET",
 ]);
 
-/** Same keys as `vercel-mark-env-sensitive.mjs` — Vercel Sensitive (dashboard-masked). */
+/** Same keys as `vercel-mark-env-sensitive.mjs`: Vercel Sensitive (dashboard-masked). */
 const vercelSensitiveKeys = new Set([
   "AUTH_GOOGLE_SECRET",
   "AUTH_SECRET",

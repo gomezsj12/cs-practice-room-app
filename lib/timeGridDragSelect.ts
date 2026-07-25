@@ -3,7 +3,7 @@
 import type { CalendarApi } from "@fullcalendar/core";
 
 /* ------------------------------------------------------------------ */
-/*  Grid constants — keep in sync with FullCalendar view config.      */
+/*  Grid constants: keep in sync with FullCalendar view config.       */
 /* ------------------------------------------------------------------ */
 
 /** Earliest visible slot in the time grid (FullCalendar `slotMinTime`). */
@@ -19,7 +19,7 @@ export const MAX_BOOKING_MS = 6 * 60 * 60 * 1000;
 
 /** Latest wall-clock end for jam drag-select on Fridays (2:30 PM, local column day). */
 export const FRIDAY_JAM_LATEST_END_MINUTES = 14 * 60 + 30;
-/** Top of the Friday “closed for jam” overlay — same instant as {@link FRIDAY_JAM_LATEST_END_MINUTES}. */
+/** Top of the Friday “closed for jam” overlay: same instant as {@link FRIDAY_JAM_LATEST_END_MINUTES}. */
 export const FRIDAY_JAM_OVERLAY_START_MINUTES = FRIDAY_JAM_LATEST_END_MINUTES;
 
 /** Latest 15-minute snap that still lies on the booking day (avoids setHours(24) → next day). */
@@ -147,7 +147,7 @@ export function applyMinBookableStartToRange(
   const minStart = earliestBookableStartForColumnDay(dayDate, now, slotMinMin);
   let { start, end } = merged;
 
-  // Already valid — no adjustment needed.
+  // Already valid: no adjustment needed.
   if (start.getTime() >= minStart.getTime()) {
     return merged;
   }
@@ -330,7 +330,7 @@ function clipSelectionEnd(
  *  6. Clip end backward before any blockers or the 6-hour wall.
  *  7. If the remaining gap is below MIN_BOOKING_MS, try inflating end once more.
  *  8. Clamp end to the grid day boundary (last snap before slotMax).
- *  9. Final MIN_BOOKING_MS check — return null if still too short.
+ *  9. Final MIN_BOOKING_MS check: return null if still too short.
  *
  * @param anchor   - The time the user first pressed down.
  * @param pointer  - The time the pointer is currently over (or released at).

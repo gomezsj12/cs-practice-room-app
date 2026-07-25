@@ -1,5 +1,5 @@
 /**
- * @file `POST /api/profile/sync` — re-sync the current user's Notion data.
+ * @file `POST /api/profile/sync`: re-sync the current user's Notion data.
  *
  * Looks up the user's current WWU email in the Notion people database and
  * patches the Supabase profile with fresh department flags, sj_band, type,
@@ -10,8 +10,8 @@
  *
  * Returns the updated profile row. If no profile exists, returns 404.
  *
- * @see {@link @/hooks/useProfileSync} — client-side hook that calls this
- * @see {@link @/lib/notion} — Notion lookup helpers
+ * @see {@link @/hooks/useProfileSync}: client-side hook that calls this
+ * @see {@link @/lib/notion}: Notion lookup helpers
  */
 
 import { NextResponse } from "next/server";

@@ -52,8 +52,9 @@ if (idx === -1) {
   process.exit(0);
 }
 
-const part2Marker = "## Part 2 — CS Practice Room App (this repo)";
-const p2 = body.indexOf(part2Marker);
+/** Matches the Part 2 heading whatever separator follows "Part 2". */
+const part2Heading = /^## Part 2\b.*$/m;
+const p2 = body.search(part2Heading);
 if (p2 !== -1) {
   const part2ThroughAnchor = body.slice(p2, idx);
   const dataRows = part2ThroughAnchor
@@ -69,7 +70,7 @@ if (p2 !== -1) {
 const head = body.slice(0, idx);
 
 const attribution = process.env.CHANGE_LOG_ATTRIBUTION ?? "post-commit hook";
-const safeSubject = subject.replace(/\|/g, " — ").replace(/\*\*/g, "");
+const safeSubject = subject.replace(/\|/g, " / ").replace(/\*\*/g, "");
 const summary = `**${safeSubject}**`;
 const row = `| \`${hash}\` | ${date}       | ${summary} | ${attribution} |\n`;
 

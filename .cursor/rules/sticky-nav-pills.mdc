@@ -1,5 +1,5 @@
 ---
-description: Sticky glass navigation pills — architecture and invariants
+description: Sticky glass navigation pills, architecture and invariants
 globs: components/StickyNavPills.tsx, components/SiteHeader.tsx, components/SupportNavLink.tsx, app/globals.css, app/layout.tsx
 alwaysApply: false
 ---
@@ -7,7 +7,7 @@ alwaysApply: false
 # Sticky Nav Pills
 
 The page-navigation pills (Home, Booking, Calendar, Support) are rendered by
-**one component** — `StickyNavPills`. The header's own `nav[aria-label="Main"]`
+**one component**: `StickyNavPills`. The header's own `nav[aria-label="Main"]`
 is always hidden after hydration; it exists only as an invisible anchor for
 positioning.
 
@@ -31,11 +31,11 @@ StickyNavPills
 
 The browser compositor handles scrolling in absolute mode (zero lag).
 JS only fires on the `scroll` event to detect the switch point and set
-`backdrop-filter` inline on each pill `<a>` — it never sets `transform`.
+`backdrop-filter` inline on each pill `<a>`; it never sets `transform`.
 
 ### Hydration strategy (no load-in delay)
 
-1. CSS does **not** hide `nav[aria-label="Main"]` — it is visible in the
+1. CSS does **not** hide `nav[aria-label="Main"]`; it is visible in the
    server-rendered HTML so pills appear from the first paint.
 2. `StickyNavPills` starts with `opacity-0` (SSR) and `position: fixed` (out
    of document flow, no layout shift).
@@ -45,7 +45,7 @@ JS only fires on the `scroll` event to detect the switch point and set
    - Sets `opacity: 1`
 4. Result: the user always sees pills; the swap is invisible.
 
-## Invariants — do not break these
+## Invariants: do not break these
 
 1. **Single pill set.** Only `StickyNavPills` renders visible pills. The
    header nav is hidden. Never show both simultaneously.
@@ -66,7 +66,7 @@ JS only fires on the `scroll` event to detect the switch point and set
 6. **Glass blur.** Applied as **inline styles** (`backdropFilter` +
    `webkitBackdropFilter`) directly on each pill `<a>` element from the JS
    scroll handler. Do NOT use CSS custom properties or stylesheet rules for
-   `backdrop-filter` — Chrome/Firefox skip the compositing layer at
+   `backdrop-filter`. Chrome/Firefox skip the compositing layer at
    `blur(0px)` and never re-create it when the value changes via inherited
    custom properties. The pill `<a>` elements are cached on mount via
    `el.querySelectorAll('a.sticky-nav-pill, .sticky-nav-pill > a')`.

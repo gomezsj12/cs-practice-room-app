@@ -1,20 +1,20 @@
 /**
  * @file Admin blocked-time CRUD endpoint (`POST` / `DELETE /api/blocked-times`).
  *
- * **POST** — Create a blocked-off period:
- * 1. Auth — requires admin session.
- * 2. Validation — min 30 min, no max, no past-day restriction skipped for admins.
- * 3. Overlap check — rejects if the range overlaps any existing non-blocked
+ * **POST** creates a blocked-off period:
+ * 1. Auth: requires admin session.
+ * 2. Validation: min 30 min, no max, no past-day restriction skipped for admins.
+ * 3. Overlap check: rejects if the range overlaps any existing non-blocked
  *    Google Calendar event on either calendar.
- * 4. Google Calendar insert — creates an event on BOTH practice and jam
+ * 4. Google Calendar insert: creates an event on BOTH practice and jam
  *    calendars with `extendedProperties.private.blockedTime: "true"`.
- * 5. Supabase insert — stores the paired event IDs in `blocked_times`.
+ * 5. Supabase insert: stores the paired event IDs in `blocked_times`.
  *
- * **DELETE** — Remove a blocked-off period:
- * 1. Auth — requires admin session.
- * 2. Supabase lookup — fetches the row by `blockedTimeId`.
- * 3. Google Calendar delete — removes events from both calendars.
- * 4. Supabase delete — removes the row.
+ * **DELETE** removes a blocked-off period:
+ * 1. Auth: requires admin session.
+ * 2. Supabase lookup: fetches the row by `blockedTimeId`.
+ * 3. Google Calendar delete: removes events from both calendars.
+ * 4. Supabase delete: removes the row.
  */
 
 import { NextRequest, NextResponse } from "next/server";

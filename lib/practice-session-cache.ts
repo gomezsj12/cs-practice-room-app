@@ -55,7 +55,7 @@ export async function getCachedSessions(
 
 /**
  * Upsert a single cache entry by custom_event_id.
- * Fire-and-forget safe — logs errors but does not throw.
+ * Fire-and-forget safe: logs errors but does not throw.
  */
 export async function upsertCacheEntry(entry: {
   custom_event_id: string;

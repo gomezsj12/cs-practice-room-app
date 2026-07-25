@@ -7,10 +7,10 @@
  * of the viewport. Supports success, error, and info variants.
  *
  * Visibility is controlled externally via {@link ToastProps.isOpen}; the
- * component does not manage its own timers or auto-dismiss logic — that
+ * component does not manage its own timers or auto-dismiss logic; that
  * responsibility lives in the {@link useToast} hook.
  *
- * @see useToast — hook that manages toast state and auto-dismiss timing
+ * @see useToast: hook that manages toast state and auto-dismiss timing
  */
 
 type ToastProps = {

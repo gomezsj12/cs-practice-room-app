@@ -2,17 +2,17 @@
  * @file Homepage for the CS Practice Room app (`/`).
  *
  * Renders three sections:
- * 1. **Hero banner** (desktop-only) — introduces the app's purpose.
- * 2. **Contact card** — embeds `ContactSupportForm` for quick support.
- * 3. **Resources card** — optional Telegram group chat (shown when
+ * 1. **Hero banner** (desktop-only): introduces the app's purpose.
+ * 2. **Contact card**: embeds `ContactSupportForm` for quick support.
+ * 3. **Resources card**: optional Telegram group chat (shown when
  *    `NEXT_PUBLIC_TELEGRAM_GROUP_URL` is set), user guide, Terms & Conditions,
  *    and Meet with us links.
  *
  * This is a server component; dynamic client behaviour comes from
  * `ContactSupportForm` (client component imported within).
  *
- * @see {@link @/components/ContactSupportForm} — inline support form
- * @see {@link @/lib/siteConfig} — centralised public site settings
+ * @see {@link @/components/ContactSupportForm}: inline support form
+ * @see {@link @/lib/siteConfig}: centralised public site settings
  */
 
 import Link from "next/link";
@@ -37,7 +37,7 @@ function TelegramIcon() {
   );
 }
 
-/** Question mark — user guide link. */
+/** Question mark: user guide link. */
 function HelpQuestionIcon() {
   return (
     <span
@@ -49,7 +49,7 @@ function HelpQuestionIcon() {
   );
 }
 
-/** Spreadsheet/grid icon — Patchlist Generator link. */
+/** Spreadsheet/grid icon: Patchlist Generator link. */
 function SpreadsheetIcon() {
   return (
     <svg
@@ -78,7 +78,7 @@ function SpreadsheetIcon() {
   );
 }
 
-/** Document with signature line and pen — Terms & Conditions link. */
+/** Document with signature line and pen: Terms & Conditions link. */
 function SignedDocumentIcon() {
   return (
     <svg
@@ -123,7 +123,7 @@ function SignedDocumentIcon() {
   );
 }
 
-/** Video camera — Meet with us / video meeting link. */
+/** Video camera: Meet with us / video meeting link. */
 function MeetWithUsIcon() {
   return (
     <svg

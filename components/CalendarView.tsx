@@ -12,28 +12,28 @@
  *
  * **Keyboard shortcuts** (desktop only, suppressed when a modal is open or
  * focus is in a form field):
- * - `ArrowLeft` / `ArrowRight` — navigate to previous / next week (or day)
- * - `T` — jump to today
- * - `Escape` — close the topmost open modal (reserve > cancel confirm > event details)
+ * - `ArrowLeft` / `ArrowRight`: navigate to previous / next week (or day)
+ * - `T`: jump to today
+ * - `Escape`: close the topmost open modal (reserve > cancel confirm > event details)
  *
  * **Touch gestures** (mobile only):
- * - Horizontal swipe — navigate prev/next day
- * - Double-tap — jump to today
+ * - Horizontal swipe: navigate prev/next day
+ * - Double-tap: jump to today
  *   (including over Friday restriction bands, blocked-off events, and other
  *   `data-calendar-gesture-passthrough` targets)
- * - Vertical scroll — scrolls the time grid; a vertical movement > 10 px
+ * - Vertical scroll: scrolls the time grid; a vertical movement > 10 px
  *   latches a `scrolling` flag that suppresses the delayed event-click so
  *   scrolling over an event never accidentally opens it
  *
  * Key hooks consumed:
- * - {@link useBookingFlow} — hold / reserve / cancel state machine
- * - {@link useDragSelect} — pointer-based slot selection on the grid
- * - {@link useEventPolling} — server polling for calendar events
- * - {@link useNowIndicatorOverlay} — custom "now" line rendering
+ * - {@link useBookingFlow}: hold / reserve / cancel state machine
+ * - {@link useDragSelect}: pointer-based slot selection on the grid
+ * - {@link useEventPolling}: server polling for calendar events
+ * - {@link useNowIndicatorOverlay}: custom "now" line rendering
  *
- * @see ReserveModal — opened after a slot is drag-selected
- * @see EventDetailsModal — opened on event click
- * @see ConfirmModal — cancel-reservation confirmation
+ * @see ReserveModal: opened after a slot is drag-selected
+ * @see EventDetailsModal: opened on event click
+ * @see ConfirmModal: cancel-reservation confirmation
  */
 
 import type { CSSProperties } from "react";
@@ -82,7 +82,7 @@ import type {
 import { formatBookingDateRange } from "@/lib/formatting";
 import { getStatusOutlineColor } from "@/lib/practice-session-status";
 
-/** Positions for Friday restriction bands — same coordinate space as {@link useNowIndicatorOverlay} (wrap-relative + scroll). */
+/** Positions for Friday restriction bands: same coordinate space as {@link useNowIndicatorOverlay} (wrap-relative + scroll). */
 type FridayJamOverlayRect = {
   key: string;
   /** ISO date string (YYYY-MM-DD) of the Friday this overlay represents. */
@@ -271,7 +271,7 @@ export default function CalendarView() {
 
   /**
    * After backdrop-dismiss of the event modal (or a navigation gesture on top
-   * of an event), FullCalendar can still receive a delayed click — ignore
+   * of an event), FullCalendar can still receive a delayed click, so ignore
    * `eventClick` until this timestamp.
    */
   const suppressEventClickUntilMsRef = useRef(0);
@@ -306,7 +306,7 @@ export default function CalendarView() {
     session?.profileUpdatedAt,
   );
 
-  // Stable fingerprint of practice events — only changes when the set of
+  // Stable fingerprint of practice events: only changes when the set of
   // practice googleEventIds or their times change, preventing redundant
   // batch-statuses fetches on every polling cycle.
   const practiceEventsFingerprint = useMemo(() => {
@@ -364,7 +364,7 @@ export default function CalendarView() {
           setPracticeStatusColors(map);
         })
         .catch(() => {
-          /* swallow — calendar still works without outlines */
+          /* swallow: calendar still works without outlines */
         });
     }
 
@@ -567,7 +567,7 @@ export default function CalendarView() {
     };
   }, [isLoading]);
 
-  // Friday afternoon restriction overlay — same positioning strategy as useNowIndicatorOverlay
+  // Friday afternoon restriction overlay: same positioning strategy as useNowIndicatorOverlay
   // (absolute inside wrap, not fixed viewport coords, so it stays aligned when the page or grid scrolls).
   useEffect(() => {
     if (isLoading) {
@@ -793,7 +793,7 @@ export default function CalendarView() {
 
   /**
    * Fetch Notion details for a practice event (admin only).
-   * @param silent — when true, skip the loading spinner (used for background refreshes)
+   * @param silent - when true, skip the loading spinner (used for background refreshes)
    */
   function fetchNotionDetailsForEvent(
     googleEventId: string,
@@ -824,7 +824,7 @@ export default function CalendarView() {
         }
       })
       .catch(() => {
-        /* swallow — modal already shows without Notion data */
+        /* swallow: modal already shows without Notion data */
       })
       .finally(() => {
         if (!silent) setIsLoadingNotionDetails(false);
@@ -1390,7 +1390,7 @@ export default function CalendarView() {
 
       if (!swiping) {
         if (Math.abs(dx) < 10) {
-          // Predominantly vertical — if past threshold, latch as scroll
+          // Predominantly vertical: if past threshold, latch as scroll
           // so finalizeNavTouch won’t treat it as a tap on an event.
           if (!scrolling && Math.abs(dy) > SCROLL_MIN_PX) {
             scrolling = true;
@@ -1445,7 +1445,7 @@ export default function CalendarView() {
         return;
       }
 
-      // Vertical scroll detected — not a tap. Suppress any pending/delayed event open.
+      // Vertical scroll detected: not a tap. Suppress any pending/delayed event open.
       if (scrolling) {
         clearDelayedEventOpen();
         pendingFridayOpenDateStrRef.current = null;

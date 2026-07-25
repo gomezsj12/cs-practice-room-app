@@ -7,16 +7,16 @@
  * first time (i.e. no matching row in the Supabase `profiles` table).
  *
  * Three-phase UI flow:
- * 1. **form** — collects WWU email with format validation on submit only.
- * 2. **creating** — animated progress bar while the API creates the profile.
- * 3. **done** — success message + booking-access indicator. Dismissed only
+ * 1. **form**: collects WWU email with format validation on submit only.
+ * 2. **creating**: animated progress bar while the API creates the profile.
+ * 3. **done**: success message + booking-access indicator. Dismissed only
  *    by clicking "Done" (no auto-dismiss timer). When the new profile has
  *    admin status, a violet "Admin access granted" card is shown.
  *
  * Dismissing the modal at any point signs the user out.
  *
- * @see {@link @/app/api/profile/setup/route} — server-side handler
- * @see {@link @/auth} — session shape (`profileComplete` flag)
+ * @see {@link @/app/api/profile/setup/route}: server-side handler
+ * @see {@link @/auth}: session shape (`profileComplete` flag)
  */
 
 import { useEffect, useRef, useState } from "react";
@@ -120,7 +120,7 @@ export default function AccountSetupModal() {
       setIsProfileAdmin(!!profile?.is_admin);
       apiFinished.current = true;
     } catch {
-      setServerError("Network error — please try again");
+      setServerError("Network error. Please try again");
       setPhase("form");
     }
   }

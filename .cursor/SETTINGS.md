@@ -10,7 +10,7 @@ Typical flow:
 
 1. Implement or fix on a branch / working tree as needed.
 2. **Run `npm run dev`** in the project terminal when you are done with that batch of changes (see **Local dev server** below), so localhost is ready.
-3. **Prompt the project owner for feedback** — ask them to try the app and tell you what works or what still feels wrong before you move on or commit.
+3. **Prompt the project owner for feedback**: ask them to try the app and tell you what works or what still feels wrong before you move on or commit.
 4. Wait for them to confirm local testing.
 5. Only then **`git add` / `git commit`** when they ask (or when they say the change is approved to commit).
 
@@ -18,7 +18,7 @@ Same idea for **`git push`**: only when they ask, unless they have said otherwis
 
 ### Git in the agent terminal (permissions)
 
-When an agent runs git in Cursor’s terminal tool, it must use **full permissions** (outside the sandbox) for **every** git command — including `status`, `log`, `commit`, and `push`. Sandboxed runs can fail quietly or leave the branch out of sync with `origin`. See [`.cursor/rules/git-commands.mdc`](./rules/git-commands.mdc).
+When an agent runs git in Cursor’s terminal tool, it must use **full permissions** (outside the sandbox) for **every** git command, including `status`, `log`, `commit`, and `push`. Sandboxed runs can fail quietly or leave the branch out of sync with `origin`. See [`.cursor/rules/git-commands.mdc`](./rules/git-commands.mdc).
 
 ## Local dev server after changes
 
@@ -29,7 +29,7 @@ When an agent runs git in Cursor’s terminal tool, it must use **full permissio
 
 ## Ask for feedback
 
-When you finish a change that should be verified in the browser, **explicitly prompt the owner for feedback** — for example, what to click or look for, then invite them to reply with what they see or any issues. Do not assume silence means success.
+When you finish a change that should be verified in the browser, **explicitly prompt the owner for feedback**, for example what to click or look for, then invite them to reply with what they see or any issues. Do not assume silence means success.
 
 ## Documentation protocol
 
@@ -47,10 +47,10 @@ See `docs/README.md` for the full list of documentation files and their purposes
 
 ## Related files
 
-- [`settings.json`](./settings.json) — plugin config and short reminders.
-- [`rules/collaboration.mdc`](./rules/collaboration.mdc) — plain-language collaboration style.
-- [`rules/change-log.mdc`](./rules/change-log.mdc) — when to update `docs/change-log.md` after a commit.
-- [`rules/documentation-protocol.mdc`](./rules/documentation-protocol.mdc) — full documentation update protocol.
-- [`rules/browser-verification.mdc`](./rules/browser-verification.mdc) — browser verification before hand-off.
-- [`rules/dev-server-cleanup.mdc`](./rules/dev-server-cleanup.mdc) — dev server management.
-- [`rules/git-commands.mdc`](./rules/git-commands.mdc) — run git with full permissions in the agent terminal.
+- [`settings.json`](./settings.json): plugin config and short reminders.
+- [`rules/collaboration.mdc`](./rules/collaboration.mdc): plain-language collaboration style.
+- [`rules/change-log.mdc`](./rules/change-log.mdc): when to update `docs/change-log.md` after a commit.
+- [`rules/documentation-protocol.mdc`](./rules/documentation-protocol.mdc): full documentation update protocol.
+- [`rules/browser-verification.mdc`](./rules/browser-verification.mdc): browser verification before hand-off.
+- [`rules/dev-server-cleanup.mdc`](./rules/dev-server-cleanup.mdc): dev server management.
+- [`rules/git-commands.mdc`](./rules/git-commands.mdc): run git with full permissions in the agent terminal.

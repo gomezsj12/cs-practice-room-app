@@ -9,7 +9,7 @@
  * Positioning uses two modes to avoid any JS-driven per-frame animation:
  *
  * - **Not stuck** (`position: absolute`): the container sits at the header
- *   nav's document position and scrolls with the page natively — the browser
+ *   nav's document position and scrolls with the page natively. The browser
  *   compositor handles this, so there is zero lag on fast or high-refresh
  *   scrolls.
  * - **Stuck** (`position: fixed`): once the scroll position reaches the
@@ -19,8 +19,8 @@
  * JS only runs to detect the switch point and update the blur variable;
  * it never sets `transform` or repositions the element per-frame.
  *
- * @see SiteHeader — the original header (never modified)
- * @see SupportNavLink — Support pill with unread indicator
+ * @see SiteHeader: the original header (never modified)
+ * @see SupportNavLink: Support pill with unread indicator
  */
 
 import Link from "next/link";

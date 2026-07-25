@@ -6,13 +6,13 @@
  * resolution strategies for mapping a Telegram message to a support thread,
  * tried in priority order:
  *
- * 1. **`/close SR-<id>` command** — parsed by `parseCloseCommand`.
- * 2. **Native Telegram reply** — if the message is a reply-to a message
+ * 1. **`/close SR-<id>` command**: parsed by `parseCloseCommand`.
+ * 2. **Native Telegram reply**: if the message is a reply-to a message
  *    whose `message_id` + `chat.id` match a `support_threads` row's
  *    `telegram_root_message_id` / `telegram_chat_id`.
- * 3. **Forum topic ID** — if the message carries `message_thread_id`,
+ * 3. **Forum topic ID**: if the message carries `message_thread_id`,
  *    look up the thread whose `telegram_topic_id` matches.
- * 4. **`/reply SR-<id> <body>` command** or thread-ID mention in text —
+ * 4. **`/reply SR-<id> <body>` command** or thread-ID mention in text:
  *    parsed by `parseReplyCommand` / `extractSupportThreadIdFromText`.
  *
  * Idempotency: every message includes the Telegram `update_id`. Before
@@ -25,8 +25,8 @@
  * testing can proceed; configure the same value as Telegram’s webhook
  * “secret token” so only Telegram can invoke this URL.
  *
- * @see {@link @/lib/support} — parsing helpers (`parseReplyCommand`, `parseCloseCommand`, `extractSupportThreadIdFromText`)
- * @see {@link @/app/api/support/contact/route} — stores the outbound root message ID
+ * @see {@link @/lib/support}: parsing helpers (`parseReplyCommand`, `parseCloseCommand`, `extractSupportThreadIdFromText`)
+ * @see {@link @/app/api/support/contact/route}: stores the outbound root message ID
  */
 
 import { NextRequest, NextResponse } from "next/server";
@@ -166,7 +166,7 @@ export async function POST(request: NextRequest) {
       }
     }
 
-    // Resolve via forum topic ID — every message sent inside a topic carries
+    // Resolve via forum topic ID: every message sent inside a topic carries
     // message_thread_id, so the admin can just type freely in the topic.
     let threadIdFromTopic = "";
     const incomingTopicId = message?.message_thread_id;

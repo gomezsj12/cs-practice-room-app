@@ -130,7 +130,7 @@ describe("practice custom event ids", () => {
         shortPhoneEvent,
         "America/Los_Angeles",
       );
-      // No `equals` candidates because metadata is missing — only the
+      // No `equals` candidates because metadata is missing: only the
       // time-only prefixes, which must be queried with `starts_with`.
       expect(candidates.every((c) => c.matchMode === "starts_with")).toBe(true);
       expect(candidates.map((c) => c.id)).toEqual([

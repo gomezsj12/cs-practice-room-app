@@ -6,8 +6,8 @@
  * rendered PNG icon at either 192 or 512 px (snapped from the `size` query
  * param). Referenced by the PWA manifest for home-screen and splash icons.
  *
- * @see {@link @/lib/pwaIcon} — `createPwaIcon` (uses `next/og` ImageResponse)
- * @see {@link @/app/manifest} — declares icon URLs pointing here
+ * @see {@link @/lib/pwaIcon}: `createPwaIcon` (uses `next/og` ImageResponse)
+ * @see {@link @/app/manifest}: declares icon URLs pointing here
  */
 
 import { NextRequest } from "next/server";

@@ -1,5 +1,5 @@
 /**
- * @file Booking flow orchestrator — hold lifecycle, reservation, and cancellation.
+ * @file Booking flow orchestrator: hold lifecycle, reservation, and cancellation.
  *
  * ## Hold lifecycle
  *
@@ -12,7 +12,7 @@
  *    `expiresAt`. A countdown timer runs in the reservation modal. If the
  *    timer reaches zero, `handleHoldExpire` cleans up.
  * 3. **`"fallback"`** – The hold endpoint failed or returned a non-409 error.
- *    The modal still opens, but without a server-side hold — the reservation
+ *    The modal still opens, but without a server-side hold: the reservation
  *    will be attempted directly, accepting a small race window.
  *
  * ## Stale-request guard
@@ -148,7 +148,7 @@ export function useBookingFlow(
   // fire a keepalive release for any active server hold.
   useEffect(() => {
     const onPageHide = (event: PageTransitionEvent) => {
-      // bfcache pages are restored with JS state intact — skip release.
+      // bfcache pages are restored with JS state intact, so skip release.
       if (event.persisted) {
         return;
       }
@@ -225,7 +225,7 @@ export function useBookingFlow(
 
       const data = await response.json();
 
-      // Stale check: a newer drag-select has already started — discard this
+      // Stale check: a newer drag-select has already started, so discard this
       // response and release the server hold it created.
       const isStale = holdRequestIdRef.current !== requestId;
 
@@ -421,7 +421,7 @@ export function useBookingFlow(
 
     const eventKindLabel = getCalendarEventKindLabel(selectedEvent.eventType);
 
-    // Client-side end-time guard — prevents a wasted round-trip.
+    // Client-side end-time guard: prevents a wasted round-trip.
     const cancelEnd = new Date(selectedEvent.end);
     if (
       !Number.isNaN(cancelEnd.getTime()) &&

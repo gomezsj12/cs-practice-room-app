@@ -6,17 +6,17 @@
  * user fills in the reservation form.
  *
  * Pipeline:
- * 1. **Auth + validation** — signed-in user, valid start/end, feature flag on.
- * 2. **Google Calendar overlap check** — ensures no existing practice or jam
+ * 1. **Auth + validation**: signed-in user, valid start/end, feature flag on.
+ * 2. **Google Calendar overlap check**: ensures no existing practice or jam
  *    event already covers the requested window.
- * 3. **Supabase hold overlap check** — queries for any pending, non-expired
+ * 3. **Supabase hold overlap check**: queries for any pending, non-expired
  *    hold that overlaps `[start, end)`.
- * 4. **Insert** — writes the hold with a 30-second TTL (`expires_at`).
+ * 4. **Insert**: writes the hold with a 30-second TTL (`expires_at`).
  *    The client is responsible for converting the hold to a full reservation
  *    before expiry via `/api/reserve`.
  *
- * @see {@link @/app/api/reserve/route} — consumes and deletes the hold on booking
- * @see {@link @/app/api/holds/release/route} — manual hold release by owner/admin
+ * @see {@link @/app/api/reserve/route}: consumes and deletes the hold on booking
+ * @see {@link @/app/api/holds/release/route}: manual hold release by owner/admin
  */
 
 import { NextRequest, NextResponse } from "next/server";
@@ -143,7 +143,7 @@ export async function POST(request: NextRequest) {
         );
       }
 
-      // 30-second TTL — long enough for the user to complete the form,
+      // 30-second TTL: long enough for the user to complete the form,
       // short enough that abandoned holds free the slot quickly.
       const expiresAt = new Date(Date.now() + 30 * 1000).toISOString();
 

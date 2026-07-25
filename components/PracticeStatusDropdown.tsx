@@ -4,7 +4,7 @@
  * Notion-style grouped status dropdown for admin practice session editing.
  * Rendered inline within the EventDetailsModal title row.
  *
- * @see lib/practice-session-status.ts — status options, colors, groups
+ * @see lib/practice-session-status.ts: status options, colors, groups
  */
 
 import { useCallback, useEffect, useRef, useState } from "react";

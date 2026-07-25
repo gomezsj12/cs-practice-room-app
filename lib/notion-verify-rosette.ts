@@ -9,7 +9,7 @@ export function notionVerifyRosettePath(): string {
   const cx = 16;
   const cy = 16;
   const lobes = 8;
-  /** Base radius — valleys sit near this. */
+  /** Base radius: valleys sit near this. */
   const meanR = 10.04;
   /** Primary lobe wave (smaller → shallower scallops, bubblier silhouette). */
   const a1 = 0.82;

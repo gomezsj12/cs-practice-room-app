@@ -517,7 +517,7 @@ body {
   }
 }
 
-/* Homepage — slow attention pulse for mobile “call” CTA */
+/* Homepage: slow attention pulse for mobile “call” CTA */
 @keyframes slow-attention-blink {
   0%,
   100% {

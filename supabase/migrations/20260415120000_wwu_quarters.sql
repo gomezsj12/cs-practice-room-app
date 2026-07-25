@@ -1,5 +1,5 @@
 -- WWU academic quarters synced from Notion (via cron). Used for calendar
--- event fetch window and FullCalendar validRange — not exposed to the browser.
+-- event fetch window and FullCalendar validRange. Not exposed to the browser.
 
 create table wwu_quarters (
   id uuid primary key default gen_random_uuid(),

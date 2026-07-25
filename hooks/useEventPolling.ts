@@ -40,10 +40,10 @@ const REFETCH_COOLDOWN_MS = 5000;
  * @returns `events` state, `setEvents` setter (for optimistic updates),
  *          `isLoading`, `loadEvents` imperative refetch, a stable
  *          `eventsRef` for read-without-rerender access, and
- *          `fridayExceptions` / `fridayExceptionsRef` — the set of
+ *          `fridayExceptions` / `fridayExceptionsRef`: the set of
  *          YYYY-MM-DD date strings for Fridays whose afternoon
  *          restriction has been lifted by an admin.
- *          `quarter` — active WWU quarter for header + FullCalendar
+ *          `quarter`: active WWU quarter for header + FullCalendar
  *          `validRange`, or `null` when using the rolling fallback window.
  */
 export function useEventPolling(
@@ -58,7 +58,7 @@ export function useEventPolling(
   );
   const [quarter, setQuarter] = useState<ApiQuarterInfo | null>(null);
   const [isLoading, setIsLoading] = useState(true);
-  /** Stable ref mirrored from `events` state — lets drag-select read the
+  /** Stable ref mirrored from `events` state: lets drag-select read the
    *  latest events inside imperative event handlers without re-subscribing. */
   const eventsRef = useRef<CalendarEvent[]>([]);
   const fridayExceptionsRef = useRef<Set<string>>(new Set());
@@ -113,7 +113,7 @@ export function useEventPolling(
     loadEvents();
   }, [status, loadEvents, profileRefreshKey]);
 
-  // Background polling — 30 s cadence, skipped when tab is hidden or a
+  // Background polling: 30 s cadence, skipped when tab is hidden or a
   // booking flow is active to avoid clobbering optimistic hold events.
   useEffect(() => {
     const interval = window.setInterval(() => {

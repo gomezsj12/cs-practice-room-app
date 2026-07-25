@@ -156,7 +156,7 @@ export async function getActiveQuarterWindow(): Promise<ActiveQuarterResult | nu
  *
  * - `open`: today falls inside a `wwu_quarters` row.
  * - `closed`: no row covers today. `nextQuarter` is the next future row, if any.
- * - `unknown`: query failed or Supabase isn't configured — fail open so the
+ * - `unknown`: query failed or Supabase isn't configured. Fails open so the
  *   app stays usable for everyone.
  */
 export type QuarterGateStatus =

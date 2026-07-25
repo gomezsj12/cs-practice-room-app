@@ -1,4 +1,4 @@
-# CS Practice Room App — code map for beginners
+# CS Practice Room App: code map for beginners
 
 This guide assumes you already know **what the app does** and **what the screens look like**. It connects those experiences to **folders, files, and tools** in this repo, using simple analogies.
 
@@ -9,12 +9,12 @@ This guide assumes you already know **what the app does** and **what the screens
 
 | Real world                               | In this app                                                                       |
 | ---------------------------------------- | --------------------------------------------------------------------------------- |
-| **Dining room** — what guests see        | **The website UI** — buttons, calendar, forms (`app/**/page.tsx`, `components/`*) |
-| **Kitchen** — where work happens         | **The server** — APIs, database, Google Calendar (`app/api/`*, `lib/`*)           |
-| **Recipe book** — rules everyone follows | **TypeScript** — names and shapes of data; catches mistakes before runtime        |
-| **Storage room**                         | **Supabase** — saved data (profiles, holds, blocked times, quarters, …)           |
-| **Delivery / landlord**                  | **Vercel** — runs the site on the internet at your URL                            |
-| **ID check at the door**                 | **NextAuth + Google** — “who is this person?” and “can they book?”                |
+| **Dining room**: what guests see         | **The website UI**: buttons, calendar, forms (`app/**/page.tsx`, `components/`*)  |
+| **Kitchen**: where work happens          | **The server**: APIs, database, Google Calendar (`app/api/`*, `lib/`*)            |
+| **Recipe book**: rules everyone follows  | **TypeScript**: names and shapes of data; catches mistakes before runtime         |
+| **Storage room**                         | **Supabase**: saved data (profiles, holds, blocked times, quarters, …)            |
+| **Delivery / landlord**                  | **Vercel**: runs the site on the internet at your URL                             |
+| **ID check at the door**                 | **NextAuth + Google**: “who is this person?” and “can they book?”                 |
 
 
 You see the dining room. Most code is the kitchen and the recipe book.
@@ -27,8 +27,8 @@ You see the dining room. Most code is the kitchen and the recipe book.
 | Path                      | Role                                                                                                                      |
 | ------------------------- | ------------------------------------------------------------------------------------------------------------------------- |
 | `app/`                    | **Routes**: each URL. `page.tsx` = Homescreen Layout; `layout.tsx` wraps all screens; `api/**/route.ts` = server endpoints (JSON). |
-| `components/`             | **Reusable UI** — header, calendar, modals, forms.                                                                        |
-| `lib/`                    | **Shared logic** — Supabase, Google, Notion, date helpers, types.                                                         |
+| `components/`             | **Reusable UI**: header, calendar, modals, forms.                                                                         |
+| `lib/`                    | **Shared logic**: Supabase, Google, Notion, date helpers, types.                                                          |
 | `auth.ts`                 | **NextAuth** config (Google sign-in, session fields).                                                                     |
 | `public/`                 | **Static files** served as-is.                                                                                            |
 | `e2e/`                    | **Playwright** tests (including screenshot runs).                                                                         |
@@ -68,7 +68,7 @@ The main **dependencies** tell you what powers the app:
 
 **What you see:** Hero (large screens), contact support, resources (guide, terms, Telegram, etc.).
 
-**Where it lives:** `app/page.tsx` — server component; interactive pieces like `ContactSupportForm` are client components.
+**Where it lives:** `app/page.tsx`, a server component; interactive pieces like `ContactSupportForm` are client components.
 
 Desktop home
 
@@ -108,7 +108,7 @@ export const siteConfig = {
 
 ---
 
-## Root layout — shared chrome on every page
+## Root layout: shared chrome on every page
 
 **What you see:** Header, sticky nav pills, dark background, PWA bits, analytics.
 
@@ -223,7 +223,7 @@ import BlockTimeModal from "@/components/BlockTimeModal";
 // ... more imports
 ```
 
-**Why FullCalendar:** A production-grade **schedule grid** (views, drag, touch) would be enormous to build from scratch — like using a **professional oven** instead of a camping stove.
+**Why FullCalendar:** A production-grade **schedule grid** (views, drag, touch) would be enormous to build from scratch, like using a **professional oven** instead of a camping stove.
 
 **Data:** The UI calls `**GET /api/events`**. That route merges Google Calendar + Supabase (holds, blocks, Friday exceptions). The file header is the best summary:
 
@@ -233,11 +233,11 @@ import BlockTimeModal from "@/components/BlockTimeModal";
  * @file Calendar events API route (`GET /api/events`).
  *
  * Merges data sources into a unified response for the calendar UI:
- * 1. **Practice bookings** — events from the practice Google Calendar ...
- * 2. **Jam reservations** — events from the jam Google Calendar ...
- * 3. **Temporary holds** — pending rows from Supabase `reservation_holds` ...
- * 4. **Blocked times** — admin-created blocked periods from Supabase `blocked_times` ...
- * 5. **Friday exceptions** — dates from Supabase `friday_exceptions` ...
+ * 1. **Practice bookings**: events from the practice Google Calendar ...
+ * 2. **Jam reservations**: events from the jam Google Calendar ...
+ * 3. **Temporary holds**: pending rows from Supabase `reservation_holds` ...
+ * 4. **Blocked times**: admin-created blocked periods from Supabase `blocked_times` ...
+ * 5. **Friday exceptions**: dates from Supabase `friday_exceptions` ...
  *
  * All queries run in parallel via `Promise.all` to minimise latency.
  * Google Calendar and Supabase failures are handled independently so a
@@ -322,7 +322,7 @@ export default function SupportPage() {
 - `**app/` file routing:** `app/calendar/page.tsx` → URL `/calendar`.
 - **Server components** (default): great for first paint and keeping secrets off the client.
 - **Client components** (`"use client"`): needed for hooks, gestures, `useSession`, FullCalendar.
-- **API routes:** `app/api/events/route.ts` → `**/api/events`** — small HTTP handlers that return JSON.
+- **API routes:** `app/api/events/route.ts` → `**/api/events`**, which are small HTTP handlers that return JSON.
 
 ---
 
@@ -332,7 +332,7 @@ JavaScript **runs** the app; TypeScript adds **types** so editors and `tsc` catc
 
 ---
 
-## Supabase — database and server-side access
+## Supabase: database and server-side access
 
 **Supabase** hosts **Postgres** and exposes APIs. This app uses a **server-only admin client** with the **service role** key (full access; never ship to the browser).
 
@@ -454,12 +454,12 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
 
 ---
 
-## PWA — install on home screen
+## PWA: install on home screen
 
 `**app/manifest.ts`** defines name, colors, icons for “Add to Home Screen.”
 
 ```ts
-// app/manifest.ts (excerpt — full file includes file header comment)
+// app/manifest.ts (excerpt; full file includes file header comment)
 import type { MetadataRoute } from "next";
 import { siteConfig } from "@/lib/siteConfig";
 
@@ -508,7 +508,7 @@ Icons are generated by `**/api/pwa-icon**` (see comment in that file) rather tha
 
 ## Tailwind CSS
 
-Styles use **utility classes** on `className` (e.g. `flex`, `rounded-3xl`, `bg-white/5`) via **Tailwind** — fast UI work without huge custom CSS files for every page.
+Styles use **utility classes** on `className` (e.g. `flex`, `rounded-3xl`, `bg-white/5`) via **Tailwind**, which means fast UI work without huge custom CSS files for every page.
 
 ---
 

@@ -8,8 +8,8 @@
  * - **Optimistic UI events** injected into the calendar while the hold
  *   request is in-flight (before the server responds).
  *
- * @see {@link ../lib/types.ts}            — `CalendarEvent` shape.
- * @see {@link ../lib/calendar-helpers.ts}  — server-side booking validation.
+ * @see {@link ../lib/types.ts}: `CalendarEvent` shape.
+ * @see {@link ../lib/calendar-helpers.ts}: server-side booking validation.
  */
 import type { CalendarEvent } from "@/lib/types";
 

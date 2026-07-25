@@ -1,5 +1,5 @@
 ---
-description: Change log — local docs/change-log.md updated on every commit (gitignored)
+description: Change log, the local docs/change-log.md updated on every commit (gitignored)
 alwaysApply: true
 ---
 
@@ -11,7 +11,7 @@ The file is **not committed**. Each clone keeps its own Part 2 running log. See 
 
 ## Agent responsibilities
 
-1. **After each `git commit`**, ensure Part 2 has a row for `HEAD` — normally the hook adds it; if hooks are disabled or `--no-verify` was used, append the row manually using `git rev-parse --short=7 HEAD` and `git log -1 --format=%s`.
+1. **After each `git commit`**, ensure Part 2 has a row for `HEAD`: normally the hook adds it; if hooks are disabled or `--no-verify` was used, append the row manually using `git rev-parse --short=7 HEAD` and `git log -1 --format=%s`.
 2. **Refine** the hook’s row when needed: expand the summary, set attribution to `Cursor agent` / `Human`, or add technical detail the one-line subject omits.
 3. **Substantive work** that fixes a recurring pitfall: also update the **Issues encountered and fixes** table (and `docs/error-log.md` when appropriate).
 
@@ -19,8 +19,8 @@ See the "How to maintain" section at the top of `docs/change-log.md` for table f
 
 ## Background
 
-- **Part 1** — Pre-Cursor commits from the original Jam Reservation App (different repo; preserved as lineage)
-- **Part 2** — CS Practice Room App commits (this repo’s git DAG), maintained locally
-- **Issues encountered and fixes** — anti-regression table at the bottom of `docs/change-log.md`
+- **Part 1**: Pre-Cursor commits from the original Jam Reservation App (different repo; preserved as lineage)
+- **Part 2**: CS Practice Room App commits (this repo’s git DAG), maintained locally
+- **Issues encountered and fixes**: anti-regression table at the bottom of `docs/change-log.md`
 
 For wiring detail: `docs/ARCHITECTURE.md`.

@@ -4,8 +4,8 @@
  * @module EventDetailsModal
  *
  * Detail overlay for a calendar event. Shows the event title as the headline
- * (with jam/practice color dot), time range, description text, and — for events the
- * current user owns — a cancel button (gated behind a {@link ConfirmModal}).
+ * (with jam/practice color dot), time range, description text, and (for events the
+ * current user owns) a cancel button (gated behind a {@link ConfirmModal}).
  *
  * **Admin controls** (practice events only, when `isAdmin` is true):
  * - Hover/tap title context overlay with "Open in Notion" link
@@ -23,8 +23,8 @@
  * When the session has ended, admin practice controls (Notion-backed fields and
  * times) are read-only; the Notion link remains available for viewing.
  *
- * @see CalendarView — opens this modal on event click
- * @see ConfirmModal — secondary confirmation before actual cancellation
+ * @see CalendarView: opens this modal on event click
+ * @see ConfirmModal: secondary confirmation before actual cancellation
  */
 
 import { useEffect, useRef, useState, type SyntheticEvent } from "react";
@@ -267,7 +267,7 @@ export default function EventDetailsModal({
       onTouchStart={handleBackdropDismiss}
     >
       <div className="w-full max-w-md rounded-3xl border border-neutral-800 bg-[#121212] p-6 text-white shadow-2xl">
-        {/* Title row — all interactive controls sit outside the hover zone */}
+        {/* Title row: all interactive controls sit outside the hover zone */}
         <div className="mb-1 -ml-0.5 flex items-start gap-2">
           <div className="flex min-w-0 flex-1 items-start gap-1">
             {showAdminControls ? (
@@ -310,7 +310,7 @@ export default function EventDetailsModal({
           )}
         </div>
 
-        {/* Notion context overlay — hover zone is only the wedge area below the title */}
+        {/* Notion context overlay: hover zone is only the wedge area below the title */}
         <TitleContextOverlay
           notionUrl={showAdminControls ? (notionDetails?.notionPageUrl ?? null) : null}
           loading={showAdminControls ? isLoadingNotionDetails : false}
@@ -448,7 +448,7 @@ export default function EventDetailsModal({
   );
 }
 
-/** Cached hover-capability check — only runs once per page load. */
+/** Cached hover-capability check: only runs once per page load. */
 let _deviceHasHover: boolean | null = null;
 function deviceHasHover(): boolean {
   if (_deviceHasHover === null) {
@@ -464,7 +464,7 @@ function deviceHasHover(): boolean {
  *
  * Renders a small centered wedge arrow. Hovering (desktop) or tapping (mobile)
  * the wedge area reveals a translucent gradient overlay with the Notion link.
- * The hover zone is only the wedge itself — not the title or any other control.
+ * The hover zone is only the wedge itself: not the title or any other control.
  *
  * Returns null when no Notion URL is available and not loading.
  */
@@ -523,7 +523,7 @@ function TitleContextOverlay({
 
   return (
     <div ref={containerRef} className="relative mb-2">
-      {/* Subtle animated wedge — narrow centered hover/click target */}
+      {/* Subtle animated wedge: narrow centered hover/click target */}
       <div
         className="mx-auto flex w-10 cursor-pointer justify-center py-0.5"
         onClick={() => {
@@ -562,7 +562,7 @@ function TitleContextOverlay({
         </svg>
       </div>
 
-      {/* Overlay — translucent gradient, opaque at top fading to transparent */}
+      {/* Overlay: translucent gradient, opaque at top fading to transparent */}
       <AnimatePresence>
         {open && (
           <motion.div

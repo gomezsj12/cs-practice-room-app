@@ -13,9 +13,9 @@
  *   (title + auth on row 1, nav spanning row 2).
  * - **Desktop (hd 1152px+):** three-column single row (title | nav | auth).
  *
- * @see AuthButton — auth state card placed in the trailing column
- * @see SupportNavLink — special nav item that shows an unread-message badge
- * @see DesktopNavShortcuts — desktop keyboard shortcuts; lives inside the auth
+ * @see AuthButton: auth state card placed in the trailing column
+ * @see SupportNavLink: special nav item that shows an unread-message badge
+ * @see DesktopNavShortcuts: desktop keyboard shortcuts; lives inside the auth
  *   shortcut actions provider alongside {@link AuthButton}
  */
 

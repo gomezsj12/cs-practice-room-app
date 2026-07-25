@@ -9,7 +9,7 @@
  */
 import { createClient, SupabaseClient } from "@supabase/supabase-js";
 
-/** Singleton — created on first call, reused for the lifetime of the process. */
+/** Singleton: created on first call, reused for the lifetime of the process. */
 let _client: SupabaseClient | null = null;
 
 /**

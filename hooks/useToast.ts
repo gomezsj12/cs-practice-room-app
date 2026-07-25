@@ -39,7 +39,7 @@ export function useToast() {
   );
 
   // Uses a functional update so the message/type are preserved during the
-  // fade-out animation — only `isOpen` flips to false.
+  // fade-out animation; only `isOpen` flips to false.
   const closeToast = useCallback(() => {
     setToast((currentToast) => ({
       ...currentToast,

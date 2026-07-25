@@ -2,21 +2,21 @@
  * @file Jam reservation creation endpoint (`POST /api/reserve`).
  *
  * Full booking pipeline:
- * 1. **Auth** — requires a signed-in Google session.
- * 2. **Validation** — checks required fields and booking-time constraints.
- * 3. **Hold verification** (optional) — if a `holdId` is supplied and temp
+ * 1. **Auth**: requires a signed-in Google session.
+ * 2. **Validation**: checks required fields and booking-time constraints.
+ * 3. **Hold verification** (optional): if a `holdId` is supplied and temp
  *    holds are enabled, verifies ownership, pending status, expiry, and
  *    slot-time match (±1 s tolerance). Falls back to the standard flow on failure.
- * 4. **Google Calendar overlap check** — queries both practice and jam
+ * 4. **Google Calendar overlap check**: queries both practice and jam
  *    calendars for conflicting events.
- * 5. **Google Calendar insert** — creates the jam event with `ownerEmail`
+ * 5. **Google Calendar insert**: creates the jam event with `ownerEmail`
  *    stored in `extendedProperties.private` for ownership tracking.
- * 6. **Notion log** (fire-and-forget) — records the reservation; failures
+ * 6. **Notion log** (fire-and-forget): records the reservation; failures
  *    are logged but don't block the response.
- * 7. **Hold cleanup** — deletes the Supabase hold row after a successful booking.
+ * 7. **Hold cleanup**: deletes the Supabase hold row after a successful booking.
  *
- * @see {@link @/lib/calendar-helpers} — `validateBookingTimes`, `checkGoogleCalendarOverlap`
- * @see {@link @/lib/notion} — `createJamReservationInNotion`
+ * @see {@link @/lib/calendar-helpers}: `validateBookingTimes`, `checkGoogleCalendarOverlap`
+ * @see {@link @/lib/notion}: `createJamReservationInNotion`
  */
 
 import { NextRequest, NextResponse } from "next/server";

@@ -48,7 +48,7 @@ async function run() {
   }
 
   await browser.close();
-  console.log(`\nDone — ${WIDTHS.length} screenshots saved to ${OUTPUT_DIR}/`);
+  console.log(`\nDone: ${WIDTHS.length} screenshots saved to ${OUTPUT_DIR}/`);
 }
 
 run().catch((err) => {

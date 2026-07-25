@@ -1,15 +1,15 @@
 /**
- * @file Profile API — read and update the current user's Supabase profile.
+ * @file Profile API: read and update the current user's Supabase profile.
  *
- * - `GET  /api/profile/me` — returns the full profile row.
- * - `PATCH /api/profile/me` — updates the WWU email, re-runs the Notion
+ * - `GET  /api/profile/me`: returns the full profile row.
+ * - `PATCH /api/profile/me`: updates the WWU email, re-runs the Notion
  *   people-DB lookup, and patches the profile with fresh Notion-derived
  *   fields (departments, sj_band, type, notion_page_id, display_name from
  *   Notion **Name** or Google name, is_admin mirror).
  *
  * Returns 401 if unauthenticated, 404 if no profile row exists.
  *
- * @see {@link @/components/EditProfileModal} — client-side caller for PATCH
+ * @see {@link @/components/EditProfileModal}: client-side caller for PATCH
  */
 
 import { NextResponse } from "next/server";

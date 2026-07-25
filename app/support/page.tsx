@@ -5,7 +5,7 @@
  * borderless on mobile (full-bleed) and gains the standard glass-card
  * styling on `md:` breakpoints and above.
  *
- * @see {@link @/components/SupportInbox} — thread list + message view
+ * @see {@link @/components/SupportInbox}: thread list + message view
  */
 
 import SupportInbox from "@/components/SupportInbox";
@@ -13,7 +13,7 @@ import SupportInbox from "@/components/SupportInbox";
 const cardClass =
   "border-0 bg-transparent p-0 shadow-none md:rounded-3xl md:border md:border-white/10 md:bg-white/5 md:p-6 md:shadow-2xl md:shadow-black/20";
 
-/** Support page — wraps the SupportInbox in a responsive card layout. */
+/** Support page: wraps the SupportInbox in a responsive card layout. */
 export default function SupportPage() {
   return (
     <main className="px-4 pb-8 pt-5 text-white">

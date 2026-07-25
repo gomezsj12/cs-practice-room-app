@@ -13,8 +13,8 @@
  * The lookup-before-mutate order ensures the Notion page is found using the
  * still-valid Custom Event ID before any times are changed.
  *
- * @see {@link @/lib/notion} — findPracticeNotionPage, updatePracticeSessionInNotion
- * @see {@link @/lib/practice-custom-event-id} — Custom Event ID builder
+ * @see {@link @/lib/notion}: findPracticeNotionPage, updatePracticeSessionInNotion
+ * @see {@link @/lib/practice-custom-event-id}: Custom Event ID builder
  */
 
 import { NextRequest, NextResponse } from "next/server";

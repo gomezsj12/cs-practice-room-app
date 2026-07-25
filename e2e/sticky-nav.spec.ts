@@ -48,7 +48,7 @@ async function ensureScrollable(page: Page) {
 }
 
 for (const [vpName, viewport] of Object.entries(VIEWPORTS)) {
-  test.describe(`sticky nav — ${vpName} (${viewport.width}×${viewport.height})`, () => {
+  test.describe(`sticky nav: ${vpName} (${viewport.width}×${viewport.height})`, () => {
     test.use({ viewport });
 
     test("pills are visible at page top", async ({ page }) => {
@@ -146,7 +146,7 @@ for (const [vpName, viewport] of Object.entries(VIEWPORTS)) {
   });
 }
 
-test.describe("sticky nav — keyboard shortcuts (desktopHd)", () => {
+test.describe("sticky nav: keyboard shortcuts (desktopHd)", () => {
   test.use({ viewport: VIEWPORTS.desktopHd });
 
   test("pressing B navigates to /booking", async ({ page }) => {

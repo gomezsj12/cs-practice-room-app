@@ -7,13 +7,13 @@
  * boundary as a Client Component. Placed near the root layout so every
  * page can call `useSession()` without its own provider.
  *
- * Also mounts the {@link AccountSetupModal} so it renders globally — if
+ * Also mounts the {@link AccountSetupModal} so it renders globally. If
  * the session indicates `profileComplete === false`, the modal appears
  * over every page. Mounts {@link ProfilePresenceReporter} so signed-in clients
  * report foreground presence to Notion (see `POST /api/profile/presence`).
  *
- * @see next-auth/react — session context consumed by AuthButton, CalendarView, SupportInbox, etc.
- * @see AccountSetupModal — first-time account setup overlay
+ * @see next-auth/react: session context consumed by AuthButton, CalendarView, SupportInbox, etc.
+ * @see AccountSetupModal: first-time account setup overlay
  */
 
 import type { Session } from "next-auth";

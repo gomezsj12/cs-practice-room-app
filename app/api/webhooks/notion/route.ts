@@ -1,5 +1,5 @@
 /**
- * @file POST /api/webhooks/notion — Notion integration webhooks.
+ * @file POST /api/webhooks/notion: Notion integration webhooks.
  *
  * Handles `page.properties_updated` for:
  * - Profile log data source: checkbox {@link NOTION_PROFILE_LOG_DELETE_PROP}

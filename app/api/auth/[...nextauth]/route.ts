@@ -5,7 +5,7 @@
  * `auth.ts`. All sign-in, sign-out, callback, and session endpoints are
  * served through this single dynamic route segment.
  *
- * @see {@link @/auth} — NextAuth configuration (providers, session strategy)
+ * @see {@link @/auth}: NextAuth configuration (providers, session strategy)
  */
 
 import { handlers } from "@/auth";

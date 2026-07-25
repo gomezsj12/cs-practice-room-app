@@ -1,18 +1,18 @@
 ---
-description: Documentation protocol — keep docs, code comments, and screenshots in sync after every change
+description: Documentation protocol for keeping docs, code comments, and screenshots in sync after every change
 alwaysApply: true
 ---
 
 # Documentation protocol
 
-After any substantive work, update **all** relevant documentation — markdown files **and** in-code comments. This protocol ensures the project stays internally consistent and self-documenting.
+After any substantive work, update **all** relevant documentation: markdown files **and** in-code comments. This protocol ensures the project stays internally consistent and self-documenting.
 
 ## Core rule: docs AND comments travel together
 
 When you change logic, APIs, types, data flow, or behavior in a source file, you must also update:
 
-1. **In-code comments** — JSDoc on the function/type you changed, plus any inline comments that describe the old behavior. If a function's purpose, parameters, return value, or side effects have changed, the JSDoc must reflect the new state.
-2. **Documentation files** — whichever of the files below are affected (see sections).
+1. **In-code comments**: JSDoc on the function/type you changed, plus any inline comments that describe the old behavior. If a function's purpose, parameters, return value, or side effects have changed, the JSDoc must reflect the new state.
+2. **Documentation files**: whichever of the files below are affected (see sections).
 
 If you add a **new** exported function, type, component, hook, or API route, it must have a JSDoc block before it is committed.
 

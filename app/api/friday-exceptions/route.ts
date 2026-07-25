@@ -1,12 +1,12 @@
 /**
  * @file Admin Friday-exception CRUD endpoint (`POST` / `DELETE /api/friday-exceptions`).
  *
- * **POST** — Open the practice room on a specific Friday:
- * 1. Auth — requires admin session.
+ * **POST** opens the practice room on a specific Friday:
+ * 1. Auth: requires admin session.
  * 2. Inserts a row into `friday_exceptions` for the given date.
  *
- * **DELETE** — Re-close a previously-opened Friday:
- * 1. Auth — requires admin session.
+ * **DELETE** re-closes a previously-opened Friday:
+ * 1. Auth: requires admin session.
  * 2. Removes the `friday_exceptions` row for the given date.
  */
 

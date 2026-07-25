@@ -1,8 +1,8 @@
-# CS Practice Room App — User Guide
+# CS Practice Room App: User Guide
 
 **Web address:** [https://wwu-cspr.app](https://wwu-cspr.app)
 
-This guide is for **everyone** using the app—students, leaders, and staff. You do not need to know how the app is built. It explains what you see on screen, how to book and manage time, how to get help, and how to install the app on your phone or computer.
+This guide is for **everyone** using the app: students, leaders, and staff. You do not need to know how the app is built. It explains what you see on screen, how to book and manage time, how to get help, and how to install the app on your phone or computer.
 
 ---
 
@@ -21,7 +21,7 @@ The CS Practice Room app helps you:
 
 1. Open **[https://wwu-cspr.app](https://wwu-cspr.app)** in a modern browser (Chrome, Edge, Safari, or Firefox).
 2. Use the top navigation: **Home**, **Booking**, **Calendar**, and **Support**.
-3. Tap **Sign in with Google** on the account card (top area on large screens; it moves on smaller phones—see below) when you need features that require a login.
+3. Tap **Sign in with Google** on the account card (top area on large screens; it moves on smaller phones, see below) when you need features that require a login.
 
 The first time you sign in, the app may ask you to confirm your **WWU email** so it can match you to the right records. Follow the on-screen steps. If something looks wrong, use **Contact Us** on the home page or open **Support** after signing in.
 
@@ -33,7 +33,7 @@ On a **narrow screen (typical phone)**, the header stacks: menu pills first, the
 
 On a **wide screen (tablet landscape or desktop)**, the same pieces appear in one row: title on the left, **Home / Booking / Calendar / Support** in the center, and the account card on the right.
 
-The **large welcome paragraph** on the home page (“Welcome to the NEW CS Practice Room App!”) only appears on **smaller tablets and larger**—on phones you still get **Contact Us** and **Resources** right away.
+The **large welcome paragraph** on the home page (“Welcome to the NEW CS Practice Room App!”) only appears on **smaller tablets and larger**. On phones you still get **Contact Us** and **Resources** right away.
 
 **Screenshots for review:** All images below live in the `[guide-screenshots](guide-screenshots/)` folder. They were captured with **automated browser tooling** at fixed sizes (**desktop:** 1440×900, **mobile:** 390×844) so you can compare layouts without resizing a window by hand.
 
@@ -43,7 +43,7 @@ The **large welcome paragraph** on the home page (“Welcome to the NEW CS Pract
 
 ## Installing the app (optional but handy)
 
-The app can behave like a **normal app icon** on your device. That opens the app in its own window without the browser’s address bar clutter—similar to other apps you install from the web.
+The app can behave like a **normal app icon** on your device. That opens the app in its own window without the browser’s address bar clutter, similar to other apps you install from the web.
 
 ### Android (Chrome / Edge)
 
@@ -71,14 +71,14 @@ The app can behave like a **normal app icon** on your device. That opens the app
 
 ## Home
 
-Home page — wide layout
+Home page: wide layout
 
-Home page — narrow layout
+Home page: narrow layout
 
 The home page has:
 
-- **Contact Us** — Send a message to the team. You must be **signed in** to send; otherwise you’ll see a prompt to sign in first. After sending, replies appear under **Support**.
-- **Resources** — Links such as **Terms & Conditions**, **Meet with us**, and sometimes a group chat link (if your team has enabled it).
+- **Contact Us**: Send a message to the team. You must be **signed in** to send; otherwise you’ll see a prompt to sign in first. After sending, replies appear under **Support**.
+- **Resources**: Links such as **Terms & Conditions**, **Meet with us**, and sometimes a group chat link (if your team has enabled it).
 
 **Tip:** You can jump to the full support inbox with **View our replies…** under Contact Us.
 
@@ -88,43 +88,43 @@ The home page has:
 
 The **account card** always shows either:
 
-- **Signed out** — with a **Sign in with Google** button, or  
-- **Signed in** — your status and a **Sign out** button.
+- **Signed out**: with a **Sign in with Google** button, or  
+- **Signed in**: your status and a **Sign out** button.
 
 When signed in, you may also see:
 
-- **Pencil** — Edit your **WWU email** if it needs correcting (opens a small form).
-- **Circular arrows** — **Refresh your profile** so the app pulls the latest directory information. You can only use this about once every 30 seconds; if you tap too often, a short countdown appears.
+- **Pencil**: Edit your **WWU email** if it needs correcting (opens a small form).
+- **Circular arrows**: **Refresh your profile** so the app pulls the latest directory information. You can only use this about once every 30 seconds; if you tap too often, a short countdown appears.
 
-The card’s **color hints** at context (for example, booking-related messages may use different tones on the Booking page). None of this changes *how* you sign in—it only helps you notice where you are.
+The card’s **color hints** at context (for example, booking-related messages may use different tones on the Booking page). None of this changes *how* you sign in. It only helps you notice where you are.
 
 ---
 
 ## Booking (practice room)
 
-Booking — wide layout
+Booking: wide layout
 
-Booking — narrow layout
+Booking: narrow layout
 
 Open **Booking** from the top menu.
 
 ### Who can use the booking form
 
-Booking is only available if your **role** in the official student directory matches one of the roles that are allowed to book practices. If you are signed in but see a message that you **do not have access**, contact a student leader or the team—they may need to update your role or link your record.
+Booking is only available if your **role** in the official student directory matches one of the roles that are allowed to book practices. If you are signed in but see a message that you **do not have access**, contact a student leader or the team. They may need to update your role or link your record.
 
 ### What you see when it works
 
 The page shows an **embedded form** (from Fillout). Your **name and email** are passed in automatically when you are eligible, so you do not have to re-type everything.
 
-**Mobile tip:** The form may take a moment to load. If the page feels slow to scroll at first, wait a second—the form becomes interactive after it loads.
+**Mobile tip:** The form may take a moment to load. If the page feels slow to scroll at first, wait a second; the form becomes interactive after it loads.
 
 ---
 
 ## Calendar
 
-Calendar — wide layout
+Calendar: wide layout
 
-Calendar — narrow layout
+Calendar: narrow layout
 
 Open **Calendar** from the menu.
 
@@ -138,7 +138,7 @@ To **create a jam reservation** (drums or keyboard), sign in:
 
 1. Drag **across** the time range you want on the grid (press, drag, release).
   On **touch devices**, drag with your finger the same way.
-2. A **reservation** window opens. You may see a short **hold** countdown (about 30 seconds) while the slot is temporarily reserved for you—complete the form before time runs out.
+2. A **reservation** window opens. You may see a short **hold** countdown (about 30 seconds) while the slot is temporarily reserved for you, so complete the form before time runs out.
 3. Enter your **first name** and choose an **instrument** (for example Drums), then confirm.
 
 If you see a message that someone else is holding the slot, **try again** or pick a different time.
@@ -147,14 +147,14 @@ If you see a message that someone else is holding the slot, **try again** or pic
 
 **Tap or click** an existing event to see its **title**, **time**, and **details**. If you are allowed to cancel it, a **Cancel** option appears (with a confirmation step). Rules depend on the event type:
 
-- **Jam reservations** — Usually you can cancel your own; staff can also cancel when needed.
-- **Practice bookings** — Cancellation checks that you are listed on the booking and that your name matches what the calendar expects.
+- **Jam reservations**: Usually you can cancel your own; staff can also cancel when needed.
+- **Practice bookings**: Cancellation checks that you are listed on the booking and that your name matches what the calendar expects.
 
 After an event’s **end time has passed**, cancel is no longer offered.
 
 ### Blocked time and “Practice Room Closed”
 
-If time is **blocked**, you cannot book over it. A **Friday afternoon** band may show **Practice Room Closed**—that is normal when jams are not allowed past a certain time unless staff opens an exception.
+If time is **blocked**, you cannot book over it. A **Friday afternoon** band may show **Practice Room Closed**. That is normal when jams are not allowed past a certain time unless staff opens an exception.
 
 ### Calendar navigation (desktop browser, wide window)
 
@@ -192,16 +192,16 @@ These letter shortcuts are **disabled** on smaller windows and on phones.
 | -------------------------------------- | ------------------------------------ |
 | **Swipe left / right** on the calendar | Move to the **previous or next day** |
 | **Double-tap** the calendar            | Jump to **today**                    |
-| **Scroll up / down** on the calendar   | Scroll to earlier or later times — won't accidentally open an event your finger passes over |
+| **Scroll up / down** on the calendar   | Scroll to earlier or later times without accidentally opening an event your finger passes over |
 
 
 ---
 
 ## Support
 
-Support — wide layout
+Support: wide layout
 
-Support — narrow layout
+Support: narrow layout
 
 Open **Support** from the menu (you must be **signed in**).
 
@@ -229,7 +229,7 @@ On a **narrow screen**, you see **either** the list **or** the conversation:
 
 ### Unread badge
 
-The **Support** item in the top menu can show a **small dot** when there is new activity—open Support to read and clear it.
+The **Support** item in the top menu can show a **small dot** when there is new activity. Open Support to read and clear it.
 
 ---
 

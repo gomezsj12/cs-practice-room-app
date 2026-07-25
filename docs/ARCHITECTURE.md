@@ -1,4 +1,4 @@
-# CS Practice Room App — Architecture & Codebase Overview
+# CS Practice Room App: Architecture & Codebase Overview
 
 This document describes how the project is structured and what each major part does. It is intended as a map for maintenance, onboarding, and debugging (for example, Vercel deploy issues versus a working local setup).
 
@@ -180,11 +180,11 @@ sequenceDiagram
 | Google Calendar (server) | **googleapis** with a **service account** JWT (Calendar API scope) | ^171.4.0 |
 | Temporary holds | **Supabase** (`@supabase/supabase-js`), service role, table `reservation_holds` | ^2.101.1 |
 | Logging | **Notion** (`@notionhq/client` + REST for data source query) | ^5.16.0 |
-| Support / messaging | **Supabase** tables (`support_threads`, `support_messages`) + **Telegram Bot API** | — |
-| Booking form | **Fillout** (external embedded iframe) | — |
+| Support / messaging | **Supabase** tables (`support_threads`, `support_messages`) + **Telegram Bot API** | n/a |
+| Booking form | **Fillout** (external embedded iframe) | n/a |
 | Testing | **Playwright** | ^1.59.1 |
-| Hosting | **Vercel** (Hobby plan) | — |
-| Bundler (dev + prod build) | **Webpack** (`next dev --webpack`, `next build --webpack`) — intentional for FullCalendar compat and `next.config.ts` `watchOptions` | — |
+| Hosting | **Vercel** (Hobby plan) | n/a |
+| Bundler (dev + prod build) | **Webpack** (`next dev --webpack`, `next build --webpack`): intentional for FullCalendar compat and `next.config.ts` `watchOptions` | n/a |
 
 `package.json` runs **`next dev --webpack`** and **`next build --webpack`** so production builds use the same Webpack path as development (avoids Next.js 16 default Turbopack conflicting with a custom `webpack` config). Re-verify calendar behavior before switching bundlers.
 
@@ -196,16 +196,16 @@ sequenceDiagram
 
 | Package | Purpose |
 | --- | --- |
-| `next` | App framework — App Router, API routes, server components, metadata |
+| `next` | App framework: App Router, API routes, server components, metadata |
 | `react` / `react-dom` | UI rendering |
 | `@fullcalendar/core` | Calendar engine (event model, date math, plugin system) |
 | `@fullcalendar/react` | React bindings for FullCalendar |
 | `@fullcalendar/timegrid` | Time grid view plugin (week/day views with time slots) |
 | `@fullcalendar/interaction` | User interaction plugin (selection, drag, click) |
-| `next-auth` | Authentication framework — Google OAuth, JWT sessions |
-| `googleapis` | Google API client — Calendar API v3 for reading/writing events |
-| `@notionhq/client` | Notion SDK — creating/querying pages for reservation logging |
-| `@supabase/supabase-js` | Supabase client — temporary holds table and support inbox tables |
+| `next-auth` | Authentication framework: Google OAuth, JWT sessions |
+| `googleapis` | Google API client: Calendar API v3 for reading/writing events |
+| `@notionhq/client` | Notion SDK: creating/querying pages for reservation logging |
+| `@supabase/supabase-js` | Supabase client: temporary holds table and support inbox tables |
 
 ### Dev dependencies
 
@@ -231,7 +231,7 @@ Next.js automatically loads environment variables from a file named **`.env.loca
 
 ## Environment variables (full list)
 
-Values are **not** documented here—only **names** and what they are for. See `.env.example` for the full checklist.
+Values are **not** documented here, only **names** and what they are for. See `.env.example` for the full checklist.
 
 ### Vercel: Sensitive vs plain (dashboard)
 
@@ -271,7 +271,7 @@ If `NOTION_WEBHOOK_VERIFICATION_TOKEN` (or any secret) is attached to **Developm
 
 Official reference: [Sensitive environment variables](https://vercel.com/docs/environment-variables/sensitive-environment-variables).
 
-### Google Calendar (service account — server)
+### Google Calendar (service account, server side)
 
 Used by `lib/google.ts` so the **server** can read/write calendars without each user granting Calendar access.
 
@@ -334,7 +334,7 @@ Notes:
 - `sessionAttendeeCount` is appended **after** the phone digits.
 - The app still recognizes older legacy IDs that only encoded start/end times, plus the older room-wall-clock fallback variant, so historical rows continue to resolve.
 - New app-side lookups always try the canonical format first, then the legacy candidates.
-- **Lookup match modes (`lib/practice-custom-event-id.ts` → `PracticeCustomEventIdCandidate`):** the candidate list now mixes `equals` (exact match against the canonical suffix) with `starts_with` (prefix match against the time-only ID). The prefix mode catches Notion rows whose stored ID has a suffix the app can't reproduce from the calendar description — for example contacts whose phone is shorter than 10 digits and therefore doesn't satisfy `PHONE_RE`'s length rules. Without this fallback the modal silently shows no Notion link for those bookings even though the row exists in Notion. When a prefix match returns more than one row (a true duplicate, or a cancelled-then-replaced page), the lookup prefers a row whose **Session Status** is not `Cancelled` and logs a warning.
+- **Lookup match modes (`lib/practice-custom-event-id.ts` → `PracticeCustomEventIdCandidate`):** the candidate list now mixes `equals` (exact match against the canonical suffix) with `starts_with` (prefix match against the time-only ID). The prefix mode catches Notion rows whose stored ID has a suffix the app can't reproduce from the calendar description, for example contacts whose phone is shorter than 10 digits and therefore doesn't satisfy `PHONE_RE`'s length rules. Without this fallback the modal silently shows no Notion link for those bookings even though the row exists in Notion. When a prefix match returns more than one row (a true duplicate, or a cancelled-then-replaced page), the lookup prefers a row whose **Session Status** is not `Cancelled` and logs a warning.
 
 ### Historical Notion Backfill
 
@@ -374,7 +374,7 @@ Behavior:
 | `SUPABASE_SERVICE_ROLE_KEY` | Service role key (server-only; full access) |
 | `ENABLE_TEMP_HOLDS` | Set to `true` to enable hold create/list/release |
 
-### Sign-in with Google (NextAuth / Auth.js — end users)
+### Sign-in with Google (NextAuth / Auth.js, for end users)
 
 | Variable | Purpose |
 | --- | --- |
@@ -409,7 +409,7 @@ Behavior:
 
 ---
 
-## Repository layout — complete file map
+## Repository layout: complete file map
 
 ```
 cs-practice-room-app/
@@ -436,12 +436,12 @@ cs-practice-room-app/
 │       ├── cancel/
 │       │   └── route.ts           # POST: authorize owner/admin, delete Google event, update Notion
 │       ├── practice-session/
-│       │   ├── route.ts           # PATCH: admin — practice times/status/patchlist in Google Calendar + Notion + cache
-│       │   ├── details/route.ts   # GET: admin — Notion page URL/status/patchlist (Supabase cache first, 5 min TTL)
-│       │   └── batch-statuses/route.ts # POST: admin — batch Session Status for calendar outlines (cache, Notion backfill)
+│       │   ├── route.ts           # PATCH (admin): practice times/status/patchlist in Google Calendar + Notion + cache
+│       │   ├── details/route.ts   # GET (admin): Notion page URL/status/patchlist (Supabase cache first, 5 min TTL)
+│       │   └── batch-statuses/route.ts # POST (admin): batch Session Status for calendar outlines (cache, Notion backfill)
 │       ├── webhooks/
 │       │   └── notion/
-│       │       └── route.ts       # POST: Notion webhooks — profiles, practice cache sync, Cancelled → Google delete
+│       │       └── route.ts       # POST: Notion webhooks for profiles, practice cache sync, Cancelled → Google delete
 │       ├── holds/
 │       │   ├── create/route.ts    # POST: overlap-check, insert Supabase hold (30s TTL)
 │       │   └── release/route.ts   # POST: authorize owner/admin, delete Supabase hold
@@ -559,14 +559,14 @@ Path alias: `@/*` → project root (`tsconfig.json`).
 ### First-time account setup
 
 - **`components/AccountSetupModal.tsx`**: Full-screen blurred overlay shown when `session.profileComplete === false`. Collects WWU email (validated as `First.Last@wallawalla.edu`). Dismissing signs the user out.
-- **`app/api/profile/setup/route.ts`**: `POST` — validates email format, queries Notion people DB for a match, inserts a row into Supabase `profiles`, and logs the event to a Notion audit database (fire-and-forget).
+- **`app/api/profile/setup/route.ts`**: `POST` validates email format, queries Notion people DB for a match, inserts a row into Supabase `profiles`, and logs the event to a Notion audit database (fire-and-forget).
 - **`types/next-auth.d.ts`**: Augments the `Session` and `JWT` types with `profileComplete?: boolean`.
 
 ### `components/AuthProvider.tsx`
 
 - Client wrapper: **`SessionProvider`** from `next-auth/react`.
 - Mounts **`AccountSetupModal`** globally so it appears over any page when profile setup is incomplete.
-- Mounts **`ProfilePresenceReporter`**, which runs **`useProfilePresence`**: authenticated clients POST **`/api/profile/presence`** so the Notion App Profile Creation Logs row gets **Is Active** and **Last Active At…**. Uses a **heartbeat + idle timeout** model: heartbeat posts `active: true` every 60 s while the user interacts; after 60 s of no interaction (click / scroll / keypress / touch / pointer move) one `active: false` is sent and the heartbeat stops; any subsequent interaction or tab-visible event immediately resumes `active: true` + heartbeat. Interaction listeners are passive/capture and throttled (~2 s). No `pagehide` / `beforeunload` — avoids false inactive on refresh or navigation. **Server-side sweep:** Supabase `pg_cron` calls `POST /api/cron/presence-sweep` every minute via `pg_net`; the endpoint queries Notion for `Is Active = true` rows where `Last Active At` is older than 2 minutes and flips them to `false` — handles tab close (where the client can no longer send).
+- Mounts **`ProfilePresenceReporter`**, which runs **`useProfilePresence`**: authenticated clients POST **`/api/profile/presence`** so the Notion App Profile Creation Logs row gets **Is Active** and **Last Active At…**. Uses a **heartbeat + idle timeout** model: heartbeat posts `active: true` every 60 s while the user interacts; after 60 s of no interaction (click / scroll / keypress / touch / pointer move) one `active: false` is sent and the heartbeat stops; any subsequent interaction or tab-visible event immediately resumes `active: true` + heartbeat. Interaction listeners are passive/capture and throttled (~2 s). No `pagehide` / `beforeunload`, which avoids false inactive on refresh or navigation. **Server-side sweep:** Supabase `pg_cron` calls `POST /api/cron/presence-sweep` every minute via `pg_net`; the endpoint queries Notion for `Is Active = true` rows where `Last Active At` is older than 2 minutes and flips them to `false`, which handles tab close (where the client can no longer send).
 
 ### `components/SiteHeader.tsx`
 
@@ -698,7 +698,7 @@ The support system provides a bidirectional messaging channel between app users 
 | `/delete` | POST | Delete thread and all messages |
 | `/telegram-webhook` | POST | Receive Telegram webhook, route to reply/close handlers |
 
-### `lib/support.ts` — command parsing
+### `lib/support.ts`: command parsing
 
 Provides utility functions for Telegram message routing:
 - `toSupportThreadKey(threadId)` → `SR-<id>` prefix
@@ -727,9 +727,9 @@ Exports a `MetadataRoute.Manifest` with app name, icons pointing at `/api/pwa-ic
 ### Icon generation
 
 `lib/pwaIcon.tsx` renders a dark rounded square with "Room" / "Jam" typography using Next.js `ImageResponse` (from `next/og`). Used by:
-- `app/icon.tsx` — 192px favicon
-- `app/apple-icon.tsx` — 180px Apple touch icon
-- `app/api/pwa-icon/route.tsx` — Node.js runtime (not Edge: `next/og` exceeds Vercel’s 1 MB Edge bundle limit), dynamic size via query param
+- `app/icon.tsx`: 192px favicon
+- `app/apple-icon.tsx`: 180px Apple touch icon
+- `app/api/pwa-icon/route.tsx`: Node.js runtime (not Edge: `next/og` exceeds Vercel’s 1 MB Edge bundle limit), dynamic size via query param
 
 ### Install prompt (`components/InstallPrompt.tsx`)
 
@@ -761,7 +761,7 @@ The CSS file serves as both the Tailwind v4 entry point and a comprehensive Full
 12. **Now indicator**: Hidden native indicator (replaced by custom overlay)
 13. **Mobile overrides**: Narrower time axis (104px), smaller padding
 
-**No separate `tailwind.config.*`** — Tailwind v4 is configured entirely through PostCSS and CSS directives.
+**No separate `tailwind.config.*`**: Tailwind v4 is configured entirely through PostCSS and CSS directives.
 
 ---
 
@@ -828,7 +828,7 @@ Central orchestration:
 
 ### `GET` / `POST` `app/api/cron/sync-quarters/route.ts`
 
-- **Vercel Cron** (see repo `vercel.json`) calls **GET** `/api/cron/sync-quarters` once daily (`0 9 * * *` — 09:00 UTC) with `Authorization: Bearer ${CRON_SECRET}` when `CRON_SECRET` is set. (Vercel **Hobby** allows at most one cron invocation per day; use a higher-frequency schedule on Pro if needed.)
+- **Vercel Cron** (see repo `vercel.json`) calls **GET** `/api/cron/sync-quarters` once daily (`0 9 * * *`, 09:00 UTC) with `Authorization: Bearer ${CRON_SECRET}` when `CRON_SECRET` is set. (Vercel **Hobby** allows at most one cron invocation per day; use a higher-frequency schedule on Pro if needed.)
 - **POST** with the same header is supported for manual sync.
 - Runs `syncWwuQuartersFromNotion()` (`lib/notion-quarters-sync.ts`): paginated `dataSources.query` on `NOTION_WWU_QUARTERS_DATA_SOURCE_ID`, upserts into `wwu_quarters`, deletes Supabase rows removed from Notion.
 
@@ -842,12 +842,12 @@ Central orchestration:
 
 - **Requires** signed-in user; uses `ownerEmail` / `ownerName` from session.
 - Validates body: `name`, `instrument`, `start`, `end`, optional `holdId`.
-- **Bookable window:** `getResolvedCalendarDataWindow` + `bookingIntervalWithinDataWindow` — rejects if `start`/`end` fall outside the active WWU quarter (or rolling −7/+30 fallback), matching `GET /api/events`.
+- **Bookable window:** `getResolvedCalendarDataWindow` + `bookingIntervalWithinDataWindow`. Rejects if `start`/`end` fall outside the active WWU quarter (or rolling −7/+30 fallback), matching `GET /api/events`.
 - Duration 30 min–6 h; parses ISO datetimes.
 - If holds enabled and `holdId` present: loads hold from Supabase, checks owner, status `pending`, not expired, and times match (±1s). On verification failure, logs and continues (overlap check still runs).
 - Lists overlapping window on **both** calendars; `hasOverlap` rejects if any event overlaps.
 - `calendar.events.insert` on `JAM_CALENDAR_ID` with summary `"Name - Instrument"` and `extendedProperties.private`: `ownerEmail`, `ownerName`. Time zone from `ROOM_TIME_ZONE`.
-- `createJamReservationInNotion` — failures are logged only (reservation still succeeds).
+- `createJamReservationInNotion`: failures are logged only (reservation still succeeds).
 - Deletes hold row after success if `holdId` was used.
 
 ### `POST app/api/cancel/route.ts`
@@ -896,16 +896,16 @@ Defines the fixed private tag palette (`amber`, `rose`, `emerald`, `orange`, `li
 `getSupabaseAdmin()`: `SUPABASE_URL` + `SUPABASE_SERVICE_ROLE_KEY`, no session persistence (server-only). Lazy singleton. The service role key bypasses RLS, so all tables are accessible even though RLS is enabled with no permissive policies (see [Row-Level Security](#row-level-security-rls)).
 
 ### `lib/notion.ts` + `lib/notion-clients.ts`
-`getNotionClientForRealm("calendar" | "profile")` in [`lib/notion-clients.ts`](lib/notion-clients.ts): lazy singleton per realm, `NOTION_TOKEN_CALENDAR` / `NOTION_TOKEN_PROFILE` with `NOTION_TOKEN` fallback. `getNotionClient()` re-exports as **calendar** for legacy call sites. `createJamReservationInNotion`: `pages.create` with parent `data_source_id`. `markJamReservationCancelledInNotion` / `markPracticeBookingCancelledInNotionByCustomId`: set Cancelled + **CSPR Cancel origin** when the cancel originated in the app (practice: calendar → Notion only; Notion does not delete practice Google events). `processNotionCalendarCancellationWebhook` ([`lib/notion-calendar-webhook.ts`](lib/notion-calendar-webhook.ts)): jam only — Notion **Cancelled** → Google `events.delete`. `findNotionPersonByWWUEmail`: queries the people database by "Walla Walla Email" for profile setup/sync and returns page id, **Name** (as display name), departments, SJ band, and type. `syncProfileCreationLogToNotion` / `logProfileCreationToNotion`: upsert the profile-creation log by **Google Email**; **`ProfileLogSyncMode`** `metadataOnly` skips email properties on update (new rows always created with `full`). `syncProfileLogPresenceToNotion`: updates **Is Active** + **Last Active At…** only (fire-and-forget from `POST /api/profile/presence`); profile-log page ids for that email are cached in-memory with a short TTL in [`lib/profile-log-page-id-cache.ts`](lib/profile-log-page-id-cache.ts) to avoid repeat `dataSources.query` on rapid presence pings (invalidated when a **new** log row is created).
+`getNotionClientForRealm("calendar" | "profile")` in [`lib/notion-clients.ts`](lib/notion-clients.ts): lazy singleton per realm, `NOTION_TOKEN_CALENDAR` / `NOTION_TOKEN_PROFILE` with `NOTION_TOKEN` fallback. `getNotionClient()` re-exports as **calendar** for legacy call sites. `createJamReservationInNotion`: `pages.create` with parent `data_source_id`. `markJamReservationCancelledInNotion` / `markPracticeBookingCancelledInNotionByCustomId`: set Cancelled + **CSPR Cancel origin** when the cancel originated in the app (practice: calendar → Notion only; Notion does not delete practice Google events). `processNotionCalendarCancellationWebhook` ([`lib/notion-calendar-webhook.ts`](lib/notion-calendar-webhook.ts)): jam only, Notion **Cancelled** → Google `events.delete`. `findNotionPersonByWWUEmail`: queries the people database by "Walla Walla Email" for profile setup/sync and returns page id, **Name** (as display name), departments, SJ band, and type. `syncProfileCreationLogToNotion` / `logProfileCreationToNotion`: upsert the profile-creation log by **Google Email**; **`ProfileLogSyncMode`** `metadataOnly` skips email properties on update (new rows always created with `full`). `syncProfileLogPresenceToNotion`: updates **Is Active** + **Last Active At…** only (fire-and-forget from `POST /api/profile/presence`); profile-log page ids for that email are cached in-memory with a short TTL in [`lib/profile-log-page-id-cache.ts`](lib/profile-log-page-id-cache.ts) to avoid repeat `dataSources.query` on rapid presence pings (invalidated when a **new** log row is created).
 
-### Notion API — optional scaling ideas (not implemented)
+### Notion API: optional scaling ideas (not implemented)
 
 If Notion **rate limits** or **delivery guarantees** become a problem at higher traffic, consider (in addition to the practice-session Supabase cache and dual calendar/profile tokens already in place):
 
-- **Global Notion gate** — shared serial queue or token bucket for SDK calls across routes, plus **429-aware retry with backoff** for both realms.
-- **Stronger `batch-statuses` pacing** — today backfill uses **concurrency 2**; optional delay between waves or coordination with a shared gate.
-- **Load testing** — scripted or manual concurrent calendar + presence sessions to tune intervals.
-- **Supabase outbox + cron** — enqueue presence (or other) writes for durable, smoothed delivery under spikes.
+- **Global Notion gate**: shared serial queue or token bucket for SDK calls across routes, plus **429-aware retry with backoff** for both realms.
+- **Stronger `batch-statuses` pacing**: today backfill uses **concurrency 2**; optional delay between waves or coordination with a shared gate.
+- **Load testing**: scripted or manual concurrent calendar + presence sessions to tune intervals.
+- **Supabase outbox + cron**: enqueue presence (or other) writes for durable, smoothed delivery under spikes.
 
 ### `lib/pwaIcon.tsx`
 `ImageResponse` JSX: dark rounded square, "Room" / "Jam" typography.
@@ -917,7 +917,7 @@ Centralized app metadata: name, description, public URLs for Fillout, Telegram c
 Shared TypeScript types: `GoogleApiEvent`, `CalendarEventAttendee`, `HoldRow`, `WwuQuarterRow`, `ApiQuarterInfo`, `ApiCalendarEvent`, `CalendarEvent`, `PendingSelection`, `ToastState`, `DragMirrorState`, `ProfileRow` (includes `is_admin`), `SupportThreadRow`, `SupportMessageRow`. Calendar event types also carry optional admin-private tag fields used only for the current admin’s rendering.
 
 ### `lib/quarter-window.ts`
-`getRoomTimeZone`, `calendarDateInZone`, `getActiveQuarterWindow` (Supabase quarter containing today), `getResolvedCalendarDataWindow` (quarter or fallback — shared by `/api/events` and booking routes), `bookingIntervalWithinDataWindow` (server-side parity for reserve / holds / blocked times), `rollingFallbackWindow` (legacy −7/+30), and `ymdBoundsToUtcDates` for Google `timeMin`/`timeMax`.
+`getRoomTimeZone`, `calendarDateInZone`, `getActiveQuarterWindow` (Supabase quarter containing today), `getResolvedCalendarDataWindow` (quarter or fallback, shared by `/api/events` and booking routes), `bookingIntervalWithinDataWindow` (server-side parity for reserve / holds / blocked times), `rollingFallbackWindow` (legacy −7/+30), and `ymdBoundsToUtcDates` for Google `timeMin`/`timeMax`.
 
 ### `lib/notion-quarters-sync.ts`
 Server-only full sync from the Notion WWU Quarters data source into `wwu_quarters` (upsert by `notion_page_id`, delete orphans).
@@ -960,7 +960,7 @@ Thread ID formatting (`SR-<id>` prefix), Telegram command parsing (`/reply`, `/c
 All public tables have **RLS enabled** with **no permissive policies**. The `anon` and `authenticated` Postgres roles have **zero grants** on any table. This means:
 
 - The Supabase REST API (anon key) cannot read, write, or delete any data.
-- The app is unaffected because it exclusively uses the **service role key** via `getSupabaseAdmin()` in server-side API routes — the service role bypasses RLS entirely.
+- The app is unaffected because it exclusively uses the **service role key** via `getSupabaseAdmin()` in server-side API routes, and the service role bypasses RLS entirely.
 - If the app ever introduces a client-side Supabase client (using the anon key), explicit RLS policies would need to be created for the tables it accesses.
 
 This was applied via the `enable_rls_on_all_tables` migration (2026-04-11). Newer tables **`wwu_quarters`** and **`friday_exceptions`** use the same pattern via [`supabase/migrations/20260416180000_rls_wwu_quarters_friday_exceptions.sql`](../supabase/migrations/20260416180000_rls_wwu_quarters_friday_exceptions.sql) (enable RLS, revoke `anon` / `authenticated` grants). **`practice_session_cache`** follows the same pattern via [`supabase/migrations/20260419120000_practice_session_cache.sql`](../supabase/migrations/20260419120000_practice_session_cache.sql), and **`admin_event_tags`** via [`supabase/migrations/20260429170000_admin_event_tags.sql`](../supabase/migrations/20260429170000_admin_event_tags.sql).
@@ -1058,7 +1058,7 @@ Localhost "works" when all env vars and Google/Notion/Supabase credentials match
 
 ## Related documentation
 
-- **[change-log.md](./change-log.md)**: Full project history from the pre-Cursor ChatGPT thread through every commit in this repo (file is **gitignored** per clone; `post-commit` appends Part 2 rows — see [`.githooks/README.md`](../.githooks/README.md)). Anti-regression table at the bottom of that file.
+- **[change-log.md](./change-log.md)**: Full project history from the pre-Cursor ChatGPT thread through every commit in this repo (file is **gitignored** per clone; `post-commit` appends Part 2 rows, see [`.githooks/README.md`](../.githooks/README.md)). Anti-regression table at the bottom of that file.
 - **[error-log.md](./error-log.md)**: Historical and ongoing error documentation with root causes and prevention notes.
 - **[BUILD_PHASES.md](./BUILD_PHASES.md)**: Original build plan for the portal fork from the standalone jam scheduler.
 - **[BROWSER_VERIFICATION.md](./BROWSER_VERIFICATION.md)**: Browser testing guide for Playwright and Cursor MCP.

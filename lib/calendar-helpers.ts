@@ -125,7 +125,7 @@ export function roomWallClockToUtc(
 /**
  * Earliest bookable start (UTC) for `requestStart`'s calendar day in the room zone,
  * using the same 15-minute floor rule as the client. Browser UI uses local time; server
- * uses ROOM_TIME_ZONE — rare midnight mismatches are acceptable unless FC gets timeZone.
+ * uses ROOM_TIME_ZONE, so rare midnight mismatches are acceptable unless FC gets timeZone.
  */
 function earliestBookableUtcForRequestStart(
   requestStart: Date,
@@ -345,7 +345,7 @@ export function validateBookingTimes(
  * Validate a proposed blocked-time range on the server (admin-only).
  *
  * Same basic checks as {@link validateBookingTimes} but without the
- * max-duration cap or Friday cutoff — admins can block any future range
+ * max-duration cap or Friday cutoff, so admins can block any future range
  * as long as it's at least 30 minutes.
  */
 export function validateBlockedTimes(

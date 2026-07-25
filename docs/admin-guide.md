@@ -1,8 +1,8 @@
-# CS Practice Room App — Staff & Admin Guide
+# CS Practice Room App: Staff & Admin Guide
 
 **Web address:** [https://wwu-cspr.app](https://wwu-cspr.app)
 
-This guide is for **student leaders and staff** who help run the practice room: answering support messages, managing the calendar, and understanding how people get access. It avoids technical jargon—think of it as “how the app behaves for someone with extra responsibility,” not “how servers work.”
+This guide is for **student leaders and staff** who help run the practice room: answering support messages, managing the calendar, and understanding how people get access. It avoids technical jargon. Think of it as “how the app behaves for someone with extra responsibility,” not “how servers work.”
 
 ---
 
@@ -50,7 +50,7 @@ The app ties each person to a **record** in the **official student directory** (
 
 ### Automatic updates
 
-When someone **changes** a person’s record in the directory—name, email, role, or other fields—those updates are **sent to the app automatically** in the background. You do **not** need to log into the app to “push” each change by hand.
+When someone **changes** a person’s record in the directory (name, email, role, or other fields), those updates are **sent to the app automatically** in the background. You do **not** need to log into the app to “push” each change by hand.
 
 **Practical guidance for leaders:**
 
@@ -71,11 +71,11 @@ Same as for everyone: **Contact Us** and **Resources**. As staff, you may still 
 
 ## Booking
 
-If your directory role also allows **practice booking**, you will see the same embedded form as other eligible users. Admin status does **not** bypass booking rules—if you are not in an allowed role, you will see the same “no access” message as anyone else.
+If your directory role also allows **practice booking**, you will see the same embedded form as other eligible users. Admin status does **not** bypass booking rules. If you are not in an allowed role, you will see the same “no access” message as anyone else.
 
 ---
 
-## Calendar — staff actions
+## Calendar: staff actions
 
 ### Viewing
 
@@ -83,7 +83,7 @@ Same as everyone: you see practices, jams, blocks, and closures in one place.
 
 ### Reserving jam time (as yourself)
 
-If you are **signed in** as an individual, you can **drag** to select a time range and complete the **reservation** flow like any other student—unless you are intentionally blocking time instead (see below).
+If you are **signed in** as an individual, you can **drag** to select a time range and complete the **reservation** flow like any other student, unless you are intentionally blocking time instead (see below).
 
 ### Blocking time (admin)
 
@@ -99,11 +99,11 @@ When you **drag** across a range **as an admin**, the app opens **Block off time
 On **Fridays**, a red-tinted band may show **Practice Room Closed** for a time window when jams are not allowed past a certain time.
 
 - **Students** only see that band as information.
-- **Admins** can **tap** that band (or use keyboard **Enter** / **Space** when it is focused) to open a **dialog** asking whether to **open** the practice room for that Friday—allowing jams past the usual cutoff for that date. Confirm only when leadership has approved.
+- **Admins** can **tap** that band (or use keyboard **Enter** / **Space** when it is focused) to open a **dialog** asking whether to **open** the practice room for that Friday, allowing jams past the usual cutoff for that date. Confirm only when leadership has approved.
 
 ### Canceling events
 
-Tap any event for details. **Admins** can cancel **jam** and **practice** events when policy allows, including events created by others—useful when someone asks for help or a booking was made in error.
+Tap any event for details. **Admins** can cancel **jam** and **practice** events when policy allows, including events created by others, which is useful when someone asks for help or a booking was made in error.
 
 ### Private event color tags
 
@@ -118,7 +118,7 @@ This is meant for personal workflow cues such as follow-up, staffing, or interna
 
 ---
 
-## Support — staff workflow
+## Support: staff workflow
 
 ### Inbox
 
@@ -151,7 +151,7 @@ Staff use the same **swipe**, **double-tap**, and **scroll** gestures on the cal
 
 ## Installing the app
 
-Staff can install the app like anyone else—see **[Installing the app](user-guide.md#installing-the-app-optional-but-handy)** in the user guide.
+Staff can install the app like anyone else. See **[Installing the app](user-guide.md#installing-the-app-optional-but-handy)** in the user guide.
 
 ---
 
@@ -163,7 +163,7 @@ Screenshots in [`guide-screenshots`](guide-screenshots/) are generated with:
 npm run screenshots:guide
 ```
 
-To capture **admin-only** UI (violet cards, staff inbox labels), sign in as a staff account in a browser, then take your own screenshots or extend the automation—those states require a logged-in staff session.
+To capture **admin-only** UI (violet cards, staff inbox labels), sign in as a staff account in a browser, then take your own screenshots or extend the automation. Those states require a logged-in staff session.
 
 ---
 

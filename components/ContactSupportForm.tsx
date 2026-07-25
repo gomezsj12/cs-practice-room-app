@@ -10,7 +10,7 @@
  * After a successful submission the thread appears in the user's
  * {@link SupportInbox} where staff replies can be read and answered.
  *
- * @see SupportInbox — where the user views and replies to threads
+ * @see SupportInbox: where the user views and replies to threads
  */
 
 import { useState } from "react";

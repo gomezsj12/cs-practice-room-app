@@ -19,7 +19,7 @@
  * with a no-op subscribe + SSR-safe server snapshot (`false`) to avoid
  * hydration mismatches.
  *
- * @see ServiceWorkerRegistration — registers the SW that enables installability
+ * @see ServiceWorkerRegistration: registers the SW that enables installability
  */
 
 import { useEffect, useState, useSyncExternalStore } from "react";
@@ -68,7 +68,7 @@ function isStandalone() {
 /**
  * No-op subscribe passed to `useSyncExternalStore`. The values these stores
  * read (user-agent, display-mode) never change at runtime, so no
- * subscription is needed — the hook just needs the snapshot functions.
+ * subscription is needed. The hook just needs the snapshot functions.
  */
 function noopSubscribe() {
   return () => {};

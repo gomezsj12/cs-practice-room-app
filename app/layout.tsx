@@ -9,9 +9,9 @@
  * Exports Next.js `metadata` (title, description, manifest link) and
  * `viewport` (dark theme colour) so they appear in the `<head>` of every page.
  *
- * @see {@link @/components/AuthProvider} — provides the NextAuth `SessionProvider`
- * @see {@link @/components/ServiceWorkerRegistration} — registers `/sw.js` on mount
- * @see {@link @/components/InstallPrompt} — PWA install banner (beforeinstallprompt)
+ * @see {@link @/components/AuthProvider}: provides the NextAuth `SessionProvider`
+ * @see {@link @/components/ServiceWorkerRegistration}: registers `/sw.js` on mount
+ * @see {@link @/components/InstallPrompt}: PWA install banner (beforeinstallprompt)
  */
 
 import type { Metadata, Viewport } from "next";

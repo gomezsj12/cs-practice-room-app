@@ -123,7 +123,7 @@ for (const row of data.envs ?? []) {
     console.warn(
       "skip (split in Vercel to mark Sensitive):",
       row.key,
-      "— one binding includes `development` with other envs; Sensitive is not allowed on development.",
+      "(one binding includes `development` with other envs; Sensitive is not allowed on development.)",
     );
     continue;
   }

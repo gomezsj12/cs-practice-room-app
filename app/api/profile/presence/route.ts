@@ -1,9 +1,9 @@
 /**
- * @file `POST /api/profile/presence` — updates App Profile Creation Logs
+ * @file `POST /api/profile/presence`: updates App Profile Creation Logs
  * presence fields (Is Active, Last Active At) for the signed-in user.
  *
- * @see {@link @/hooks/useProfilePresence} — client caller
- * @see {@link @/lib/notion} — `syncProfileLogPresenceToNotion`
+ * @see {@link @/hooks/useProfilePresence}: client caller
+ * @see {@link @/lib/notion}: `syncProfileLogPresenceToNotion`
  */
 
 import { NextResponse } from "next/server";

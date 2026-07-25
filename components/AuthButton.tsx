@@ -10,9 +10,9 @@
  * in, it shows a confirmation banner with a sign-out button plus small
  * pencil (edit profile) and refresh (sync) icon buttons beneath it.
  *
- * @see SiteHeader — parent component that positions this card
- * @see EditProfileModal — opened by the pencil icon
- * @see useProfileSync — powers the refresh icon and auto-sync
+ * @see SiteHeader: parent component that positions this card
+ * @see EditProfileModal: opened by the pencil icon
+ * @see useProfileSync: powers the refresh icon and auto-sync
  */
 
 import { useEffect, useMemo, useState } from "react";
@@ -256,7 +256,7 @@ export default function AuthButton({
               </div>
             </div>
 
-            {/* Sign out + action icons — bottom-right row */}
+            {/* Sign out + action icons: bottom-right row */}
             <div className="flex items-center justify-end gap-2.5">
               {profileComplete && (
                 <div className="flex items-center gap-3 sm:gap-2">
@@ -295,7 +295,7 @@ export default function AuthButton({
                       syncStatus === "cooldown"
                         ? `Wait ${cooldownRemaining}s`
                         : syncStatus === "error"
-                          ? "Sync failed — try again"
+                          ? "Sync failed. Try again"
                           : "Sync profile"
                     }
                   >

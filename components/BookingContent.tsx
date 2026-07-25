@@ -9,14 +9,14 @@
  * without a full page refresh.
  *
  * Three states:
- * 1. **Not ready** — user isn't signed in or profile isn't complete → sign-in prompt.
- * 2. **No booking access** — profile exists but no eligible Notion Type / page → "no access" message.
- * 3. **Ready** — profile with booking-eligible Type and people page → embedded Fillout form.
+ * 1. **Not ready**: user isn't signed in or profile isn't complete → sign-in prompt.
+ * 2. **No booking access**: profile exists but no eligible Notion Type / page → "no access" message.
+ * 3. **Ready**: profile with booking-eligible Type and people page → embedded Fillout form.
  * Until the iframe `load` event, `pointer-events: none` keeps parent-page scrolling
  *    responsive on mobile; after load, the embed behaves normally.
  *
- * @see {@link @/app/api/profile/me/route} — profile data endpoint
- * @see {@link @/app/booking/page} — passes `filloutBaseUrl` from server env
+ * @see {@link @/app/api/profile/me/route}: profile data endpoint
+ * @see {@link @/app/booking/page}: passes `filloutBaseUrl` from server env
  */
 
 import { useEffect, useState } from "react";

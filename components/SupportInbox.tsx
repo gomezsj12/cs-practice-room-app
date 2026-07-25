@@ -28,8 +28,8 @@
  * item opens a floating menu with a "Delete conversation" option. Below `lg`,
  * mobile uses a **Delete chat** control in the conversation header instead.
  *
- * @see ContactSupportForm — creates new threads that appear here
- * @see SupportNavLink — nav badge driven by the same unread state
+ * @see ContactSupportForm: creates new threads that appear here
+ * @see SupportNavLink: nav badge driven by the same unread state
  */
 
 import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";

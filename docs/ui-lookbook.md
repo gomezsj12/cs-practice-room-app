@@ -32,8 +32,8 @@ The header appears on every page via `app/layout.tsx` → `components/SiteHeader
 - On desktop: Horizontal layout with nav pills in a row
 
 **Screenshots:**
-- Desktop (1440×900): [desktop-homepage-top.png](screenshots/desktop-homepage-top.png) — header, nav pills inline, auth card right-aligned
-- Mobile (390×844): [mobile-homepage-top.png](screenshots/mobile-homepage-top.png) — nav pills wrap, auth card stacks below heading
+- Desktop (1440×900): [desktop-homepage-top.png](screenshots/desktop-homepage-top.png). Header, nav pills inline, auth card right-aligned
+- Mobile (390×844): [mobile-homepage-top.png](screenshots/mobile-homepage-top.png). Nav pills wrap, auth card stacks below heading
 
 ### Desktop keyboard shortcuts (wide layout only)
 
@@ -64,7 +64,7 @@ The auth card below the header changes its helper text depending on the current 
 
 ### Toast notifications
 
-`components/Toast.tsx` — Fixed position, bottom-right corner.
+`components/Toast.tsx`: Fixed position, bottom-right corner.
 
 **Types:**
 
@@ -78,7 +78,7 @@ The auth card below the header changes its helper text depending on the current 
 
 ### PWA install prompt
 
-`components/InstallPrompt.tsx` — Appears at the bottom of the screen.
+`components/InstallPrompt.tsx`: Appears at the bottom of the screen.
 
 **States:**
 
@@ -97,9 +97,9 @@ The auth card below the header changes its helper text depending on the current 
 **Route:** `app/page.tsx`
 
 **Screenshots:**
-- Desktop: [desktop-homepage-top.png](screenshots/desktop-homepage-top.png) — full page fits in viewport; hero, contact card, and helpful-links card visible side-by-side
-- Mobile top: [mobile-homepage-top.png](screenshots/mobile-homepage-top.png) — header, auth card, hero, contact form
-- Mobile bottom: [mobile-homepage-bottom.png](screenshots/mobile-homepage-bottom.png) — contact form (cont.), helpful-links card with stacked buttons
+- Desktop: [desktop-homepage-top.png](screenshots/desktop-homepage-top.png). Full page fits in viewport; hero, contact card, and helpful-links card visible side-by-side
+- Mobile top: [mobile-homepage-top.png](screenshots/mobile-homepage-top.png). Header, auth card, hero, contact form
+- Mobile bottom: [mobile-homepage-bottom.png](screenshots/mobile-homepage-bottom.png). Contact form (cont.), helpful-links card with stacked buttons
 
 ### Layout
 
@@ -108,7 +108,7 @@ The homepage is the portal's front door, organized in vertical card sections:
 1. **Header + auth card** (see Global elements above)
 2. **Hero section**: Large heading "Welcome to the NEW CS Practice Room App!" with bullet list of next steps (links to **Booking** and **Calendar** in the nav)
 3. **Contact card**: "Contact Us" heading, contact support form
-4. **Resources card**: "Resources" heading — optional Telegram group link (when `NEXT_PUBLIC_TELEGRAM_GROUP_URL` is set), Terms & Conditions, and Meet with us (external links)
+4. **Resources card**: "Resources" heading with an optional Telegram group link (when `NEXT_PUBLIC_TELEGRAM_GROUP_URL` is set), Terms & Conditions, and Meet with us (external links)
 
 ### Contact support form (`ContactSupportForm.tsx`)
 
@@ -142,9 +142,9 @@ Booking and calendar navigation live in the **header nav** (**Booking**, **Calen
 **Route:** `app/booking/page.tsx`
 
 **Screenshots:**
-- Desktop: [desktop-booking-page.png](screenshots/desktop-booking-page.png) — header inline, Fillout embed with "Open in browser" link, full form visible
-- Mobile top: [mobile-booking-top.png](screenshots/mobile-booking-top.png) — header stacked, auth card, top of Fillout embed with logo
-- Mobile bottom: [mobile-booking-bottom.png](screenshots/mobile-booking-bottom.png) — Fillout form title, description, and Login button
+- Desktop: [desktop-booking-page.png](screenshots/desktop-booking-page.png). Header inline, Fillout embed with "Open in browser" link, full form visible
+- Mobile top: [mobile-booking-top.png](screenshots/mobile-booking-top.png). Header stacked, auth card, top of Fillout embed with logo
+- Mobile bottom: [mobile-booking-bottom.png](screenshots/mobile-booking-bottom.png). Fillout form title, description, and Login button
 
 ### Layout
 
@@ -170,11 +170,11 @@ Booking and calendar navigation live in the **header nav** (**Booking**, **Calen
 **Route:** `app/calendar/page.tsx` → `components/CalendarView.tsx`
 
 **Screenshots:**
-- Desktop top: [desktop-jam-page-top.png](screenshots/desktop-jam-page-top.png) — 7-day week view header, legend, Prev/Today/Next, date range "Apr 5–11, 2026", top of time grid with events
-- Desktop bottom: [desktop-jam-page-bottom.png](screenshots/desktop-jam-page-bottom.png) — evening time slots (3 PM–11:30 PM) with multiple events across different days
-- Mobile top: [mobile-jam-page-top.png](screenshots/mobile-jam-page-top.png) — single-day view header, legend with "Temporary hold", nav buttons, day column "Thu, 4/9"
-- Mobile mid: [mobile-jam-page-mid.png](screenshots/mobile-jam-page-mid.png) — time grid 12 PM–8:30 PM, now indicator (red line), events for the day
-- Mobile bottom: [mobile-jam-page-bottom.png](screenshots/mobile-jam-page-bottom.png) — evening time slots (3 PM–11:30 PM) with remaining events
+- Desktop top: [desktop-jam-page-top.png](screenshots/desktop-jam-page-top.png). 7-day week view header, legend, Prev/Today/Next, date range "Apr 5–11, 2026", top of time grid with events
+- Desktop bottom: [desktop-jam-page-bottom.png](screenshots/desktop-jam-page-bottom.png). Evening time slots (3 PM–11:30 PM) with multiple events across different days
+- Mobile top: [mobile-jam-page-top.png](screenshots/mobile-jam-page-top.png). Single-day view header, legend with "Temporary hold", nav buttons, day column "Thu, 4/9"
+- Mobile mid: [mobile-jam-page-mid.png](screenshots/mobile-jam-page-mid.png). Time grid 12 PM–8:30 PM, now indicator (red line), events for the day
+- Mobile bottom: [mobile-jam-page-bottom.png](screenshots/mobile-jam-page-bottom.png). Evening time slots (3 PM–11:30 PM) with remaining events
 
 ### Layout
 
@@ -185,7 +185,7 @@ Booking and calendar navigation live in the **header nav** (**Booking**, **Calen
    - Note (`text-xs` / `sm:text-sm`, neutral-500): starts with `Note:` (same grey as the rest of the note), then semibold neutral-300 phrase **"Jam Sessions are different than normal practices"**, then `...` and CSPR drumset/keyboard clarification
    - Legend: Practice (gray dot), Jam (blue dot), Temporary hold (dashed circle)
    - Navigation: **Prev** / **Today** (blue) / **Next** buttons
-   - Desktop subtitle: **quarter name** from `GET /api/events` `quarter.name` when a WWU quarter row contains today; otherwise **"Room availability"** — with FullCalendar’s visible range title below (week/day span)
+   - Desktop subtitle: **quarter name** from `GET /api/events` `quarter.name` when a WWU quarter row contains today; otherwise **"Room availability"**, with FullCalendar’s visible range title below (week/day span)
 3. **Calendar grid**: FullCalendar time grid
 
 ### Calendar grid
@@ -227,8 +227,8 @@ Booking and calendar navigation live in the **header nav** (**Booking**, **Calen
 - Tagging must **not** change the event’s time-grid height, timespan, or placement; tagged events render across the same full duration as untagged events.
 
 **Event content** (inside each block):
-- Time range (e.g., "2:00 - 3:30 PM") — top line, smaller text
-- Title (e.g., "Sam - Drums") — second line, bold
+- Time range (e.g., "2:00 - 3:30 PM"): top line, smaller text
+- Title (e.g., "Sam - Drums"): second line, bold
 - Hold events show time only (no title)
 
 ### Drag-select interaction (signed-in users only)
@@ -245,21 +245,21 @@ Booking and calendar navigation live in the **header nav** (**Booking**, **Calen
 4. If finger moves >10px before arming, drag is cancelled (normal scroll continues)
 
 **Validation toasts** (when drag target is invalid):
-- "That time is already booked. Try another spot." — clicked on an existing event
-- "You can't reserve time on past days." — selected a past day
-- "That time has already passed for booking. Pick a later slot." — selected past time on today
-- "There isn't 30 minutes of open time before the next booking here. Try another spot or time." — insufficient gap
+- "That time is already booked. Try another spot." (clicked on an existing event)
+- "You can't reserve time on past days." (selected a past day)
+- "That time has already passed for booking. Pick a later slot." (selected past time on today)
+- "There isn't 30 minutes of open time before the next booking here. Try another spot or time." (insufficient gap)
 
 ### Navigation gestures
 
 **Desktop keyboard:**
-- `ArrowLeft` / `ArrowRight` — navigate prev/next week
-- `T` — jump to today
-- `Escape` — close any open modal
+- `ArrowLeft` / `ArrowRight`: navigate prev/next week
+- `T`: jump to today
+- `Escape`: close any open modal
 
 **Mobile touch:**
-- Horizontal swipe (>50px) — navigate prev/next day
-- Double-tap — jump to today
+- Horizontal swipe (>50px): navigate prev/next day
+- Double-tap: jump to today
 
 ### Reserve modal (`ReserveModal.tsx`)
 
@@ -311,8 +311,8 @@ Opens when clicking on a calendar event (practice or jam).
 - **Ended owned event**: No cancel button; muted ended-state message
 
 **Screenshots:**
-- Desktop modal: [calendar-practice-modal-desktop.png](screenshots/calendar-practice-modal-desktop.png) — practice booking modal with the new details panel and no cancel button for a non-owned booking
-- Mobile modal: [calendar-practice-modal-mobile.png](screenshots/calendar-practice-modal-mobile.png) — mobile modal showing the same cleaned description content
+- Desktop modal: [calendar-practice-modal-desktop.png](screenshots/calendar-practice-modal-desktop.png). Practice booking modal with the new details panel and no cancel button for a non-owned booking
+- Mobile modal: [calendar-practice-modal-mobile.png](screenshots/calendar-practice-modal-mobile.png). Mobile modal showing the same cleaned description content
 
 ### Cancel confirmation modal (`ConfirmModal.tsx`)
 
@@ -331,11 +331,11 @@ Opens when clicking "Cancel" on an owned jam reservation or practice booking.
 **Route:** `app/support/page.tsx` → `components/SupportInbox.tsx`
 
 **Screenshots:**
-- Desktop inbox: [desktop-support-inbox.png](screenshots/desktop-support-inbox.png) — two-column layout, thread list left, conversation right (first thread selected), input at bottom
-- Desktop conversation: [desktop-support-conversation.png](screenshots/desktop-support-conversation.png) — second thread selected showing staff reply and long user message, split panel
-- Mobile threads: [mobile-support-threads.png](screenshots/mobile-support-threads.png) — full-width thread list, no conversation panel
-- Mobile conversation top: [mobile-support-conversation-top.png](screenshots/mobile-support-conversation-top.png) — back arrow, thread header, beginning of long message
-- Mobile conversation bottom: [mobile-support-conversation-bottom.png](screenshots/mobile-support-conversation-bottom.png) — end of message, "Write a message..." input with Send button
+- Desktop inbox: [desktop-support-inbox.png](screenshots/desktop-support-inbox.png). Two-column layout, thread list left, conversation right (first thread selected), input at bottom
+- Desktop conversation: [desktop-support-conversation.png](screenshots/desktop-support-conversation.png). Second thread selected showing staff reply and long user message, split panel
+- Mobile threads: [mobile-support-threads.png](screenshots/mobile-support-threads.png). Full-width thread list, no conversation panel
+- Mobile conversation top: [mobile-support-conversation-top.png](screenshots/mobile-support-conversation-top.png). Back arrow, thread header, beginning of long message
+- Mobile conversation bottom: [mobile-support-conversation-bottom.png](screenshots/mobile-support-conversation-bottom.png). End of message, "Write a message..." input with Send button
 
 ### Layout
 
@@ -461,7 +461,7 @@ The "Support" link in the header shows an unread indicator (amber dot) when any 
 
 | Date | Change | Screenshot |
 | --- | --- | --- |
-| 2026-04-09 | Initial look book created — baseline of all current UI states | (original screenshots) |
+| 2026-04-09 | Initial look book created: baseline of all current UI states | (original screenshots) |
 | 2026-04-09 | Added desktop (1440×900) and mobile (390×844) screenshots with full-page scrolling for all pages | `desktop-*` and `mobile-*` in `docs/screenshots/` |
 | 2026-04-10 | Main nav labels: **Booking** / **Calendar**; calendar page info card copy and typography (heading, body, note); look book text aligned | (refresh screenshots when convenient) |
 | 2026-04-29 | Admin-only private event tags added to calendar event modal and event blocks; separate from practice Session Status | (refresh admin screenshots when convenient) |

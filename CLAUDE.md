@@ -53,19 +53,19 @@ Browser → Next.js API Routes → Google Calendar API (2 calendars: practice + 
 
 ### Client State
 
-- **`useEventPolling`** — Polls `GET /api/events` every 10-30s for merged calendar data
-- **`useBookingFlow`** — State machine for hold → reserve → confirm lifecycle
-- **`useDragSelect`** — Pointer-based slot selection on the calendar grid
+- **`useEventPolling`**: Polls `GET /api/events` every 10-30s for merged calendar data
+- **`useBookingFlow`**: State machine for hold → reserve → confirm lifecycle
+- **`useDragSelect`**: Pointer-based slot selection on the calendar grid
 - Session context via NextAuth `useSession()`
 
 ### Calendar Rendering
 
 `CalendarView.tsx` is the largest component. It wraps FullCalendar (v6 timegrid) with extensive customization:
 
-- **`renderEventContent`** — Custom event card layout (time, title, admin tag dot)
-- **`handleEventDidMount`** — Applies CSS classes and CSS variables for status outlines and tag overlays
-- **`displayEvents` memo** — Merges practice status outline colors and admin tag classes before FullCalendar renders
-- **`eventClassNames`** — Adds `.fc-event-past` for ended events
+- **`renderEventContent`**: Custom event card layout (time, title, admin tag dot)
+- **`handleEventDidMount`**: Applies CSS classes and CSS variables for status outlines and tag overlays
+- **`displayEvents` memo**: Merges practice status outline colors and admin tag classes before FullCalendar renders
+- **`eventClassNames`**: Adds `.fc-event-past` for ended events
 
 CSS for calendar events lives in `app/globals.css` (not Tailwind utilities): `.fc-custom-event`, `.fc-admin-tag-swatch`, `.fc-practice-status-outline`, `.fc-admin-tagged-event`, etc. These use CSS custom properties (`--fc-admin-tag-color`, `--fc-admin-tag-overlay-color`) set per-event via `handleEventDidMount`.
 
@@ -77,7 +77,7 @@ Private per-admin color tags stored in Supabase `admin_event_tags`. Defined in `
 
 ### Event Detail Modal
 
-`EventDetailsModal.tsx` — Fixed overlay for event details. For admin practice events, it shows:
+`EventDetailsModal.tsx`: Fixed overlay for event details. For admin practice events, it shows:
 - Status dropdown (syncs with Notion), editable times, assignee picker, patchlist link editor
 - Draft-then-apply pattern: changes accumulate as draft state, submitted via "Apply Changes"
 - A `nowMs` check disables editing after event end time
@@ -88,17 +88,17 @@ Private per-admin color tags stored in Supabase `admin_event_tags`. Defined in `
 
 ## Key Directories
 
-- **`app/api/`** — 30+ API routes (events, reserve, cancel, holds, support, webhooks, cron)
-- **`components/`** — React components; `ui/select.tsx` is a custom framer-motion animated select (shadcn-inspired)
-- **`lib/`** — Business logic, API clients (`google.ts`, `notion.ts`, `supabase.ts`), types, validation
-- **`hooks/`** — Custom React hooks (booking flow, drag select, event polling, presence)
-- **`e2e/`** — Playwright specs
-- **`docs/`** — Extensive docs including `ARCHITECTURE.md` (69 KB full system design)
+- **`app/api/`**: 30+ API routes (events, reserve, cancel, holds, support, webhooks, cron)
+- **`components/`**: React components; `ui/select.tsx` is a custom framer-motion animated select (shadcn-inspired)
+- **`lib/`**: Business logic, API clients (`google.ts`, `notion.ts`, `supabase.ts`), types, validation
+- **`hooks/`**: Custom React hooks (booking flow, drag select, event polling, presence)
+- **`e2e/`**: Playwright specs
+- **`docs/`**: Extensive docs including `ARCHITECTURE.md` (69 KB full system design)
 
 ## UI Stack
 
 - **Tailwind CSS v4** with PostCSS plugin (`@tailwindcss/postcss`), dark theme (`#030303` base)
-- **Custom UI components** in `components/ui/` — shadcn-inspired but hand-built
+- **Custom UI components** in `components/ui/`: shadcn-inspired but hand-built
 - **Framer Motion** for animations (modals, toasts, select dropdowns)
 - **Lucide React** for icons
 - **FullCalendar v6** with timegrid + interaction plugins

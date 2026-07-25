@@ -8,11 +8,11 @@
  * booking via {@link CalendarView}'s `handleReserve` callback.
  *
  * **Three mode states** (controlled by the parent):
- * - `"securing"` — the hold API call is in-flight; form is disabled with a
+ * - `"securing"`: the hold API call is in-flight; form is disabled with a
  *   "Securing your slot..." banner.
- * - `"hold"` — a 30-second temporary hold exists on the server; a live
+ * - `"hold"`: a 30-second temporary hold exists on the server; a live
  *   countdown is displayed and the form is enabled for submission.
- * - `"fallback"` — hold creation failed; the form is still usable but the
+ * - `"fallback"`: hold creation failed; the form is still usable but the
  *   user is warned that availability will be checked at submit time.
  *
  * **Countdown timer:** When `mode === "hold"`, a 1-second interval updates
@@ -21,8 +21,8 @@
  * immediately, and a ref guard (`expiredRef`) ensures `onExpire` fires
  * exactly once when the hold lapses.
  *
- * @see CalendarView — parent that manages the booking flow and mode transitions
- * @see useBookingFlow — hook that drives mode/expiresAt state
+ * @see CalendarView: parent that manages the booking flow and mode transitions
+ * @see useBookingFlow: hook that drives mode/expiresAt state
  */
 
 import { useEffect, useMemo, useRef, useState } from "react";
@@ -249,7 +249,7 @@ export default function ReserveModal({
                 <span className="font-semibold text-white">
                   {holdSecondsRemaining !== null
                     ? formatHoldSecondsRemaining(holdSecondsRemaining)
-                    : "—"}
+                    : "a moment"}
                 </span>
                 .
               </p>

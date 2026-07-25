@@ -236,7 +236,7 @@ export function buildLegacyPracticeCustomEventIdFromGoogleEventInTimeZone(
  *   the calendar event description (e.g. a contact's phone has 9 digits and
  *   doesn't match `PHONE_RE`'s 10+ digit requirement, or the description was
  *   edited after creation). The Notion row's stored ID may include a suffix
- *   that we can't reproduce — `starts_with` catches the row anyway.
+ *   that we can't reproduce, so `starts_with` catches the row anyway.
  */
 export type CustomEventIdMatchMode = "equals" | "starts_with";
 
@@ -274,7 +274,7 @@ export function buildPracticeCustomEventIdCandidatesFromDateRange(input: {
       )
     : null;
 
-  // Time-only IDs are used as `starts_with` filters — they catch both the
+  // Time-only IDs are used as `starts_with` filters: they catch both the
   // legacy time-only format AND new rows whose suffix we couldn't compute.
   const utcPrefix = buildPracticeCustomEventIdFromDates(
     input.start,

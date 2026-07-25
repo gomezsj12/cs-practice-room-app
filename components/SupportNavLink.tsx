@@ -9,8 +9,8 @@
  *
  * Polls every 20 s while signed in; opening a thread clears the relevant flag.
  *
- * @see SiteHeader — renders this component in the main nav bar
- * @see SupportInbox — the page that clears the unread flag on open
+ * @see SiteHeader: renders this component in the main nav bar
+ * @see SupportInbox: the page that clears the unread flag on open
  */
 
 import Link from "next/link";

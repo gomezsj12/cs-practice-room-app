@@ -38,7 +38,7 @@ export function getProfileLogPageIdsFromCache(
 }
 
 /**
- * Stores a copy of `pageIds` (including empty arrays — “no row yet”).
+ * Stores a copy of `pageIds` (including empty arrays, meaning “no row yet”).
  */
 export function setProfileLogPageIdsCache(
   dataSourceId: string,

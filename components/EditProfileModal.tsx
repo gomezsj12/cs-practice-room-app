@@ -14,12 +14,12 @@
  *   pick up new access without signing out.
  *
  * Three-phase UI flow:
- * 1. **form** — edit the autofilled WWU email with format validation.
- * 2. **updating** — animated progress bar while the API patches the profile.
- * 3. **done** — success message + booking-access indicator showing any change.
+ * 1. **form**: edit the autofilled WWU email with format validation.
+ * 2. **updating**: animated progress bar while the API patches the profile.
+ * 3. **done**: success message + booking-access indicator showing any change.
  *
- * @see {@link @/app/api/profile/me} — `PATCH` handler
- * @see {@link @/components/AuthButton} — renders this modal on pencil click
+ * @see {@link @/app/api/profile/me}: `PATCH` handler
+ * @see {@link @/components/AuthButton}: renders this modal on pencil click
  */
 
 import { useEffect, useRef, useState } from "react";
@@ -125,7 +125,7 @@ export default function EditProfileModal({
       apiFinished.current = true;
       await update(SESSION_JWT_REFRESH_PAYLOAD);
     } catch {
-      setServerError("Network error — please try again");
+      setServerError("Network error. Please try again");
       setPhase("form");
     }
   }

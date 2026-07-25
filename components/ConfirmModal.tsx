@@ -9,7 +9,7 @@
  *
  * Backdrop dismissal is opt-in via `dismissOnBackdrop` (enabled on mobile).
  *
- * @see CalendarView — uses this modal for calendar cancellation confirmation
+ * @see CalendarView: uses this modal for calendar cancellation confirmation
  */
 
 type ConfirmModalProps = {

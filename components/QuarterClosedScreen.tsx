@@ -7,7 +7,7 @@
  * quarter's start, and a slim {@link QuarterClosedAuthCard} so an admin can
  * still sign in to access the app normally.
  *
- * @see {@link @/lib/quarter-window} — `getQuarterGateStatus()` decides when this renders
+ * @see {@link @/lib/quarter-window}: `getQuarterGateStatus()` decides when this renders
  */
 
 import { fromZonedTime } from "date-fns-tz";

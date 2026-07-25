@@ -1,5 +1,5 @@
 ---
-description: Sam is newer to development — explain clearly, step-by-step, check in before risky actions
+description: Sam is newer to development, so explain clearly and step-by-step, and check in before risky actions
 alwaysApply: true
 ---
 
@@ -21,4 +21,4 @@ Do not assume familiarity with Next.js, Vercel, Supabase, OAuth, or git beyond b
 
 ## Local dev and feedback
 
-After **code** changes for the task, run **`npm run dev`** for this repo (per `.cursor/SETTINGS.md` and dev-server cleanup). Then **ask the project owner for feedback** on what you changed — don’t move on as if everything is done until they’ve had a chance to try it.
+After **code** changes for the task, run **`npm run dev`** for this repo (per `.cursor/SETTINGS.md` and dev-server cleanup). Then **ask the project owner for feedback** on what you changed. Don’t move on as if everything is done until they’ve had a chance to try it.

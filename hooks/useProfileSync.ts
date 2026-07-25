@@ -1,5 +1,5 @@
 /**
- * @file Profile sync hook — manual and automatic Notion re-sync.
+ * @file Profile sync hook: manual and automatic Notion re-sync.
  *
  * Manages the lifecycle of profile syncing:
  * - **Manual sync** via `triggerManualSync()` with a 30 s rate limit.
@@ -8,13 +8,13 @@
  *   `profiles.updated_at` changed, so the app does not re-render on every tick).
  * - **Rotation state** for the refresh icon animation (minimum 2 full
  *   rotations at 1.5 s each = 3 s spin floor).
- * - **Cooldown timer** for the rate-limit countdown display — only
+ * - **Cooldown timer** for the rate-limit countdown display: only
  *   shown when the user clicks *after* the spin has finished.
  *
  * Clicks while the icon is spinning or the sync is in flight are ignored.
  *
- * @see {@link @/app/api/profile/sync/route} — server endpoint
- * @see {@link @/components/AuthButton} — consumes this hook
+ * @see {@link @/app/api/profile/sync/route}: server endpoint
+ * @see {@link @/components/AuthButton}: consumes this hook
  */
 
 import { useCallback, useEffect, useRef, useState } from "react";

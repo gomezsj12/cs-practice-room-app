@@ -7,7 +7,7 @@
  * Fires on `pointerdown` for non-touch pointers. Arms immediately, captures
  * the pointer, and tracks `pointermove` until `pointerup` / `pointercancel`.
  * Touch-type pointers are explicitly rejected here to avoid duplicate
- * completions — see below.
+ * completions (see below).
  *
  * ### Touch path (dedicated Touch events)
  * Many mobile browsers (especially iOS Safari) do not reliably honour
@@ -31,15 +31,15 @@
  *
  * ### `completeSelection` validation chain
  * On pointer-up / touch-end, the final range goes through:
- * 1. `mergeSelectionRange` — clamp to the nearest blocker boundaries.
- * 2. `applyMinBookableStartToRange` — shift start forward if it falls in the
+ * 1. `mergeSelectionRange`: clamp to the nearest blocker boundaries.
+ * 2. `applyMinBookableStartToRange`: shift start forward if it falls in the
  *    past.
- * 3. `applyFridayJamCutoffToRange` — cap end at 2:30 PM on Fridays (skipped
+ * 3. `applyFridayJamCutoffToRange`: cap end at 2:30 PM on Fridays (skipped
  *    for admins and for Fridays in the `fridayExceptions` set).
- * 4. `isPastCalendarDay` — reject if the entire day is in the past.
- * 5. `selectionIsBookable` — reject if the range is shorter than the minimum
+ * 4. `isPastCalendarDay`: reject if the entire day is in the past.
+ * 5. `selectionIsBookable`: reject if the range is shorter than the minimum
  *    booking duration (30 min).
- * 6. Auth check — only authenticated users may proceed.
+ * 6. Auth check: only authenticated users may proceed.
  *
  * If all checks pass, an optimistic hold event is injected and the booking
  * flow is kicked off via `createHoldOrFallbackRef`. For admins, the
@@ -177,7 +177,7 @@ export function useDragSelect(
     let active: ActiveDrag | null = null;
     /** Non-zero when a `paintMirror` frame is already scheduled. */
     let rafId = 0;
-    /** Shared across both input paths — written on every move, read by `paintMirror`. */
+    /** Shared across both input paths: written on every move, read by `paintMirror`. */
     let lastClientY = 0;
     /** Dedup key to skip `setDragMirror` when bounds haven't changed. */
     let lastMirrorKey = "";

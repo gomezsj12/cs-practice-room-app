@@ -1,4 +1,4 @@
-# Code Review — Process, Checklists & Session Records
+# Code Review: Process, Checklists & Session Records
 
 This document defines the code review process for the CS Practice Room app and records completed review sessions. It is written for AI agents (like Cursor agents) acting as code reviewers, but human reviewers should follow the same checklists.
 
@@ -20,12 +20,12 @@ Reviews should be done in phases, from lowest-risk (documentation) to highest-ri
 
 Check that all documentation files are accurate and up to date:
 
-- [ ] `docs/change-log.md` — reflects all commits in git history
-- [ ] `docs/ARCHITECTURE.md` — matches current file structure, routes, env vars, dependencies
-- [ ] `docs/error-log.md` — includes any recently fixed errors
-- [ ] `docs/ui-lookbook.md` — matches the current UI (spot-check screenshots against live app)
-- [ ] `docs/code-audit.md` — any new findings since last review?
-- [ ] `.cursor/rules/documentation-protocol.mdc` — still correct?
+- [ ] `docs/change-log.md`: reflects all commits in git history
+- [ ] `docs/ARCHITECTURE.md`: matches current file structure, routes, env vars, dependencies
+- [ ] `docs/error-log.md`: includes any recently fixed errors
+- [ ] `docs/ui-lookbook.md`: matches the current UI (spot-check screenshots against live app)
+- [ ] `docs/code-audit.md`: any new findings since last review?
+- [ ] `.cursor/rules/documentation-protocol.mdc`: still correct?
 
 ### Phase 2: Code comments audit
 
@@ -81,13 +81,13 @@ Use browser tools to verify the live app at both desktop (1440×900) and mobile 
 
 These are patterns that have caused issues in this project before. Flag them during review:
 
-1. **Stale comments** — comments that describe old behavior after logic was changed
-2. **Duplicate type definitions** — same shape defined in multiple files instead of `lib/types.ts`
-3. **Sequential awaits** — `await fetchA(); await fetchB();` when they could be `Promise.all`
-4. **Exported internals** — functions/types exported from a module but only used within it
-5. **Missing JSDoc** — new functions added without documentation
-6. **Hardcoded constants** — magic numbers that should be named constants
-7. **Undocumented env vars** — new env vars used in code but not listed in `ARCHITECTURE.md`
+1. **Stale comments**: comments that describe old behavior after logic was changed
+2. **Duplicate type definitions**: same shape defined in multiple files instead of `lib/types.ts`
+3. **Sequential awaits**: `await fetchA(); await fetchB();` when they could be `Promise.all`
+4. **Exported internals**: functions/types exported from a module but only used within it
+5. **Missing JSDoc**: new functions added without documentation
+6. **Hardcoded constants**: magic numbers that should be named constants
+7. **Undocumented env vars**: new env vars used in code but not listed in `ARCHITECTURE.md`
 
 ---
 
@@ -97,7 +97,7 @@ Each code review session is recorded below with date, scope, changes made, and v
 
 ---
 
-### Session: 2026-04-09 — Initial comprehensive review
+### Session 2026-04-09: Initial comprehensive review
 
 **Reviewer:** Cursor agent (claude-4.6-opus)
 **Scope:** Full codebase (~57 TS/TSX source files, CSS, docs, config)
@@ -113,7 +113,7 @@ Each code review session is recorded below with date, scope, changes made, and v
 6. Code redundancy and efficiency audit (without breaking UI or functionality)
 7. Code comments added to all source files
 
-#### Changes made — documentation (no code logic affected)
+#### Changes made: documentation (no code logic affected)
 
 | File | Action |
 | --- | --- |
@@ -123,12 +123,12 @@ Each code review session is recorded below with date, scope, changes made, and v
 | `docs/ui-lookbook.md` | Created: ~400 lines covering all pages, states, interactions, colors, typography, breakpoints |
 | `docs/screenshots/` | 16 screenshots: desktop (1440×900) and mobile (390×844) with full-page scrolling |
 | `docs/code-audit.md` | Created: 19 findings with risk levels and implementation status |
-| `docs/CODE_REVIEW.md` | Created: this file — process, checklists, anti-patterns, session records |
+| `docs/CODE_REVIEW.md` | Created: this file, covering process, checklists, anti-patterns, and session records |
 | `docs/README.md` | Updated: documentation file table and "how docs stay current" section |
 | `.cursor/rules/documentation-protocol.mdc` | Created then updated: triggers for change-log, error-log, ui-lookbook, architecture, code comments |
 | `.cursor/rules/change-log.mdc` | Updated: references new two-part structure and error-log |
 
-#### Changes made — code logic (verified with build)
+#### Changes made: code logic (verified with build)
 
 | Finding | File(s) | Change | Risk |
 | --- | --- | --- | --- |
@@ -141,7 +141,7 @@ Each code review session is recorded below with date, scope, changes made, and v
 | AUDIT-012 | `app/api/events/route.ts` | Parallelized Supabase hold query into existing `Promise.all` | Low |
 | AUDIT-014 | `components/SupportInbox.tsx` | Parallelized polling: `Promise.all([loadThreads(), loadThread()])` | Low |
 
-#### Changes made — code comments (no logic affected)
+#### Changes made: code comments (no logic affected)
 
 Added JSDoc and inline comments to all source files:
 - 11 `lib/` files
@@ -176,7 +176,7 @@ Every exported function/type/component received a JSDoc block. File-level JSDoc 
 | Browser: support message composer (type, clear, Send enables/disables) | Working |
 | Browser: helpful links → booking page navigation | Working |
 | Browser: mobile responsive breakpoint (week → day view) | Working |
-| Browser: console — no application runtime errors | Confirmed (only Cursor browser tool artifacts) |
+| Browser console: no application runtime errors | Confirmed (only Cursor browser tool artifacts) |
 | Screenshots: desktop 1440×900, all pages with scrolling | 6 screenshots captured |
 | Screenshots: mobile 390×844, all pages with scrolling | 10 screenshots captured |
 
@@ -190,7 +190,7 @@ Every exported function/type/component received a JSDoc block. File-level JSDoc 
 
 ---
 
-### Session: 2026-04-15 — Second comprehensive review
+### Session 2026-04-15: Second comprehensive review
 
 **Reviewer:** Cursor agent (claude-4.6-opus)
 **Scope:** Full codebase (code quality, redundancy, bugs, documentation freshness)
@@ -204,7 +204,7 @@ Every exported function/type/component received a JSDoc block. File-level JSDoc 
 4. Ensure lookbook screenshots and documentation are up to date with the latest UI
 5. All changes must be verified not to break any functionality
 
-#### Changes made — code logic (verified with build + Playwright)
+#### Changes made: code logic (verified with build + Playwright)
 
 | Finding | File(s) | Change | Risk |
 | --- | --- | --- | --- |
@@ -215,12 +215,12 @@ Every exported function/type/component received a JSDoc block. File-level JSDoc 
 | AUDIT-024 | `support/contact/route.ts`, `support/reply/route.ts` | Extracted `MAX_SUPPORT_MESSAGE_LENGTH` to `lib/validation.ts` | Low |
 | AUDIT-004 | `support/contact/route.ts`, `support/reply/route.ts` | Extracted `normalizeMessageText` to `lib/validation.ts` (was deferred AUDIT-004) | Low |
 | AUDIT-025 | `app/api/events/route.ts` | Replaced `isAppAdmin()` with `isEffectiveAppAdmin()` using already-loaded profile | Low-medium |
-| AUDIT-026 | `app/api/cancel/route.ts` | Same — load profile unconditionally, use `isEffectiveAppAdmin` | Low-medium |
+| AUDIT-026 | `app/api/cancel/route.ts` | Same: load profile unconditionally, use `isEffectiveAppAdmin` | Low-medium |
 | AUDIT-027 | `lib/support.ts` | Added `response.ok` check to `closeTelegramSupportForumTopic` | Low |
 | AUDIT-028 | `hooks/useProfileSync.ts` | Manual sync now tracks and surfaces failure state (red icon) | Low |
 | AUDIT-029 | `lib/quarter-window.ts` | Moved misplaced JSDoc to correct function | Zero |
 
-#### Changes made — documentation
+#### Changes made: documentation
 
 | File | Action |
 | --- | --- |
@@ -251,9 +251,9 @@ Plus 8 findings carried forward from Session 1 (AUDIT-001, 002, 003, 009, 013, 0
 | `npm run build` after dead code removal | Passed, 0 errors |
 | `npm run build` after constant extraction | Passed, 0 errors |
 | `npm run build` after bug fixes + redundancy removal | Passed, 0 errors |
-| Playwright: Chromium — home + sticky nav (27 tests) | All passed |
-| Playwright: Firefox — home + sticky nav (27 tests) | All passed |
-| Playwright: WebKit — home + sticky nav (27 tests) | All passed |
+| Playwright Chromium: home + sticky nav (27 tests) | All passed |
+| Playwright Firefox: home + sticky nav (27 tests) | All passed |
+| Playwright WebKit: home + sticky nav (27 tests) | All passed |
 | Total Playwright tests across 3 engines | 81 passed, 0 failed |
 
 #### Notes for future reviewers
@@ -261,5 +261,5 @@ Plus 8 findings carried forward from Session 1 (AUDIT-001, 002, 003, 009, 013, 0
 - The `guide-screenshots.spec.ts` tests are designed for the `playwright.guide.config.ts` config and fail when run with the default config (they target production, not localhost). Run them with `npm run screenshots:guide`.
 - AUDIT-001 (shared auth guard helper) remains the highest-impact deferred refactor; it touches 18+ API routes so needs a dedicated pass with thorough endpoint testing.
 - The `docs/ARCHITECTURE.md` file map is significantly out of date (missing many components, hooks, API routes, and lib files added since the initial review). A full refresh should be done in a separate documentation pass.
-- `docs/change-log.md` Part 2 is behind `git log` by several commits — needs backfill before the next commit.
+- `docs/change-log.md` Part 2 is behind `git log` by several commits and needs backfill before the next commit.
 - `.env.example` is referenced by multiple docs but does not exist. Either create it or remove the references.

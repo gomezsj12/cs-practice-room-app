@@ -8,7 +8,7 @@
  * On error or when the user is not signed in, defaults to `{ unread: false }`
  * to avoid showing a stale badge.
  *
- * @see {@link @/app/api/support/mark-read/route} — clears the unread flag
+ * @see {@link @/app/api/support/mark-read/route}: clears the unread flag
  */
 
 import { NextResponse } from "next/server";
@@ -19,7 +19,7 @@ import { getSupabaseAdmin } from "@/lib/supabase";
 /**
  * Handles `GET /api/support/unread`.
  *
- * Returns `{ unread: boolean }` — `true` when any thread has unread admin replies.
+ * Returns `{ unread: boolean }`, set to `true` when any thread has unread admin replies.
  */
 export async function GET() {
   try {

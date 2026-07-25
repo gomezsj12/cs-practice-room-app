@@ -1,6 +1,6 @@
 -- Allow admins to open the practice room on specific Fridays that are
 -- normally blocked by the hard-coded "closed for jam" overlay.
--- A row here means "this Friday is an exception — the room is open."
+-- A row here means "this Friday is an exception: the room is open."
 
 create table friday_exceptions (
   id uuid primary key default gen_random_uuid(),

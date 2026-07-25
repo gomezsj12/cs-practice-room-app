@@ -101,7 +101,7 @@ export function useNowIndicatorOverlay({
 
     const api = cal.getApi() as CalendarApi;
     // The native indicator is the single source of truth for the vertical
-    // position — we piggyback on FC's internal time → pixel calculation.
+    // position, so we piggyback on FC's internal time → pixel calculation.
     const line = wrap.querySelector(
       ".fc-timegrid-now-indicator-line",
     ) as HTMLElement | null;

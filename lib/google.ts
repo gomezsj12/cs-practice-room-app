@@ -28,7 +28,7 @@ function getGoogleAuth() {
   });
 }
 
-/** Singleton — created on first call, reused for the lifetime of the process. */
+/** Singleton: created on first call, reused for the lifetime of the process. */
 let _calendar: ReturnType<typeof google.calendar> | null = null;
 
 /**

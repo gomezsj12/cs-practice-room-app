@@ -5,7 +5,7 @@
  * Each realm falls back to `NOTION_TOKEN` during migration when split env vars
  * are not set yet.
  *
- * @see {@link https://developers.notion.com/reference/request-limits} — ~3 rps per integration.
+ * @see {@link https://developers.notion.com/reference/request-limits}: ~3 rps per integration.
  */
 
 import { Client } from "@notionhq/client";
@@ -34,8 +34,8 @@ function tokenForRealm(realm: NotionRealm): string {
 /**
  * Shared Notion SDK client for the given realm (lazy singleton per process).
  *
- * - **calendar** — `NOTION_TOKEN_CALENDAR` or `NOTION_TOKEN` fallback.
- * - **profile** — `NOTION_TOKEN_PROFILE` or `NOTION_TOKEN` fallback.
+ * - **calendar**: `NOTION_TOKEN_CALENDAR` or `NOTION_TOKEN` fallback.
+ * - **profile**: `NOTION_TOKEN_PROFILE` or `NOTION_TOKEN` fallback.
  */
 export function getNotionClientForRealm(realm: NotionRealm): Client {
   const token = tokenForRealm(realm);
@@ -60,7 +60,7 @@ export function getNotionClientForRealm(realm: NotionRealm): Client {
 
 /**
  * Default Notion client for jam / practice / quarters / people directory
- * (assignee picker) paths — same as `getNotionClientForRealm("calendar")`.
+ * (assignee picker) paths. Same as `getNotionClientForRealm("calendar")`.
  *
  * Prefer {@link getNotionClientForRealm} with an explicit realm in new code.
  */

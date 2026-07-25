@@ -5,8 +5,8 @@
  * that iOS uses for the home-screen bookmark icon. Mirrors `icon.tsx` but at
  * the 180 px size Apple expects.
  *
- * @see {@link @/lib/pwaIcon} — shared icon renderer (uses `next/og` ImageResponse)
- * @see {@link @/app/icon} — same pattern at 192×192 for the standard favicon
+ * @see {@link @/lib/pwaIcon}: shared icon renderer (uses `next/og` ImageResponse)
+ * @see {@link @/app/icon}: same pattern at 192×192 for the standard favicon
  */
 
 import { createPwaIcon } from "@/lib/pwaIcon";

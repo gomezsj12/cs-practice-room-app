@@ -2,7 +2,7 @@
 
 ## Change log (`docs/change-log.md`)
 
-`docs/change-log.md` is **gitignored** — each clone keeps its own running Part 2 history.
+`docs/change-log.md` is **gitignored**. Each clone keeps its own running Part 2 history.
 
 After you enable hooks, **`post-commit`** runs `scripts/append-change-log-row.mjs`, which appends a Part 2 table row for `HEAD` using the commit subject and short hash.
 

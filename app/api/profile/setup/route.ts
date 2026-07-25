@@ -1,13 +1,13 @@
 /**
- * @file POST /api/profile/setup — first-time account setup endpoint.
+ * @file POST /api/profile/setup: first-time account setup endpoint.
  *
  * Validates the submitted Walla Walla University email, looks up the
  * user in the Notion people database, creates a profile row in Supabase,
  * and logs the event to the Notion audit database (fire-and-forget).
  *
- * @see {@link @/lib/notion} — Notion lookup + log helpers
- * @see {@link @/lib/supabase} — Supabase admin client
- * @see {@link @/components/AccountSetupModal} — client-side caller
+ * @see {@link @/lib/notion}: Notion lookup + log helpers
+ * @see {@link @/lib/supabase}: Supabase admin client
+ * @see {@link @/components/AccountSetupModal}: client-side caller
  */
 
 import { NextResponse } from "next/server";
