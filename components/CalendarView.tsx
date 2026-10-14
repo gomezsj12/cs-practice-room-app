@@ -47,12 +47,18 @@ import { useSession } from "next-auth/react";
 import BlockTimeModal from "@/components/BlockTimeModal";
 import ConfirmModal from "@/components/ConfirmModal";
 import EventDetailsModal from "@/components/EventDetailsModal";
+import {
+  EventHoverCard,
+  hideEventHover,
+  showEventHover,
+} from "@/components/EventHoverCard";
 import ReserveModal from "@/components/ReserveModal";
 import Toast from "@/components/Toast";
 import { useBookingFlow } from "@/hooks/useBookingFlow";
 import { useDragSelect } from "@/hooks/useDragSelect";
 import { useEventPolling } from "@/hooks/useEventPolling";
 import { getCalendarEventKindLabel } from "@/lib/calendar-events";
+import { eventHoverDetails } from "@/lib/event-hover-details";
 import {
   useNowIndicatorOverlay,
   type NowIndicatorOverlayState,
@@ -1852,6 +1858,26 @@ export default function CalendarView() {
               }}
               eventMinHeight={36}
               longPressDelay={150}
+              eventMouseEnter={(info) => {
+                showEventHover(
+                  info.event.id,
+                  eventHoverDetails({
+                    eventType: info.event.extendedProps.eventType,
+                    title: info.event.title,
+                    color: info.event.backgroundColor,
+                    start: info.event.start,
+                    timeText: formatEventTimeRange(
+                      info.event.start,
+                      info.event.end,
+                    ),
+                    adminTagLabel: info.event.extendedProps.adminTagLabel,
+                    adminTagColor: info.event.extendedProps.adminTagColor,
+                  }),
+                  info.el,
+                  info.jsEvent,
+                );
+              }}
+              eventMouseLeave={hideEventHover}
               eventClick={(info) => {
                 if (Date.now() < suppressEventClickUntilMsRef.current) {
                   return;
@@ -1928,6 +1954,8 @@ export default function CalendarView() {
                 }
               }}
             />
+
+            <EventHoverCard />
 
             {nowIndicatorOverlay ? (
               <NowIndicatorOverlayLayer o={nowIndicatorOverlay} />

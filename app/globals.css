@@ -461,6 +461,105 @@ body {
   pointer-events: none;
 }
 
+/* ── Event Hover Card (EventHoverCard.tsx) ── */
+/* Ported from calendar-app's hover card: its glass, ring, shadow, radius, arrow and 150ms enter and exit. */
+.fc-event-hover {
+  --fc-event-hover-bg: color-mix(in oklch, #202020 72%, transparent);
+  --fc-event-hover-ring: #3d3d3d;
+  --fc-event-hover-muted: #b8b8b8;
+  position: fixed;
+  z-index: 1000;
+  max-width: 260px;
+  padding: 10px 12px;
+  border-radius: 0.4rem;
+  background: var(--fc-event-hover-bg);
+  backdrop-filter: blur(16px);
+  box-shadow: 0 0 0 1px var(--fc-event-hover-ring), 0 4px 6px -1px oklch(0 0 0 / 0.1),
+    0 2px 4px -2px oklch(0 0 0 / 0.1);
+  color: var(--foreground);
+  font-size: 13px;
+  line-height: 1.35;
+  pointer-events: none;
+  transform-origin: left var(--arrow-y, 50%);
+  animation: fc-event-hover-in 150ms ease;
+}
+
+.fc-event-hover[data-side="left"] {
+  transform-origin: right var(--arrow-y, 50%);
+  --fc-event-hover-from: 8px;
+}
+
+.fc-event-hover[data-closing] {
+  animation: fc-event-hover-out 150ms ease forwards;
+}
+
+@keyframes fc-event-hover-in {
+  from {
+    opacity: 0;
+    transform: translateX(var(--fc-event-hover-from, -8px)) scale(0.95);
+  }
+}
+
+@keyframes fc-event-hover-out {
+  to {
+    opacity: 0;
+    transform: scale(0.95);
+  }
+}
+
+/* The arrow: a rotated square bordered on its two outer edges, under the text and over the card's background. */
+.fc-event-hover-arrow {
+  position: absolute;
+  z-index: -1;
+  top: var(--arrow-y, 50%);
+  left: -4px;
+  width: 14px;
+  height: 14px;
+  border-radius: 2px;
+  background: var(--fc-event-hover-bg);
+  backdrop-filter: blur(16px);
+  border: 0 solid var(--fc-event-hover-ring);
+  border-bottom-width: 1px;
+  border-left-width: 1px;
+  transform: translateY(-50%) rotate(45deg);
+}
+
+.fc-event-hover[data-side="left"] .fc-event-hover-arrow {
+  left: auto;
+  right: -4px;
+  border-width: 1px 1px 0 0;
+}
+
+.fc-event-hover-title {
+  font-size: 14px;
+  font-weight: 600;
+  overflow-wrap: anywhere;
+}
+
+.fc-event-hover-when {
+  margin-top: 2px;
+  color: var(--fc-event-hover-muted);
+}
+
+.fc-event-hover-meta {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin-top: 6px;
+  color: var(--fc-event-hover-muted);
+}
+
+.fc-event-hover-meta + .fc-event-hover-meta {
+  margin-top: 2px;
+}
+
+.fc-event-hover-meta i {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  flex: none;
+}
+
 /* ── Now Indicator ── */
 /* FullCalendar still renders these for layout; custom overlay draws visible line/arrow/label. */
 
