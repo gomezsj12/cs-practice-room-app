@@ -6,11 +6,15 @@
  *
  * `DELETE /api/admin-event-tags`
  * Removes that private tag.
+ *
+ * The caller is a signed-in admin, or dalin.calendar over the sister-app
+ * bridge (`lib/calendar-bridge.ts`), acting for the env-listed admin it names.
  */
 
 import { NextRequest, NextResponse } from "next/server";
 import { auth } from "@/auth";
 import { isAppAdmin } from "@/lib/admin";
+import { resolveBridgeAdminEmail } from "@/lib/calendar-bridge";
 import {
   deleteAdminEventTag,
   getAdminEventTagOption,
@@ -19,12 +23,21 @@ import {
   upsertAdminEventTag,
 } from "@/lib/admin-event-tags";
 
+/** The admin the tag belongs to: the bridged email, else the session's when
+ *  it is an admin, else null. */
+async function resolveTagAdminEmail(request: NextRequest): Promise<string | null> {
+  const bridged = resolveBridgeAdminEmail(request);
+  if (bridged) return bridged;
+  const session = await auth();
+  const email = session?.user?.email;
+  return email && (await isAppAdmin(email)) ? email : null;
+}
+
 export async function PUT(request: NextRequest) {
   try {
-    const session = await auth();
-    const email = session?.user?.email;
+    const email = await resolveTagAdminEmail(request);
 
-    if (!email || !(await isAppAdmin(email))) {
+    if (!email) {
       return NextResponse.json(
         { error: "Admin access required." },
         { status: 403 },
@@ -104,10 +117,9 @@ export async function PUT(request: NextRequest) {
 
 export async function DELETE(request: NextRequest) {
   try {
-    const session = await auth();
-    const email = session?.user?.email;
+    const email = await resolveTagAdminEmail(request);
 
-    if (!email || !(await isAppAdmin(email))) {
+    if (!email) {
       return NextResponse.json(
         { error: "Admin access required." },
         { status: 403 },

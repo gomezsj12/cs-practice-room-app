@@ -39,7 +39,8 @@ import {
   getAdminEventTagOption,
   getAdminEventTagsForEvents,
 } from "@/lib/admin-event-tags";
-import { isAdminEmail, isEffectiveAppAdmin } from "@/lib/admin";
+import { isEffectiveAppAdmin } from "@/lib/admin";
+import { resolveBridgeAdminEmail } from "@/lib/calendar-bridge";
 import {
   canUserCancelJamEvent,
   canUserCancelPracticeEvent,
@@ -156,27 +157,6 @@ function mapBlockedTimeToApiEvent(
     textColor: "#ffffff",
     canCancel: isAdmin,
   };
-}
-
-/**
- * Resolves the bridge-auth identity: when a trusted sister app
- * (e.g., dalin.calendar) presents `Authorization: Bearer
- * <CALENDAR_BRIDGE_SECRET>` together with an `adminEmail` query
- * param, treat that email as the requesting user IF it appears in
- * `ADMIN_EMAILS`. Returns the resolved email or `null` if the
- * request is not a valid bridge call.
- *
- * Notion-Leadership admins are intentionally NOT honored via the
- * bridge. Only env-listed admins are, to keep the trust path simple.
- */
-function resolveBridgeAdminEmail(request: Request): string | null {
-  const secret = process.env.CALENDAR_BRIDGE_SECRET;
-  if (!secret) return null;
-  const authHeader = request.headers.get("authorization");
-  if (authHeader !== `Bearer ${secret}`) return null;
-  const claimed = new URL(request.url).searchParams.get("adminEmail");
-  if (!claimed || !isAdminEmail(claimed)) return null;
-  return claimed.trim().toLowerCase();
 }
 
 /**
